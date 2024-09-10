@@ -812,15 +812,14 @@ def invest_options():
 def sell_options():
 	update()
 	if request.method == "POST":
+		update()
 		receipt = request.values.get('receipt')
 		username = request.values.get('username')
 		password = request.values.get('password')
 		ticker = request.values.get('ticker')
 		oi = OptionInvestment.query.filter_by(transaction_receipt=receipt).first_or_404()
-		
 		t = yf.Ticker(ticker)
 		df = t.history(period='1y', interval='1d')["Close"]
-		
 		hist = t.history(period='1d', interval='1m')
 		price = hist['Close'][-1]
 		S = price
@@ -832,7 +831,6 @@ def sell_options():
 		sigma = np.std(df.pct_change()[1:])*np.sqrt(256)
 		option_price = black_scholes(S, K, float(T.total_seconds()/86400), r, sigma)
 		print('\nsigma\n',sigma,"\n\noption price", option_price, "\n\n\n")
-		
 		user = Users.query.filter_by(username=username).first()
 		wal = Wallet.query.filter_by(address=username).first()
 		if user and bcrypt.check_password_hash(user.password, password):
