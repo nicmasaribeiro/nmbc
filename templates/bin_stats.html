@@ -38,13 +38,25 @@
         input[type="submit"]:hover {
             background-color: #218838;
         }
+        .head{
+            text-align: center;
+        }
+        .head:hover{
+            color: green;
+        }
     </style>
 </head>
 <body>
     {% extends "base.html" %}
     {% block content %}
-    <div class="container">
+    <br>
+    <div class="head">
         <h2>Binomial Coefficients for Tree</h2>
+    </div>
+    
+    <br>
+    <div class="container">
+        
         <form method="POST">
             <form method="POST">
                 <label style="color: black;">Asset Ticker</label>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>logknot</title>
+    <title>Invest in Asset</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -45,12 +45,21 @@
         input[type="submit"]:hover {
             background-color: #4cae4c;
         }
+        .head{
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     {% extends "base.html" %}
 
     {% block content %}
+    <br>
+    <div class="head">
+    <h1>
+        Invest in Asset
+    </h1>
+    </div>
     <div class="container">
         <form method="POST">
             <label for="name">Username</label>

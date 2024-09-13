@@ -9,6 +9,7 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 <h1>Sell Options</h1>
+<div class="container">
 <form method="POST">
     
     <label for="username">Asset Receipt Address:</label><br>
@@ -25,4 +26,5 @@
 
     <input type="submit" value="Sell" class="submit-button">
 </form>
+</div>
 {% endblock %}

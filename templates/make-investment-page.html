@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Transact</title>
+    <title>Create Asset</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,13 +27,7 @@
             font-weight: bold;
             color: black;
         }
-        input[type="text"], input[type="float"] {
-            margin-bottom: 15px;
-            padding: 20px;
-            font-size: 1em;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
+
         input[type="submit"] {
             padding: 10px;
             font-size: 1em;
@@ -46,30 +40,39 @@
         input[type="submit"]:hover {
             background-color: #4cae4c;
         }
+        .head{
+            text-align: center;
+            
+        }
+        h1:hover{
+            color: green;
+        }
     </style>
 </head>
 <body>
     {% extends "base.html" %}
 
     {% block content %}
+    <br>
+    <div class="head"><h1>Create Asset Page</h1></div>
+    
     <div class="container">
         <form method="POST">
             <label for="name">Username</label>
             <input type="text" id="name" name="name" placeholder="Enter your username">
-            
-            <label for="ticker">Investment Name</label>
-            <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
-            
-            <label for="coins">Staked Coins</label>
-            <input type="float" step="0.01" id="coins" name="coins" placeholder="Enter the number of staked coins">
-            
+            <br>
             <label for="password">Password</label>
             <input type="password" name="password" placeholder="Enter the password">
-
-
+            <br>
+            <label for="ticker">Investment Name</label>
+            <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
+            <br>
+            <label for="coins">Staked Coins</label>
+            <input type="float" step="0.01" id="coins" name="coins" placeholder="Enter the number of staked coins">
+            <br>
             <label for="Quantity">Number Asset Shares</label>
             <input type="float" name="qt" placeholder="Enter the number of tokens Staked">
-
+            <br>
             <input type="submit" value="Submit">
         </form>
     </div>
