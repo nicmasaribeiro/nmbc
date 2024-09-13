@@ -20,6 +20,7 @@ import enum
 import os
 import sys
 from sqlalchemy.ext.mutable import MutableList
+import datetime as dt
 
 UPLOAD_FOLDER = './static'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -120,6 +121,7 @@ class TransactionType(enum.Enum):
     intra = "intra"
     investment = "investment"
     liquidation = 'liquidation'
+    information_exchange = 'info-exchange'
     
 class TransactionDatabase(db.Model):
     __tablename__ = 'transactions'
@@ -166,18 +168,51 @@ class Block(db.Model):
     previous_hash = db.Column(db.String, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     hash = db.Column(db.String)
-    transactions = db.Column(db.LargeBinary(1024))
+    transactions = db.Column(db.String())
 
+class Chain(db.Model):
+    __tablename__ = 'chain'
     
-class BlockchainPending(db.Model):
-    __tablename__ = 'blocks_pending'
-    
-    id = db.Column(db.Integer,unique=True, primary_key=True)
-    index = db.Column(db.Integer)
-    previous_hash = db.Column(db.String)
+    id = db.Column(db.Integer, primary_key=True)
+    txid = db.Column(db.String, nullable=False)
+    username = db.Column(db.String)
+    from_address = db.Column(db.String, db.ForeignKey('wallets.address'))
+    to_address = db.Column(db.String, db.ForeignKey('wallets.address'))
+    amount = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    data = db.Column(db.PickleType())
-    hash = db.Column(db.String)
+    type = db.Column(db.Enum(TransactionType), nullable=False)
+    signature = db.Column(db.String(1024))
+    from_wallet = db.relationship('Wallet', foreign_keys=[from_address])
+    to_wallet = db.relationship('Wallet', foreign_keys=[to_address])
+    
+class PendingTransactionDatabase(db.Model):
+    __tablename__ = 'pending_transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    txid = db.Column(db.String, nullable=False)
+    username = db.Column(db.String)
+    from_address = db.Column(db.String, db.ForeignKey('wallets.address'))
+    to_address = db.Column(db.String, db.ForeignKey('wallets.address'))
+    amount = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    type = db.Column(db.Enum(TransactionType), nullable=False)
+    signature = db.Column(db.String(1024))
+    from_wallet = db.relationship('Wallet', foreign_keys=[from_address])
+    to_wallet = db.relationship('Wallet', foreign_keys=[to_address])
+
+    def genisis():
+        genisis = PendingTransactionDatabase(
+            txid=os.urandom(10).hex(),
+            username='',
+            from_address='',
+            to_address='',
+            amount=1,
+            timestamp=dt.datetime.now(),
+            type='investment',
+            signature=os.urandom(10).hex(),
+        )
+        db.session.add(genisis)
+        db.session.commit()
 
 class PrivateBlock:
 	def __init__(self, index, previous_hash, timestamp, transactions, hash=None):
@@ -189,73 +224,20 @@ class PrivateBlock:
 		
 	def calculate_hash(self):
 		return hashlib.sha256(str(self.index).encode())    
-
-class MiningStatus(enum.Enum):
-    pending = "pending"
-    completed = "completed"
-    failed = "failed"
-
-class OptionInvestment(db.Model):
-    __tablename__ = 'option_token'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(1024),unique=False)
-    user_address = db.Column(db.String(1024), unique=False)#, unique=True, nullable=False
-    transaction_receipt = db.Column(db.String)
-    asset_name = db.Column(db.String,default=0.0)
-    quantity = db.Column(db.Float())
-    time = db.Column(db.DateTime())
-    strike = db.Column(db.Float(), default=0)
-    maturity = db.Column(db.Float(), default=0.0)
-    risk_free = db.Column(db.Float())
-    vol = db.Column(db.Float())
-    change_value = db.Column(db.Float(), default=0.0)
-    starting_price = db.Column(db.Float(), default=0.0)
-    market_price = db.Column(db.Float,default=0.0)
-    
-class AtomizedInvestment(db.Model):
-    __tablename__ = 'atom_token'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(1024),unique=False)
-    user_address = db.Column(db.String(1024), unique=False)#, unique=True, nullable=False
-    transaction_receipt = db.Column(db.String)
-    quantity = db.Column(db.Integer,default=0.0)
-    coins_value = db.Column(db.Integer, default=0)
     
 class AssetToken(db.Model):
     __tablename__ = 'asset_token'
     
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(1024),unique=False)
+    token_name = db.Column(db.String(1024),unique=False)
     token_address = db.Column(db.String(1024), unique=False)
     user_address = db.Column(db.String(1024), unique=False)#, unique=True, nullable=False
     transaction_receipt = db.Column(db.String)
     quantity = db.Column(db.Integer,default=0.0)
-    cash = db.Column(db.Integer, default=0)
-    coins = db.Column(db.Integer, default=0)
+    cash = db.Column(db.Float, default=0)
+    coins = db.Column(db.Float, default=0)
 
-class CryptoDerivatives(db.Model):
-    __tablename__ = 'crypto_derivatives'
-   
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(1024),unique=False)
-    user_address = db.Column(db.String(1024), unique=False)#, unique=True, nullable=False
-    transaction_receipt = db.Column(db.String)
-    funding_rate = db.Column(db.Float())
-    buy_flow = db.Column(db.Float())
-    sell_flow = db.Column(db.Float())
-    asset_name = db.Column(db.String,default=0.0)
-    quantity = db.Column(db.Float())
-    time = db.Column(db.DateTime())
-    strike = db.Column(db.Float(), default=0)
-    maturity = db.Column(db.Float(), default=0.0)
-    risk_free = db.Column(db.Float())
-    vol = db.Column(db.Float())
-    change_value = db.Column(db.Float(), default=0.0)
-    starting_price = db.Column(db.Float(), default=0.0)
-    market_price = db.Column(db.Float,default=0.0)
-    
 class CoinDB(db.Model):
     __tablename__ = 'coins'
     
@@ -266,9 +248,9 @@ class CoinDB(db.Model):
     dollar_value = db.Column(db.Integer,default=0.01)
     total_coins = db.Column(db.Integer,default=1_000_000_000_000)
     
-    def gas(self,blockchain,gas):
-        if 10 > gas > 1:
-            dif = 10 - gas
+    def gas(self,blockchain,g):
+        if 10 > g > 1:
+            dif = 10 - g
             chain = blockchain.chain
             for i in chain:
                 nonce, hash_result, time_taken = blockchain.proof_of_work(i, difficulty=5)

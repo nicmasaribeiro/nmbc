@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for
+from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file
 from flask import Blueprint
 import os
 import csv
@@ -30,7 +30,8 @@ import stripe
 from flask_login import current_user, login_required, login_user
 import time
 from hashlib import sha256
-import sentry_sdk
+from bc import * 
+#import sentry_sdk
 
 
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
@@ -42,16 +43,16 @@ pending = []
 Bet = [{'id': 0,'username': None ,"transaction": [{'to':None,'from':None,'coins': 0,'cash': 0,'date':dt.date.today()}]}]
 
 
-sentry_sdk.init(
-    dsn="https://c9b44a1891bb0d380c2c152be84d2881@o4507923736952832.ingest.us.sentry.io/4507923739443200",
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profiles_sample_rate to 1.0 to profile 100%
-    # of sampled transactions.
-    # We recommend adjusting this value in production.
-    profiles_sample_rate=1.0,
-)
+#sentry_sdk.init(
+# dsn="https://c9b44a1891bb0d380c2c152be84d2881@o4507923736952832.ingest.us.sentry.io/4507923739443200",
+# # Set traces_sample_rate to 1.0 to capture 100%
+# # of transactions for tracing.
+# traces_sample_rate=1.0,
+# # Set profiles_sample_rate to 1.0 to profile 100%
+# # of sampled transactions.
+# # We recommend adjusting this value in production.
+# profiles_sample_rate=1.0,
+#)
 
 global coin
 coin = Coin()
@@ -61,6 +62,7 @@ blockchain.create_genesis_block()
 global network
 network = Network()
 network.create_genesis_block()
+
 
 def update():
 	invests = InvestmentDatabase.query.all()
@@ -95,7 +97,11 @@ def house():
 @app.route('/coin')
 def coin_db():
 	coin_db = CoinDB.query.get_or_404(1)
-	ls = {'market_cap':coin_db.market_cap,'staked_coins':coin_db.staked_coins,'new_coins':coin_db.new_coins,'dollar_value': coin_db.dollar_value,'total_coins': coin_db.total_coins}
+	ls = {'market_cap':coin_db.market_cap,
+		 'staked_coins':coin_db.staked_coins,
+		 'new_coins':coin_db.new_coins,
+		 'dollar_value': coin_db.dollar_value,
+		 'total_coins': coin_db.total_coins}
 	return jsonify(ls)
 
 
@@ -138,7 +144,6 @@ def create_checkout_session():
 def success():
 	session_id = request.args.get('session_id')
 	session = stripe.checkout.Session.retrieve(session_id)
-	
 	if session.payment_status == 'paid':
 		user_id = session.metadata['user_id']  # Retrieve user_id from metadata
 		user = Users.query.get_or_404(user_id)
@@ -148,7 +153,6 @@ def success():
 		pay_id =  session.payment_intent
 		user.payment_id = pay_id
 		db.session.commit()
-			
 		return f'<h1>Payment Successful</h1><a href="/">Home</a><h3>{pay_id}</h3>'
 	else:
 		return '<h1>Payment Failed</h1><a href="/">Home</a>'
@@ -219,7 +223,6 @@ def create_wallet():
 				return jsonify({'message': 'Wallet Created!'}), 201
 	return render_template("signup-wallet.html")
 
-
 @app.route('/login', methods=['POST','GET'])
 def login():
 	if request.method == "POST":
@@ -236,6 +239,7 @@ def login():
 @app.route('/get/users', methods=['GET'])
 @login_required
 def get_users():
+#	new_transaction = TransactionDatabase()
 	users = Users.query.all()
 	users_list = [{'id': user.id, 'username': user.username, 'email': user.email,'publicKey':str(user.personal_token)} for user in users]
 	return jsonify(users_list)
@@ -315,25 +319,43 @@ def get_user(user,password):
 		return jsonify({'id': user.id, 'username': user.username, 'email': user.email,'private_key':str(user.private_token),'personal_token':str(user.personal_token),'payment_id':user.payment_id})
 	else:
 		return redirect('/')
-		
+
+
 @app.route('/transact',methods=['GET','POST'])
 @login_required
 def create_transact():
 	if request.method == "POST":
 		id_from = request.values.get("username_from")
 		id_to = request.values.get("username_to")
-		value = float(request.values.get("value"))
-		stake = coin.process_coins(blockchain)
+		value = .9*float(request.values.get("value"))
+		stake = coin.process_coins()
 		password = request.values.get("password")
 		user = Users.query.filter_by(username=id_from).first()
 		user2 = Users.query.filter_by(username=id_to).first()
 		w1 = Wallet.query.filter_by(address=id_from).first()
-		print("\n\n\n",w1)
 		w2 = Wallet.query.filter_by(address=id_to).first()
+		packet = str({'from':id_from,'to':id_to,'value':value}).encode()
+		blockchain.add_transaction(packet.hex())
+		pending = PendingTransactionDatabase(
+									   txid=os.urandom(10).hex(),
+									   username=w1.address,
+									   from_address=w1.address,
+									   to_address=w2.address,
+									   amount=value,
+									   timestamp=dt.datetime.now(),
+									   type='internal_wallet',
+									   signature=str(w1.address).encode().hex())
+		db.session.add(pending)
+		db.session.commit()
 		from_addrs = user.username
 		to_addrs = user2.username
 		txid = str(os.urandom(10).hex())
-		transaction = {'index': len(blockchain.pending_transactions)+1,'previous_hash': hash(str(blockchain.get_latest_block())),'timestamp':dt.date.today(),'transactions': blockchain.pending_transactions,'hash':sha256(str(blockchain.pending_transactions).encode())}
+		transaction = {
+				 'index': len(blockchain.pending_transactions)+1,
+				 'previous_hash': sha512(str(blockchain.get_latest_block()).encode()).hexdigest(),
+				 'timestamp':dt.date.today(),
+				 'transactions': blockchain.pending_transactions,
+				 'hash':sha256(str(blockchain.pending_transactions).encode())}
 		blockchain.receipts['to'] = user2.username
 		blockchain.receipts['from'] = user.username
 		blockchain.receipts['value'] = value
@@ -341,23 +363,23 @@ def create_transact():
 		network.add_transaction(blockchain.pending_transactions)
 		blockchain.add_transaction(transaction)
 		blockchain.money.append(value)
-				
 		if user and bcrypt.check_password_hash(user.password, password):
 			betting_house = BettingHouse.query.get_or_404(1)
-			betting_house.cash_fee(.05*value)			
-			new_value = 0.95*value
+			betting_house.cash_fee(.1*value)			
+			new_value = 0.9*value
 			w1.set_transaction(w2, new_value)
-			new_transaction = TransactionDatabase(username=user.username,txid=txid,from_address = from_addrs,signature=str(os.urandom(10).hex()).encode(),to_address = to_addrs, amount = value, type='send')
-			
+			new_transaction = TransactionDatabase(
+										 username=user.username,
+										 txid=txid,
+										 from_address = from_addrs,
+										 signature=os.urandom(10).hex(),
+										 to_address = to_addrs,
+										 amount = value, 
+										 type='send')
 			db.session.add(new_transaction)
 			db.session.commit()
-			
-#			data = [str(from_addrs),value,str(to_addrs),str(os.urandom(10).hex()),]
-#			with open(f"portfolio/pending.csv",'a') as file:
-#				writer = csv.writer(file)
-#				writer.writerow(data)
 			coin_db = CoinDB.query.get_or_404(1)
-			coin_db.gas(blockchain,6)
+			# coin_db.gas(blockchain,6)
 			return  """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 	
 	return render_template("trans.html")
@@ -376,8 +398,7 @@ def liquidate_asset():
 		if asset.investors == 1:
 			if password == asset.password and user == asset.owner:
 				coin_db = CoinDB.query.get_or_404(1)
-				coin_db.gas(blockchain,6)
-				sell_price = asset.tokenized_price*transaction.amount
+				sell_price = asset.market_cap
 				wal.coins += sell_price
 				db.session.commit()
 				db.session.delete(asset)
@@ -392,30 +413,28 @@ def liquidate_asset():
 @app.route('/get/tokens', methods=["POST","GET"])
 def get_asset_token():
 	asset_tokens = AssetToken.query.all()
-	ls = [{'id':asset.id,'token_address':asset.token_address,'user_address':asset.user_address,'transaction_receipt':asset.transaction_receipt,'username':asset.username} for asset in asset_tokens]
+	ls = [{'id':asset.id,
+		'token_address':asset.token_address,
+		'user_address':asset.user_address,
+		'transaction_receipt':asset.transaction_receipt,
+		'username':asset.username,
+		'coins':asset.coins} for asset in asset_tokens]
 	return jsonify(ls)
 
 @app.route('/make/block')
 def make_block():
 	if not blockchain:
 		return "<h3>Blockchain instance not found</h3>"
-
 	index = len(blockchain.chain) + 1
 	previous_block = blockchain.get_latest_block()
-	previous_hash = hash(blockchain.get_latest_block())#if previous_block else '0'
+	previous_hash = (str(blockchain.get_latest_block()).encode().hex())#if previous_block else '0'
 	timestamp = dt.date.today()
 	transactions = blockchain.pending_transactions
-	status = blockchain.is_chain_valid()
-	print("\n\nstatus\n\n",status)
-	
 	index = len(network.chain) + 1
 	previous_block = network.get_latest_block()
-	previous_hash = network.get_latest_block().hash #if previous_block else '0'
-	timestamp = dt.date.today()
+	previous_hash = (str(network.get_latest_block()).encode()).hex()#if previous_block else '0'
+	timestamp = dt.datetime.now()
 	transactions = blockchain.pending_transactions
-	status = blockchain.is_chain_valid()
-	print("\n\nstatus\n\n",status)
-	
 	# Create a new block
 	block_data = {
 		'index': index,
@@ -427,9 +446,12 @@ def make_block():
 	# Calculate the block hash
 	block_string = str(block_data).encode()
 	block_hash = hashlib.sha256(block_string).hexdigest()
-	
 	# Create the PrivateBlock and Block instances
-	block = PrivateBlock(index, previous_hash, timestamp,str(transactions), block_hash)
+	block = PrivateBlock(index, 
+					  previous_hash, 
+					  timestamp,
+					  str(transactions),
+					  block_hash)
 	new_block = Block(
 		index=int(index),
 		previous_hash=str(previous_hash),
@@ -437,28 +459,21 @@ def make_block():
 		transactions=str(transactions).encode(),
 		hash=str(block_hash)
 	)
-	
-	# Add the new block to the database
 	db.session.add(new_block)
 	db.session.commit()
-	
-	# Add the new block to the blockchain
 	blockchain.add_block(block)
 	blockchain.approved_transactions.append(transactions)
-	
-#	network.stake.append(value)
 	coin_db = CoinDB.query.get_or_404(1)
-	coin_db.gas(blockchain,5)
+	coin_db.gas(blockchain,4)
 	staked_coins = coin_db.proccess_coins(blockchain)
 	t = blockchain.staked_coins.append(staked_coins)
-
 	return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>{str(new_block).encode().decode()}"""
 
 @login_required
 @app.route('/cmc',methods=['GET'])
 def cmc():
 	user = current_user
-	return render_template("cmc.html",use=user)
+	return render_template("cmc.html",user=user)
 
 @login_required
 @app.route('/html/trans',methods=['GET'])
@@ -474,8 +489,10 @@ def html_investment_ledger():
 
 @app.route('/get/approved',methods=['GET'])
 def get_approved():
-	trans =  blockchain.approved_transactions
-	return jsonify(trans)
+	trans =  Chain.query.all()
+	ls = [{'id':t.id,'txid':t.txid,'username':t.username,'from':t.from_address,
+		'to':t.to_address,'amount':t.amount,'time':t.timestamp,'type':str(t.type),'signature':t.signature} for t in trans]
+	return jsonify(ls)
 
 @app.route('/get/blocks',methods=['GET'])
 def get_blocks():
@@ -553,8 +570,9 @@ def get_wallets():
 @login_required
 @app.route('/get/pending')
 def get_pending():
-	trans = blockchain.pending_transactions
-	ls = [str(i) for i in trans]
+	trans = PendingTransactionDatabase.query.all()
+	ls = [{'id':t.id,'txid':t.txid,'username':t.username,'from':t.from_address,
+		'to':t.to_address,'amount':t.amount,'time':t.timestamp,'type':str(t.type),'signature':t.signature} for t in trans]
 	return jsonify(ls)
 
 @app.route('/show')
@@ -562,7 +580,6 @@ def show():
 	csv = pd.read_csv("portfolio/pending.csv")
 	html = csv.to_html()
 	return f"""<h1><a href='/'>Database</a></h1>{html}"""
-
 
 @app.route('/mine', methods=['GET', 'POST'])
 def mine():
@@ -578,17 +595,40 @@ def mine():
 			s_status = network.is_chain_valid()
 			print('\nthe status is\n', status)
 			print('\nthe status is\n', s_status)
+			pending_transactions = PendingTransactionDatabase.query.all()
+			for i in pending_transactions:
+				approved_transaction = Chain(txid=i.txid,
+								  username=i.username,
+								  from_address=i.from_address,
+								  to_address=i.to_address,
+								  amount=i.amount,
+								  timestamp=i.timestamp,
+								  type=i.type,
+								  signature=i.signature)
+				db.session.add(approved_transaction)
+				db.session.commit()
 			nonce, hash_result, time_taken = blockchain.proof_of_work(i, 5)
 			nonce, hash_result, time_taken = network.proof_of_work(i, 5)
-			staked_proccess = coin.process_coins(i)
-			coin_db.gas(blockchain,3)
-			stake = coin.stake_coins(blockchain.money, blockchain.staked_coins, blockchain)
+			staked_proccess = coin.process_coins()
+			coin_db.gas(blockchain,10)
+			all_approved_transactions = Chain.query.all()
+			approved_values = [i.amount for i in all_approved_transactions]
+			amount_values = [i.amount for i in pending_transactions]
+			print(amount_values)
+			stake = coin.stake_coins(approved_values,amount_values)
+			coin_db.staked_coins+=stake
+			db.session.commit()
 			blockchain.market_cap += stake # + staked_proccess
 			staked_coins.append(stake) #+ 
 			staked_coins.append(coin_db.new_coins)# .market_cap # Add the stake value to the total
 			blockchain.mine_pending_transactions(1)
-			value = sum(staked_coins)
-			miner.add_coins(value)
+			value = sum(staked_coins)/len(staked_coins)
+			for i in pending_transactions:
+				db.session.delete(i)
+				db.session.commit()
+			staked_coins = []
+		miner.miner_wallet+=value
+		db.session.commit()
 		return f"<h1><a href='/'> Home </a></h1><h3>Success</h3>You've mined {value} coins"
 	return render_template('mine.html')
 
@@ -602,13 +642,14 @@ def buy_or_sell():
 		coins = float(request.values.get('coins'))
 		password = request.values.get('password')
 		qt = float(request.values.get("qt"))
-		
 		user_db = Users.query.filter_by(username=user).first()
+		
 		if not user_db:
 			return "<h3>User not found</h3>"
 		
 		ticker = yf.Ticker(invest_name)
 		history = ticker.history(period='1d', interval='1m')
+		
 		if history.empty:
 			return "<h3>Invalid ticker symbol</h3>"
 		
@@ -624,18 +665,20 @@ def buy_or_sell():
 				to_address=invest_name,
 				amount=coins * qt,
 				type='investment',
-				username = user
+				username = user,
+				signature=sha256(str(user_db.private_token).encode()).hexdigest()
 			)
 			db.session.add(new_transaction)
 			db.session.commit()
 			
 			new_asset_token = AssetToken(
 				username=user,
-				token_address=os.urandom(10).hex(),
+				token_address=receipt,
 				user_address=user_db.personal_token,
-				transaction_receipt=receipt,
+				token_name = invest_name,
+				transaction_receipt=os.urandom(10).hex(),
 				quantity=qt,
-				cash=qt * price,
+				cash = qt * price,
 				coins=coins
 			)
 			db.session.add(new_asset_token)
@@ -655,24 +698,29 @@ def buy_or_sell():
 			)
 			db.session.add(new_investment)
 			db.session.commit()
-			
 			wal.coins -= coins
 			db.session.commit()
-			
 			# Create the block data
-			block_data = {
+			pen_trans=PendingTransactionDatabase.query.all()[-1]
+			all_pending = PendingTransactionDatabase.query.all()
+			packet = {
 				'index': len(blockchain.chain) + 1,
-				'previous_hash': hash(blockchain.get_latest_block()),
+				'previous_hash': hash(str(blockchain.get_latest_block())),
 				'datetime': str(dt.datetime.now()),
-				'transactions': blockchain.pending_transactions,
+				'transactions': all_pending,
 			}
+			encoded_packet = str(packet).encode().hex()
+		
+			blockdata = Block(
+				index = len(Block.query.all())+1,
+				previous_hash=pen_trans.signature,
+				timestamp=dt.datetime.now(),
+				hash = encoded_packet,
+				transactions = str(all_pending))
 			
-			# Compute the hash for the block
-			block_string = str(block_data).encode()
-			block_data['hash'] = hashlib.sha256(block_string).hexdigest()
-			
-			# Add the block to the blockchain
-			blockchain.add_block(block_data)
+			db.session.add(blockdata)
+			db.session.commit()
+			blockchain.add_block(packet)
 			return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 		else:
 			return "<h3>Insufficient coins in wallet</h3>"
@@ -684,12 +732,22 @@ def track_invest():
 	if request.method == 'POST':
 		receipt = request.form.get('receipt')
 		tracked = TrackInvestors.query.filter_by(receipt=receipt).all()
-		ls = [{'id': t.id, 'investor_name': t.investor_name, 'token': t.investor_token, 'investment_name': t.investment_name, 'owner': t.owner, 'tokenized_price': t.tokenized_price} for t in tracked]
+		ls = [{'id': t.id, 'receipt':t.receipt,
+         'investor_name': t.investor_name, 
+         'token': t.investor_token, 
+         'investment_name': t.investment_name, 
+         'owner': t.owner,
+         'tokenized_price': t.tokenized_price} for t in tracked]
 		return jsonify(ls)
 	return render_template("inv-inv.html")
 
+@app.route('/search/<receipt>')
+def search(receipt):
+    asset = InvestmentDatabase.query.filter_by(receipt=receipt).first()
+    return render_template('search.html',asset=asset)
+
 @login_required
-@app.route('/make/invest/asset',methods=['GET','POST'])
+@app.route('/invest/asset',methods=['GET','POST'])
 def invest():
 	update()
 	if request.method =="POST":
@@ -703,39 +761,67 @@ def invest():
 		if password == wal.password:
 			if wal.coins >= staked_coins:
 				house = BettingHouse.query.get_or_404(1)
-				house.coin_fee(0.05*staked_coins)
-				new_value = 0.95*staked_coins
+				house.coin_fee(0.1*staked_coins)
+				new_value = 0.9*staked_coins
 				wal.coins -= staked_coins
 				inv.coins_value += staked_coins
 				db.session.commit()
-				new_transaction = TransactionDatabase(username=user,txid=inv.receipt,from_address=user_name.personal_token,to_address=inv.investment_name,amount=staked_coins,type='investment',signature=os.urandom(10).hex())
+				new_transaction = TransactionDatabase(
+        								  username=user,
+                                          txid=inv.receipt,
+                                          from_address=user_name.personal_token,
+                                          to_address=inv.investment_name,
+                                          amount=staked_coins,type='investment',
+                                          signature=os.urandom(10).hex())
 				db.session.add(new_transaction)
 				db.session.commit()
 				inv.add_investor()
-				inv.append_investor_token(name=user, address=user_name.personal_token, receipt=inv.receipt,amount=staked_coins,currency='coins')
-				track = TrackInvestors(receipt=receipt,tokenized_price=inv.tokenized_price,owner=inv.owner,investment_name=inv.investment_name,investor_name=user_name.username,investor_token=user_name.personal_token)
+				inv.append_investor_token(
+        					  name=user, 
+                              address=user_name.personal_token, 
+                              receipt=inv.receipt,
+                              amount=staked_coins,
+                              currency='coins')
+				a_tk = AssetToken(
+        			 username=user,
+                     token_name=inv.investment_name,
+                     token_address=os.urandom(10).hex(),
+                     user_address=user_name.personal_token,
+                     transaction_receipt=inv.receipt,
+                     quantity=staked_coins,
+                     cash = coin.dollar_value*inv.tokenized_price,
+                     coins = inv.tokenized_price)
+				db.session.add(a_tk)
+				db.session.commit()
+				track = TrackInvestors(
+        			 	   receipt=receipt,
+                           tokenized_price=inv.tokenized_price,
+                           owner = sha512(str(inv.owner).encode()).hexdigest(),
+                           investment_name=inv.investment_name,
+                           investor_name=sha512(str(user_name.username).encode()).hexdigest(),
+                           investor_token=user_name.personal_token)
 				db.session.add(track)
 				db.session.commit()
-				blockchain.add_transaction({'index':len(blockchain.chain),"previous_hash":hash(str(blockchain.get_latest_block())),'timestamp':str(dt.date.today()),'data':str({'receipt':receipt,'tokenized_price':inv.tokenized_price,'owner':inv.owner,'investment_name':inv.investment_name,'investor_name':user_name.username,'investor_token':user_name.personal_token})})
+				blockchain.add_transaction({
+        					    'index':len(blockchain.chain)+1,
+                                "previous_hash":str(blockchain.get_latest_block()).encode().hex(),
+                                'timestamp':str(dt.date.today()),
+                                'data':str({'receipt':receipt,
+                                            'tokenized_price':inv.tokenized_price,
+                                            'owner':inv.owner,
+                                            'investment_name':inv.investment_name,
+                                            'investor_name':user_name.username,
+                                            'investor_token':user_name.personal_token})})
 				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {staked_coins} in {inv.investment_name}"""
 			else:
 				return "<h3>Insufficient coins in wallet</h3>"
 	return render_template("invest-in-asset.html")
 
-
 @app.route('/asset/info/<int:id>')
 def info_assets(id):
 	update()
 	asset = InvestmentDatabase.query.get_or_404(id)
-	return render_template("asset-info.html", asset=asset)
-
-@app.route('/get/assets',methods=['GET','POST'])
-def get_assets():
-	update()
-	investemnts = InvestmentDatabase.query.all()
-	ls = [{'id': t.id,'name': str(t.investment_name),'owner':t.owner,'investors_num':t.investors,'market_cap':str(t.market_cap),'coins_value':str(t.coins_value),'receipt':str(t.receipt),'tokenized_price':str(t.tokenized_price),'market_price':t.market_price,'change':t.change_value,'original_price':t.starting_price,'ls':t.ls} for t in investemnts]
-	return jsonify(ls)
-
+	return render_template("asset-info.html", asset=asset)\
 
 @app.route('/get/asset/<int:id>',methods=['GET','POST'])
 def get_asset(id):
@@ -745,7 +831,6 @@ def get_asset(id):
 		return jsonify(info)
 	except:
 		return "<h2>The asset is no longer active<h2>"
-
 
 @app.route('/price',methods=['GET','POST'])
 def price():
@@ -762,158 +847,6 @@ def price():
 		price = black_scholes(S, K, T, r, sigma)
 		return f"{price}"
 	return render_template("options-pricing.html")
-	
-@app.route('/buy/options',methods=['GET','POST'])
-def invest_options():
-	update()
-	if request.method =="POST":
-		receipt = request.values.get('receipt')
-		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-		username = request.values.get('username')
-		password = request.values.get('password')
-		stake = float(request.values.get("stake"))
-		ticker = request.values.get("ticker").upper()
-		t = yf.Ticker(ticker)
-		hist = t.history(period='1d',interval='1m')
-		df = t.history(period='1y',interval='1d')["Close"]
-		price = hist['Close'][-1]
-		S = price
-		K = float(request.form['K'])
-		T = float(request.form['T'])
-		typ = request.form['option']
-		r = 0.05 #float(request.form['r'])
-		sigma = np.std(df.pct_change()[1:])*np.sqrt(256)#f
-		option_price = black_scholes(S, K, T, r, sigma, option_type=typ.lower())
-		print("\n\noption price",option_price,"\n\n")
-		
-		user = Users.query.filter_by(username=username).first()
-		wal = Wallet.query.filter_by(address=username).first()
-		token_cap = option_price*float(stake)
-		
-		if user and bcrypt.check_password_hash(user.password, password):
-			if wal.coins > token_cap:
-				wal.coins -= token_cap
-				new_oi = OptionInvestment(time=dt.date.today(), username = username, user_address = user.personal_token, transaction_receipt = inv.receipt, asset_name=inv.investment_name, quantity=stake, strike = K, maturity = T, risk_free = r, vol=sigma ,change_value = inv.change_value , starting_price = option_price, market_price = price)
-				db.session.add(new_oi)
-				db.session.commit()
-			else:
-				return "Insufficient Coins"
-			
-		new_trans = TransactionDatabase(username=user.username,txid=inv.receipt,from_address=user.username,to_address='market',amount=token_cap,type="investment",signature=os.urandom(10).hex())
-		db.session.add(new_trans)
-		db.session.commit()
-		block = {"index":len(blockchain.chain)+1,"previous_hash":str(hash(blockchain.get_latest_block())).hex(),"timestamp":dt.date.today(),"data":{'username':username,'from_address':user.personal_token,'to_address':'market',"value":token_cap},'hash':hash(str({'username':username,'from_address':user.personal_token,'to_address':'market',"value":token_cap}))}
-		blockchain.add_block(block)
-		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p> You've successfully bought {stake} tokens of asset {inv.investment_name} for total value of {token_cap} coins at option price {option_price}"""
-	return render_template("options.html")
-
-
-@app.route('/sell/options', methods=['GET', 'POST'])
-def sell_options():
-	update()
-	if request.method == "POST":
-		update()
-		receipt = request.values.get('receipt')
-		username = request.values.get('username')
-		password = request.values.get('password')
-		ticker = request.values.get('ticker')
-		oi = OptionInvestment.query.filter_by(transaction_receipt=receipt).first_or_404()
-		t = yf.Ticker(ticker)
-		df = t.history(period='1y', interval='1d')["Close"]
-		hist = t.history(period='1d', interval='1m')
-		price = hist['Close'][-1]
-		S = price
-		K = oi.strike
-		diff = (dt.datetime.now() - oi.time)/365
-		print(diff)
-		T = dt.timedelta(oi.maturity) - diff
-		r = 0.05 #oi.risk_free
-		sigma = np.std(df.pct_change()[1:])*np.sqrt(256)
-		option_price = black_scholes(S, K, float(T.total_seconds()/86400), r, sigma)
-		print('\nsigma\n',sigma,"\n\noption price", option_price, "\n\n\n")
-		user = Users.query.filter_by(username=username).first()
-		wal = Wallet.query.filter_by(address=username).first()
-		if user and bcrypt.check_password_hash(user.password, password):
-			token_cap = option_price * float(oi.quantity)
-			wal.coins += token_cap
-			db.session.commit()
-			db.session.delete(oi)
-			db.session.commit()
-			return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p> You've successfully sold {oi.quantity} tokens of asset {oi.asset_name} for total value of {token_cap} coins at option price {option_price}"""
-		else:
-			return "<h3>Error: Invalid username or password</h3>"
-	return render_template("options-sell.html")
-		
-
-@app.route('/get/myoptions/<username>', methods=['GET','POST'])
-def get_myoptions(username):
-	o = OptionInvestment.query.filter_by(username=username).first()
-	ls = {'id':o.id,'username':o.username,'user_address':o.user_address,'transaction_receipt':o.transaction_receipt,'quantity':o.quantity,'asset_name':o.asset_name,'strike':o.strike,'maturity':o.maturity,'risk_free':o.risk_free,'vol':o.vol,'change_value':o.change_value,'starting_price':o.starting_price,'market_price':o.market_price}
-	return jsonify(ls)
-
-@app.route('/get/options', methods=['GET','POST'])
-def get_options():
-	options = OptionInvestment.query.all()
-	ls = [{'id':o.id,'username':o.username,'user_address':o.user_address,'transaction_receipt':o.transaction_receipt,'quantity':o.quantity,'asset_name':o.asset_name,'strike':o.strike,'maturity':o.maturity,'risk_free':o.risk_free,'vol':o.vol,'change_value':o.change_value,'starting_price':o.starting_price,'market_price':o.market_price} for o in options]
-	return jsonify(ls)
-	
-@app.route('/buy/tokens',methods=['GET','POST'])
-def invest_tokens():
-	update()
-	if request.method =="POST":
-		username = request.values.get('username')
-		qt = request.values.get("qt")
-		receipt = request.values.get('address')
-		password = request.values.get('password')
-		user = Users.query.filter_by(username=username).first()
-		wal = Wallet.query.filter_by(address=username).first()
-		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-		if user and bcrypt.check_password_hash(user.password, password):
-			token_price = inv.tokenized_price
-			token_cap = token_price*float(qt)
-			if wal.coins > token_cap:
-				wal.balance -= token_cap
-				db.session.commit()
-				new_ai = AtomizedInvestment(username= username,token_address= inv.receipt,user_address= user.personal_token,transaction_receipt= inv.transaction_receipt,quantity = qt , coins_value = token_cap)
-				db.session.add(new_ai)
-				db.session.commit()
-				blockchain.add_block({'index':len(blockchain.chain)+1,'previous_hash':blockchain.get_latest_block().hash,'timestamp':str(dt.date.today()),'data':{'user':username,'transaction_type':"buy-investment",'amount':token_cap}})
-		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p> You've successfully bought {qt} tokens of asset {inv.investment_name}"""
-	return render_template("invest-in-token.html")
-
-@app.route('/sell/tokens',methods=['GET','POST'])
-def sell_tokens():
-	update()
-	if request.method =="POST":
-		username = request.values.get('username')
-		receipt = request.values.get('address')
-		password = request.values.get('password')
-		user = Users.query.filter_by(username=username).first()
-		wal = Wallet.query.filter_by(address=username).first()
-		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-		atom = AtomizedInvestment.query.filter_by(transaction_receipt=receipt).first()
-		if user and bcrypt.check_password_hash(user.password, password):
-			token_price = inv.tokenized_price
-			token_cap = token_price*float(atom.quantity)
-			wal.balance += token_cap
-			db.session.commit()
-			db.session.delete(atom)
-			db.session.commit()
-		new_trans = TransactionDatabase(username=user.username,txid=inv.receipt,from_address='market',to_address=user.username,amount=token_cap,type="sell-investment",signature=os.urandom(10).hex())
-		db.session.add(new_trans)
-		db.session.commit()
-		block = {"index":len(blockchain.chain)+1,"previous_hash":blockchain.get_latest_block().hash,"timestamp":dt.date.today(),"data":{'username':username,'from_address':user.personal_token,'to_address':'market',"value":token_cap},'hash':hash(str({'username':username,'from_address':user.personal_token,'to_address':'market',"value":token_cap}))}
-		blockchain.add_block(block)
-		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p> You've successfully sold tokens of asset {inv.investment_name}"""
-	return render_template("sell-token.html")
-
-
-@app.route('/get/atoms',methods=['GET','POST'])
-def get_atom_tokens():
-	ais = AtomizedInvestment.query.all()
-	ls = [{'id':ai.id,'username':ai.username,'transaction_receipt':ai.transaction_receipt,'quantity':ai.quantity,'coins_value':ai.coins_value} for ai in ais]
-	return jsonify(ls)
-
 
 @app.route('/buy/coins',methods=['GET','POST'])
 def buy_coins():
@@ -935,16 +868,13 @@ def buy_coins():
 				db.session.commit()
 				wal.coins += coins
 				db.session.commit()
-		########################################		
-		# ADD TRANSACTION & BLOCKCHAIN LOGIC 
-		########################################
 		return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 	return render_template("buycash.html")
 
 @app.route('/sell/coins',methods=['GET','POST'])
 def sell_coins():
 	if request.method =="POST":
-		exchange = 1/100
+		exchange = coin.dollar_value
 		value = float(request.values.get('value'))
 		username = request.values.get('username')
 		password = request.values.get('password')
@@ -968,7 +898,16 @@ def my_assets():
 	if request.method == 'POST':
 		user_address = request.values.get("address")
 		asset_tokens = AssetToken.query.filter_by(username=user_address).all()
-		ls = [{'token_address':asset.token_address,'transaction_receipt':asset.transaction_receipt,'coins':asset.coins,'cash':asset.cash} for asset in asset_tokens]
+		ls = [{
+			'id':asset.id,
+			'username':asset.username,
+			'token_name':asset.token_name,
+			'token_address':asset.token_address,
+			'user_address':asset.user_address,
+		 	'transaction_receipt':asset.transaction_receipt,
+			'quantity':asset.quantity,
+			'coins':asset.coins,
+		 	'cash':asset.cash} for asset in asset_tokens]
 		return jsonify(ls)
 	return render_template("myassets.html")
 
@@ -977,14 +916,19 @@ def html_my_assets():
 	if request.method == 'POST':
 		user_address = request.values.get("address")
 		asset_tokens = AssetToken.query.filter_by(username=user_address).all()
-		ls = [{'token_address':asset.token_address,'transaction_receipt':asset.transaction_receipt,'coins':asset.coins,'cash':asset.cash} for asset in asset_tokens]
+		ls = [{
+		 'token_address':asset.token_address,
+		 'transaction_receipt':asset.transaction_receipt,
+		 'coins':asset.coins,
+		 'cash':asset.cash} for asset in asset_tokens]
 		return render_template("myassets-view.html",assets=asset_tokens)
 	return render_template("myassets.html")
 	
-@app.route('/close/position',methods=['GET','POST'])
+@app.route('/sell/asset',methods=['GET','POST'])
 def sell_asset():
 	update()
 	if request.method =="POST":
+		update()
 		address = request.values.get('address')
 		user = request.values.get('user')
 		password = request.values.get('password')
@@ -993,18 +937,28 @@ def sell_asset():
 		user_db = Users.query.filter_by(username=user).first()
 		user_token = user_db.personal_token 
 		asset_token = AssetToken.query.filter_by(transaction_receipt = address).first()
-		print('\n\nassettoken\n\n',asset_token,'\n\n')
-		if (asset_token != None) and (invest.investors > 1):
-				close_position = ((1+invest.change_value)*asset_token.coins)/invest.investors
+		if (asset_token != None) and (invest.investors > 1) and (invest != None):
+				update()
+				close_position = ((1+invest.change_value)*asset_token.quantity)*invest.tokenized_price
 				wal.coins += close_position
 				invest.investors -= 1
 				invest.coins_value -= close_position
 				db.session.commit()
 				invest.update_token_value()
-				update()
-				bc_trans = {'receipt':asset_token.token_address,'from_address':'market','to_address':user,'amount':close_position,'type':"liquidation"}
+				bc_trans = {
+        		'receipt':asset_token.token_address,
+                'from_address':'market',
+                'to_address':user,
+                'amount':close_position,
+                'type':"liquidation"}
 				blockchain.add_transaction(bc_trans)
-				new_transaction = TransactionDatabase(username=user,txid=asset_token.token_address,from_address='market',to_address=user,amount=close_position,type="liquidation",signature=asset_token.transaction_receipt)
+				new_transaction = TransactionDatabase(username=user,
+                                          txid=asset_token.token_address,
+                                          from_address='market',
+                                          to_address=user,
+                                          amount=close_position,
+                                          type="liquidation",
+                                          signature=asset_token.transaction_receipt)
 				db.session.add(new_transaction)
 				db.session.commit()
 				db.session.delete(asset_token)
@@ -1013,6 +967,39 @@ def sell_asset():
 		else:
 			return f"""<h1>Liquidation Not Possible</h1>"""
 	return render_template("liquidate.html")
+
+
+##################################################
+# Quantitative Services #########################
+##################################################
+
+@app.route("/implied-vol",methods=["POST",'GET'])
+def implied_vol():
+	from vol import implied_volatility_option
+	if request.method == "POST":
+		market = float(request.values.get("market"))
+		S = float(request.values.get("S"))
+		K = float(request.values.get("K"))
+		T = float(request.values.get("T"))
+		r = float(request.values.get("r"))
+		otype = request.form['option_type']
+		iv = implied_volatility_option(S,K,T,r,market,otype)
+		return f"""<h1><a href='/'>Back</a></h1><h2> IMPLIED VOL</h2><h3>{iv}</h3>"""
+	return render_template("IV.html")
+
+@app.route('/download/csv',methods=['GET','POST'])
+def download_csv():
+    if request.method == "POST":
+        tickers = request.values.get("tickers").upper()
+        tickers = tickers.replace(',', ' ')
+        tickers = yf.Tickers(tickers)
+        period = request.values.get("period")
+        interval = request.values.get("interval")
+        history = tickers.history(period=period,interval=interval)
+        df = history["Close"]
+        csv = df.to_csv('data.csv')
+        return send_file('data.csv', mimetype='text/csv', download_name='data.csv',as_attachment=True)
+    return render_template("download-csv.html") 
 
 
 @app.route('/cov/prices',methods=['GET','POST'])
@@ -1090,7 +1077,6 @@ def graph_day():
 		ticker_data = yf.Ticker(ticker)
 		hist = ticker_data.history(interval=period,period='1d')['Close']
 		open = ticker_data.history(interval=period,period='1d')['Open']
-		
 		sma = hist.rolling(7).mean()
 		# Create the Bokeh plot
 		p = figure(title=f"{ticker} Closing Prices", x_axis_label='Date', y_axis_label='Price', x_axis_type='datetime')
@@ -1116,7 +1102,7 @@ def graph_forecast_1m():
 		dt = 1/31
 		T = 2
 		price_paths = []
-		for i in range(0, 10):
+		for i in range(0, 100):
 			price_paths.append(GeometricBrownianMotion(initial_price, drift, volatility, dt, T).prices)
 		# Create the Bokeh plot
 		p = figure(title=f"{ticker} Closing Prices", x_axis_label='Date', y_axis_label='Price', x_axis_type='datetime')
@@ -1147,7 +1133,7 @@ def graph_forecast_1d():
 		dt = 1/7
 		T = 2
 		price_paths = []
-		for i in range(0, 10):
+		for i in range(0, 1000):
 			price_paths.append(GeometricBrownianMotion(initial_price, drift, volatility, dt, T).prices)
 		# Create the Bokeh plot
 		p = figure(title=f"{ticker} Closing Prices", x_axis_label='Date', y_axis_label='Price', x_axis_type='datetime')
@@ -1178,7 +1164,7 @@ def graph_forecast_1y():
 		dt = 1/256
 		T = 2
 		price_paths = []
-		for i in range(0, 10):
+		for i in range(0, 100):
 			price_paths.append(GeometricBrownianMotion(initial_price, drift, volatility, dt, T).prices)
 		# Create the Bokeh plot
 		p = figure(title=f"{ticker} Closing Prices", x_axis_label='Date', y_axis_label='Price', x_axis_type='datetime')
@@ -1224,7 +1210,7 @@ def geombrow_pred():
 	price_paths = []
 	for i in range(0, paths):
 		price_paths.append(GeometricBrownianMotion(initial_price, drift, volatility, dt, T).prices)
-	return render_template('geombrow-pred.html')
+	return render_template('geombrow-pred.html',pr)
 
 @app.route("/tree",methods=['GET','POST'])
 def tree():
@@ -1302,6 +1288,7 @@ def stats_binom():
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
+		PendingTransactionDatabase.genisis()
 	app.run(debug=True,host="0.0.0.0",port=8080)
 	while True:
 		update()

@@ -204,7 +204,7 @@ class Coin:
 	def get_dollar_value(self):
 		return self.dollar_value
 	
-	def stake_coins(self, approved_transactions, pending_transactions, sender):
+	def stake_coins(self, approved_transactions, pending_transactions):
 		v = self.process_coins()
 		len1 = len(pending_transactions)
 		len2 = len(approved_transactions)
