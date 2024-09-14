@@ -22,8 +22,8 @@ import sys
 from sqlalchemy.ext.mutable import MutableList
 import datetime as dt
 
-UPLOAD_FOLDER = './static'
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+UPLOAD_FOLDER = 'local'
+ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf'}
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -50,7 +50,7 @@ class Wallet(db.Model):
     address = db.Column(db.String, unique=True, nullable=False)
     balance = db.Column(db.Float, default=0)
     password = db.Column(db.String(1024))
-    coins = db.Column(db.Float, default=0)
+    coins = db.Column(db.Float, default=1000)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     token = db.Column(db.String(3072))
 
@@ -223,7 +223,7 @@ class PrivateBlock:
 		self.hash = hash or self.calculate_hash()
 		
 	def calculate_hash(self):
-		return hashlib.sha256(str(self.index).encode())    
+		return hashlib.sha256(str(self.index).encode()) .hexdigest()   
     
 class AssetToken(db.Model):
     __tablename__ = 'asset_token'
@@ -262,6 +262,7 @@ class CoinDB(db.Model):
     def new_coin(self,value):
         self.new_coins += value
         db.session.commit()
+        return self.new_coins
         
     def proccess_coins(self,blockchain):
         new=[]
@@ -316,6 +317,37 @@ class InvestmentDatabase(db.Model):
         self.ls += [{'name':name,'address':address,'receipt':receipt,'amount':amount,'currency':currency}]
         # db.session.add(self.ls)
         db.session.commit()
+
+class ValuationDatabase(db.Model):
+    __tablename__ = 'valuation'
+    
+    id = db.Column(db.Integer, unique=True ,primary_key=True)
+    owner =  db.Column(db.String(1024))
+    target_company = db.Column(db.String(1024))
+    forecast = db.Column(db.Float(),default=0.0)
+    wacc = db.Column(db.Float(), default=0.0)
+    roe  = db.Column(db.Float(), default=0.0)
+    rd = db.Column(db.Float(), default=0.0)
+    change_value = db.Column(db.Float(), default=0.0)
+    receipt = db.Column(db.String(),unique=True)
+    valuation_model = db.Column(db.LargeBinary()) # tokenized_value
+
+class OptimizationToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
+    receipt = db.Column(db.String)
+    output_data = db.Column(db.LargeBinary, nullable=False)
+    filename = db.Column(db.String(), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+
+class Optimization(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
+    receipt = db.Column(db.String)
+    filename = db.Column(db.String(), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
 
 class TrackInvestors(db.Model):
     __tablename__ = 'tracking'
@@ -376,7 +408,7 @@ class Network:
         self.receipts.append(signature)
         return (signature,hex(signature))
     
-    def verify_packet(self,packet:bytes, key,signature):
+    def verify_packet(self,packet:bytes, key, signature):
         hash = int.from_bytes(sha512(packet).digest(), byteorder='big')
         hashFromSignature = pow(signature, key.e, key.n)
         print("Signature valid:", hash == hashFromSignature)
@@ -463,16 +495,21 @@ class Blockchain(Network):
         self.mining_reward = 100
         
     def process_receipts(self,receipts):
+        total_sum = 0
         while True:
             once = os.urandom(10).hex() 
             print(once)
             if once.startswith('00') or once.endswith('00'):
-                total_sum = sum(self.receipts['value'])
-                self.stake += total_sum
-                self.receipts.clear()
-                break
+                total_sum += self.receipts['value']
+                self.stake.append(total_sum)
         return total_sum, once
     
+    def add_receipt(self,_to,_from,value):
+        self.receipts['to'].append()
+        self.receipts['from'].append()
+        self.receipts['value'].append()
+        self.receipts['txid'].append()
+
     def get_pending(self):
         return self.pending_transactions
     
@@ -503,8 +540,10 @@ class Blockchain(Network):
         print("Signature valid:", hash == hashFromSignature)
         return hash == hashFromSignature
     
+    def calculate_hash(self):
+        return hashlib.sha256(str(self.get_latest_block()).encode()) .hexdigest() 
+    
     def proof_of_work(self,block_data, difficulty=5):
-
         nonce = 0
         start_time = time.time()
         prefix = '0' * difficulty
@@ -516,8 +555,7 @@ class Blockchain(Network):
                 end_time = time.time()
                 time_taken = end_time - start_time
                 return nonce, hash_result, time_taken
-    
-    
+
     
     def mine_pending_transactions(self, mining_reward_address):
         reward_tx = (None, mining_reward_address, self.mining_reward)
@@ -569,9 +607,10 @@ class Coin:
         self.market_cap = 0.0001
         self.staked_coins = []
         self.new_coins = 0
-        self.dollar_value = 0
+        self.dollar_value = self.stake_coins/self.market_cap
         
     def process_coins(self,blockchain):
+        blockchain.mine
         self.new_coins += 1
         return self.new_coins
     

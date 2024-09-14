@@ -1,5 +1,11 @@
-import scipy.stats as si
-import numpy as np
+import math
+
+# Cumulative distribution function for standard normal distribution (approximation)
+def norm_cdf(x):
+    """
+    Approximate cumulative distribution function for a standard normal distribution.
+    """
+    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
 # Black-Scholes option pricing model for Call and Put
 def black_scholes_option(S, K, T, r, sigma, option_type='call'):
@@ -13,21 +19,27 @@ def black_scholes_option(S, K, T, r, sigma, option_type='call'):
     sigma: Volatility (standard deviation of stock returns)
     option_type: 'call' for Call option, 'put' for Put option
     """
-    d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-    d2 = d1 - sigma * np.sqrt(T)
+    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+    d2 = d1 - sigma * math.sqrt(T)
     
     if option_type == 'call':
-        price = (S * si.norm.cdf(d1, 0.0, 1.0) - 
-                 K * np.exp(-r * T) * si.norm.cdf(d2, 0.0, 1.0))
+        price = S * norm_cdf(d1) - K * math.exp(-r * T) * norm_cdf(d2)
     elif option_type == 'put':
-        price = (K * np.exp(-r * T) * si.norm.cdf(-d2, 0.0, 1.0) -
-                 S * si.norm.cdf(-d1, 0.0, 1.0))
+        price = K * math.exp(-r * T) * norm_cdf(-d2) - S * norm_cdf(-d1)
     else:
         raise ValueError("Invalid option type. Choose 'call' or 'put'.")
     
     return price
 
-# Implied volatility calculation using Newton-Raphson method
+# Vega function (sensitivity of option price to volatility)
+def vega(S, K, T, r, sigma):
+    """
+    Calculate vega, which is the derivative of the option price with respect to volatility.
+    """
+    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+    return S * math.sqrt(T) * (1 / math.sqrt(2 * math.pi)) * math.exp(-0.5 * d1**2)
+
+# Implied volatility calculation without using SciPy
 def implied_volatility_option(S, K, T, r, market_price, option_type='call', tol=1e-5, max_iter=100):
     """
     Calculate the implied volatility using the market price of an option.
@@ -44,32 +56,16 @@ def implied_volatility_option(S, K, T, r, market_price, option_type='call', tol=
     # Initial guess for volatility
     sigma = 0.2
     for i in range(max_iter):
-        # Calculate option price using current sigma
+        # Calculate the option price with the current guess for sigma
         price = black_scholes_option(S, K, T, r, sigma, option_type)
-        # Calculate vega (derivative of the price with respect to sigma)
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-        vega = S * si.norm.pdf(d1, 0.0, 1.0) * np.sqrt(T)
+        # Calculate vega (rate of change of option price with volatility)
+        v = vega(S, K, T, r, sigma)
         
         # Newton-Raphson step
         price_diff = price - market_price
         if abs(price_diff) < tol:
             return sigma
-        sigma -= price_diff / vega
+        sigma -= price_diff / v
     
     # If not converged, return the last estimate
     return sigma
-
-# Example usage
-# S = 100  # Stock price
-# K = 100  # Strike price
-# T = 1    # Time to maturity (in years)
-# r = 0.05 # Risk-free interest rate
-# market_price_call = 10  # Market price of the call option
-# market_price_put = 7    # Market price of the put option
-
-# # Calculate implied volatility for Call and Put options
-# implied_vol_call = implied_volatility_option(S, K, T, r, market_price_call, option_type='call')
-# implied_vol_put = implied_volatility_option(S, K, T, r, market_price_put, option_type='put')
-
-# print(f"The implied volatility for the call option is {implied_vol_call:.4f}")
-# print(f"The implied volatility for the put option is {implied_vol_put:.4f}")

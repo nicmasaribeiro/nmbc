@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file
+from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file,render_template_string,flash
 from flask import Blueprint
 import os
 import csv
 import random
+import subprocess as sp
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 import yfinance
@@ -31,28 +32,9 @@ from flask_login import current_user, login_required, login_user
 import time
 from hashlib import sha256
 from bc import * 
-#import sentry_sdk
 
 
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
-
-investments = {'ticker':[],'price':[],'owner':[],'tokenized_price':[]}
-clients = []
-validators = []
-pending = []
-Bet = [{'id': 0,'username': None ,"transaction": [{'to':None,'from':None,'coins': 0,'cash': 0,'date':dt.date.today()}]}]
-
-
-#sentry_sdk.init(
-# dsn="https://c9b44a1891bb0d380c2c152be84d2881@o4507923736952832.ingest.us.sentry.io/4507923739443200",
-# # Set traces_sample_rate to 1.0 to capture 100%
-# # of transactions for tracing.
-# traces_sample_rate=1.0,
-# # Set profiles_sample_rate to 1.0 to profile 100%
-# # of sampled transactions.
-# # We recommend adjusting this value in production.
-# profiles_sample_rate=1.0,
-#)
 
 global coin
 coin = Coin()
@@ -62,7 +44,6 @@ blockchain.create_genesis_block()
 global network
 network = Network()
 network.create_genesis_block()
-
 
 def update():
 	invests = InvestmentDatabase.query.all()
@@ -320,7 +301,6 @@ def get_user(user,password):
 	else:
 		return redirect('/')
 
-
 @app.route('/transact',methods=['GET','POST'])
 @login_required
 def create_transact():
@@ -379,11 +359,10 @@ def create_transact():
 			db.session.add(new_transaction)
 			db.session.commit()
 			coin_db = CoinDB.query.get_or_404(1)
-			# coin_db.gas(blockchain,6)
+			coin_db.staked_coins
+			coin_db.gas(blockchain,6)
 			return  """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
-	
 	return render_template("trans.html")
-
 
 @app.route('/liquidate', methods=["POST","GET"])
 def liquidate_asset():
@@ -443,10 +422,8 @@ def make_block():
 		'transactions': transactions,
 	}
 	
-	# Calculate the block hash
 	block_string = str(block_data).encode()
 	block_hash = hashlib.sha256(block_string).hexdigest()
-	# Create the PrivateBlock and Block instances
 	block = PrivateBlock(index, 
 					  previous_hash, 
 					  timestamp,
@@ -513,13 +490,76 @@ def get_block(id):
 	return render_template("html-block.html",block=block)
 
 
-@app.route('/get/mywallet',methods=['GET'])
+@app.route('/holdings', methods=['GET'])
 @login_required
 def get_user_wallet():
 	user = current_user
+	
+	# Fetch the user's wallet
 	wallet = Wallet.query.filter_by(address=user.username).first()
-	transports_list = [{"address":wallet.address,"balance":wallet.balance,"coins":wallet.coins}]
-	return jsonify(transports_list)
+	
+	if not wallet:
+		return "Wallet not found", 404
+	
+	# Fetch all asset tokens for the user
+	assets = AssetToken.query.filter_by(username=user.username).all()
+	
+	# Initialize the dataframe dictionary
+	df = {
+		'inv_name': [], 
+		'quantity': [], 
+		'marketcap': [], 
+		'starting_price': [], 
+		'market_price': [], 
+		'coins_value': [], 
+		'change_value': []
+	}
+	
+	for asset in assets:
+		invs = InvestmentDatabase.query.filter_by(receipt=asset.transaction_receipt).first()
+		print(invs)
+		if invs:
+			update()
+			df['inv_name'].append(invs.investment_name)
+			df['quantity'].append(invs.quantity)
+			df['marketcap'].append(invs.market_cap)
+			df['starting_price'].append(invs.starting_price)
+			df['market_price'].append(invs.market_price)
+			df['coins_value'].append(invs.coins_value)
+			df['change_value'].append(invs.change_value)
+    
+    # Convert the dictionary to a pandas DataFrame
+	dataframe = pd.DataFrame(df)
+    
+    # Transport list for potential future JSON response
+	transports_list = [{"address": wallet.address, "balance": wallet.balance, "coins": wallet.coins}]
+    
+		# Convert DataFrame to HTML table with styles
+	html = dataframe.to_html(index=False)
+	html_table_with_styles = f"""
+		<style>
+			table {{
+				width: 100%;
+				border-collapse: collapse;
+			}}
+			th, td {{
+				border: 1px solid black;
+				padding: 10px;
+				text-align: left;
+			}}
+			th {{
+				background-color: #f2f2f2;
+			}}
+			tr:nth-child(even) {{
+				background-color: #f9f9f9;
+			}}
+		</style>
+		<h1><a href="/cmc">Back</a></h1>
+		{html}
+	"""
+	
+	# Render the HTML table as a response
+	return render_template_string(html_table_with_styles)
 
 @app.route('/html/mywallet',methods=['GET'])
 @login_required
@@ -567,6 +607,18 @@ def get_wallets():
 	transports_list = [{'address':t.address,'id':t.id,'user':str(t.token)} for t in transports]
 	return jsonify(transports_list)
 
+@app.route("/validate/hash",methods=['GET',"POST"])
+def validate():
+	if request.method == "POST":
+		plain = request.values.get("plain")
+		hash_value = request.values.get("hash")
+		if hash_value == sha512(str(plain).encode()).hexdigest():
+			return f"<h1>Valid ID</h1><h2>{plain}</h2><h2>{hash_value}</h2>"
+		else:
+			return "<h1>Incorrect ID</h1>"
+	return render_template("validate-hash.html")
+
+
 @login_required
 @app.route('/get/pending')
 def get_pending():
@@ -575,11 +627,6 @@ def get_pending():
 		'to':t.to_address,'amount':t.amount,'time':t.timestamp,'type':str(t.type),'signature':t.signature} for t in trans]
 	return jsonify(ls)
 
-@app.route('/show')
-def show():
-	csv = pd.read_csv("portfolio/pending.csv")
-	html = csv.to_html()
-	return f"""<h1><a href='/'>Database</a></h1>{html}"""
 
 @app.route('/mine', methods=['GET', 'POST'])
 def mine():
@@ -655,6 +702,7 @@ def buy_or_sell():
 		
 		price = history['Close'][-1]
 		token_price = price * qt / coins
+
 		
 		wal = Wallet.query.filter_by(address=user).first()
 		if wal and wal.coins >= coins:
@@ -740,6 +788,7 @@ def track_invest():
          'tokenized_price': t.tokenized_price} for t in tracked]
 		return jsonify(ls)
 	return render_template("inv-inv.html")
+
 
 @app.route('/search/<receipt>')
 def search(receipt):
@@ -968,10 +1017,224 @@ def sell_asset():
 			return f"""<h1>Liquidation Not Possible</h1>"""
 	return render_template("liquidate.html")
 
+@app.route('/bib')
+def bib():
+	return render_template("bib-template.html")
+
+# Function to check allowed file extensions
+def allowed_file(filename):
+	from models import ALLOWED_EXTENSIONS
+	return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'txt', 'html','py','pdf'}
+
+@app.route('/submit/valuation', methods=['GET','POST'])
+@login_required
+def submit_valuation():
+	user = current_user 
+	if request.method == 'POST':
+		company = request.values.get('ticker')
+		forecast = float(request.values.get('forecast'))
+		wacc = float(request.values.get('wacc'))
+		roe = float(request.values.get('roe'))
+		rd = float(request.values.get('rd'))
+		file = request.files['file']
+		name = request.values.get("file_name")
+		file_data = file.read()
+		valuation = ValuationDatabase(
+			owner=user.username,
+			target_company=company,
+			forecast = forecast,
+			wacc=wacc,
+			roe=roe,
+			rd=rd,
+			change_value=0,
+			receipt=os.urandom(10).hex(),
+			valuation_model=file_data)
+		db.session.add(valuation)
+		db.session.commit()
+		return """<h1><a href='/'>Back</a></h1><h2>Sucessfuly submit valuation</h2>"""
+	return render_template("submit-valuation.html")
+
+@app.route('/track/valuation')
+def track_valuation():
+	if request.method =="POST":
+		receipt = request.values.get("receipt")
+		val = ValuationDatabase.query.filter_by(receipt=receipt).first()
+		name = val.target_company + dt.datetime.now()
+		data = val.valuation_model
+		f = open('local/{name}','wb')
+		f.write(data)
+		f.flush()
+		return send_file('local/{name}', mimetype='text/csv',download_name='valuation.csv',as_attachment=True)
+	return render_template("track-valuation.html")
+
+@app.route("/ledger/valuation")
+def valuation_ledger():
+	vals = ValuationDatabase.query.all()
+	ls = [{'id':v.id,'owner':v.owner,
+		'target_company':v.target_company,
+		'forecast':v.forecast,
+		'wacc':v.wacc,
+		'roe':v.roe,
+		'rd':v.rd,
+		'receipt':v.receipt} for v in vals]
+	return jsonify(ls)
+
+
+@app.route('/submit/optimization', methods=['GET','POST'])
+def submit_optimization():
+	if request.method == 'POST':
+		file = request.files['file']
+		name = request.values.get("file_name")
+		file_data = file.read()
+		optimization = Optimization(filename=name,
+							   created_at = dt.datetime.now(),
+							   file_data=file_data,
+							   receipt=os.urandom(10).hex())
+		db.session.add(optimization)
+		db.session.commit()
+		flash('File successfully uploaded and saved as binary in the database.')
+		return redirect('/')
+	return render_template("submit-optimization.html")
+
+@app.route("/track/opts",methods=['GET','POST'])
+def get_opts():
+	if request.method == "POST":
+		receipt = request.values.get('receipt')
+		opt = Optimization.query.filter_by(receipt=receipt).first()
+		name = opt.filename
+		data = opt.file_data
+		f = open('local/{name}','wb')
+		f.write(data)
+		f.flush()
+		return send_file('local/{name}', mimetype='text/py', download_name='optmization.py',as_attachment=True)
+	return render_template("track-opt.html")
+
+@app.route("/mine/optimization", methods=['GET', 'POST'])
+def mine_optimization():
+	if request.method == "POST":
+		receipt = request.values.get("receipt")
+		optmimization = Optimization.query.filter_by(receipt=receipt).first()
+		file = request.files['files']
+		output_data = file.read()	
+		token = OptimizationToken(
+							file_data=optmimization.file_data,
+							receipt=receipt,
+							output_data=output_data,
+							filename=optmimization.filename,
+							created_at=dt.datetime.now())
+		db.session.add(token)
+		db.session.commit()
+		return"""<h2>Sucess</h2>"""
+	return render_template("run-opt.html")
+
+@app.route('/ledger/optimizations')
+def opt_ledger():
+	opts = Optimization.query.all()
+	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename} for o in opts]
+	return jsonify(ls)
 
 ##################################################
 # Quantitative Services #########################
 ##################################################
+@app.route("/basic/dcf",methods=['POST','GET'])
+def basic_dcf():
+	from dcf3 import DCF
+	from wacc import Rates  
+	from ProfMain import ProfiMain
+
+	if request.method == "POST":
+		ticker = request.values.get("ticker")
+
+		def get_dep(ticker):
+			url = "https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?limit=120&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['depreciationAndAmortization']
+
+		def get_rev(ticker):
+			url = "https://financialmodelingprep.com/api/v3/income-statement/{ticker}?limit=120&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['ebitda']
+
+		def get_shares_two(ticker):
+			url = "https://financialmodelingprep.com/api/v3/enterprise-values/{ticker}/?period=quarter&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['numberOfShares']
+
+
+		def get_debt(ticker):
+			url = "https://financialmodelingprep.com/api/v3/enterprise-values/{ticker}?limit=40&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['addTotalDebt']
+
+		def get_equity(ticker):
+			url = "https://financialmodelingprep.com/api/v3/enterprise-values/{ticker}?limit=40&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['marketCapitalization']
+
+		def get_cash(ticker):
+			url = "https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?limit=120&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['cashAndShortTermInvestments']
+
+		def get_ni(ticker):
+			url = "https://financialmodelingprep.com/api/v3/ratios-ttm/{ticker}?apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
+			response = requests.request("GET", url)
+			data = json.loads(response.text)
+			return data[0]['payoutRatioTTM']
+		
+		g = ProfiMain()
+		growth = np.mean(g.roc(ticker))
+		reg_beta = float(request.values.get('rg'))
+		taxes = float(request.values.get('taxes'))
+		rf = float(request.values.get('rf'))
+		erp = float(request.values.get('erp'))
+		cs = float(request.values.get('cs'))
+		rd = float(request.values.get('rd'))
+		dep = get_dep(ticker)/get_rev(ticker)
+		debt = get_debt(ticker)
+		equity = get_equity(ticker)
+		cash = get_cash(ticker)
+		shares = get_shares_two(ticker)
+		d = Rates(debt, equity, taxes)
+		re = d.re(reg_beta, rf, erp, cs)
+		wacc = d.wacc(rd, re)
+		netInvestment = get_ni(ticker)
+		dcf= DCF(get_ni(ticker), dep, get_rev(ticker), growth, wacc, taxes)
+		rev = dcf.rev()
+		df = pd.DataFrame(dcf.sheet(rev),index=['operating income','net investment','D&A','taxes'],columns=[1,2,3,4,5]).T
+		fcff = dcf.calculate_cashflow(rev)
+		df['fcff'] = fcff
+		df = df.T
+		html = df.to_html()
+		final = dcf.final(dcf.calculate_cashflow(rev))
+		fcff = (final - get_debt(ticker) + get_cash(ticker))/get_shares_two(ticker)
+		return html
+	
+	return render_template("basic-dcf.html")
+
+@app.route('/wacc',methods=['GET','POST'])
+def wacc():
+	from wacc import Rates
+	if request.method =="POST":
+		debt = float(request.values.get('debt'))
+		equity = float(request.values.get('equity'))
+		taxes = float(request.values.get('taxes'))
+		rg = float(request.values.get('rg'))
+		rf = float(request.values.get('rf'))
+		erp = float(request.values.get('erp'))
+		cs = float(request.values.get('cs'))
+		r = Rates(debt,equity,taxes)
+		ke = r.re(rg,rf,erp,cs)
+		kd = rf+cs
+		wacc = r.wacc(kd,ke)
+		return render_template('wac-output.html',ke=ke,kd=kd,wacc=wacc)
+	return render_template('wacc.html')
 
 @app.route("/implied-vol",methods=["POST",'GET'])
 def implied_vol():
@@ -1194,37 +1457,16 @@ def admix():
 def stats():
 	return render_template("admix-two.html")
 
-@app.route("/geombrow/pred",methods=['GET','POST'])
-def geombrow_pred():
-	ticker = yf.Ticker('AAPL')
-	df = ticker.history(period = '1d', interval='1m')
-	print(df)
-	stock = df['Close']
-	ret = stock.pct_change()[1:]
-	paths = 50
-	initial_price = stock[-1]
-	drift = np.mean(ret)
-	volatility = np.std(stock)*np.sqrt(420)#*np.sqrt(256)
-	dt = 1/420
-	T = 1
-	price_paths = []
-	for i in range(0, paths):
-		price_paths.append(GeometricBrownianMotion(initial_price, drift, volatility, dt, T).prices)
-	return render_template('geombrow-pred.html',pr)
-
 @app.route("/tree",methods=['GET','POST'])
 def tree():
 	if request.method == "POST":
 		from tree import binomial_tree
-		ticker = yf.Ticker('AAPL')
-		df = ticker.history(period = '1d', interval='1m')['Close']
-		initial_price = df[-1]
 		S0 = float(request.values.get('s0')) # initial stock price
 		u = float(request.values.get('u'))# up factor
 		d = float(request.values.get('d'))# down factor
 		p = float(request.values.get('p'))# probability of up move
 		n = int(request.values.get('n'))   # number of steps
-		tree = pd.DataFrame(binomial_tree(initial_price, u, d, p, n))
+		tree = pd.DataFrame(binomial_tree(S0, u, d, p, n))
 		html = tree.to_html()
 		html_table_with_styles = f"""
 		<style>
@@ -1245,11 +1487,51 @@ def tree():
 			}}
 		</style>
 		<h1><a href="/cmc">Back</a></h1>
+		<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="./downloads/page.html"><div class="download">Download</div></a>
 		<h2>Binomial Matrix Simulation</h2>
 		{html}
 		"""
 		return html_table_with_styles
 	return render_template("tree-view.html",style="color red;")
+
+@app.route('/option/probdist',methods=["GET","POST"])
+def prodist():
+	if request.method=="POST":
+				# Black-Scholes parameters
+		S0 = float(request.values.get("s0"))    # Initial stock price
+		K = float(request.values.get("k"))     # Strike price
+		T = float(request.values.get("t"))      # Time to maturity (in years)
+		r = float(request.values.get("r"))   # Risk-free rate
+		sigma = float(request.values.get("sigma")) # Volatility of the underlying asset
+		n_sim = 100_000_000 # Number of simulations
+
+		# Generate random numbers following a normal distribution for asset price simulation
+		np.random.seed(42)
+		Z = np.random.randn(n_sim)
+
+		# Simulate stock price at maturity using Geometric Brownian Motion
+		ST = S0 * np.exp((r - 0.5 * sigma**2) * T + sigma * np.sqrt(T) * Z)
+
+		# Calculate the payoff of the European call option
+		payoff = np.maximum(ST - K, 0)
+
+		# Calculate the discounted expected payoff (option price)
+		option_price = np.exp(-r * T) * np.mean(payoff)
+
+		hist, edges = np.histogram(ST, bins=100, density=True)
+		p1 = figure(title=f"Simulated Stock Price Distribution at Maturity (T={T} year)",
+				x_axis_label="Stock Price", y_axis_label="Probability Density")
+		p1.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:], fill_color="blue", line_color="white", alpha=0.75)
+		# Save the stock price distribution plot to an HTML file
+		html1 = file_html(p1, CDN)
+		# # Plot the distribution of the option payoffs using Bokeh
+		hist_payoff, edges_payoff = np.histogram(payoff, bins=100, density=True)
+		p2 = figure(title="Distribution of Option Payoffs", 
+					x_axis_label="Payoff", y_axis_label="Probability Density")
+		p2.quad(top=hist_payoff, bottom=0, left=edges_payoff[:-1], right=edges_payoff[1:], fill_color="green", line_color="white", alpha=0.75)
+		html2 = file_html(p2, CDN)
+		return f"""{html1}<br>{html2}"""
+	return render_template("probdist.html")
 
 @app.route('/stats/binom',methods=['GET','POST'])
 def stats_binom():
@@ -1279,6 +1561,7 @@ def stats_binom():
 			}}
 		</style>
 		<h1><a href="/cmc">Back</a></h1>
+		<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="./downloads/page.html"><div class="download">Download</div></a>
 		<h2>Binomial Coefficient Matrix </h2>
 		{html}
 		"""
