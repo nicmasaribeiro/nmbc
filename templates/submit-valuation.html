@@ -1,0 +1,39 @@
+
+
+
+
+{% extends "base.html" %}
+
+{% block title %} DCF Pricing Model{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<h1>Submit  Valuation</h1>
+<div class="container">
+    
+<form method="POST">
+    
+    <label for="ticker">Ticker</label><br>
+    <input type="text" id="ticker" name="ticker" class="input-field"><br><br>
+    
+    <label for="forecast">Forecast Price</label><br>
+    <input type="numeric" id="forecast" name="forecast" class="input-field"><br><br>
+
+    <label for="wacc">WACC</label><br>
+    <input type="numeric" id="wacc" name="wacc" class="input-field"><br><br>
+    
+    <label for="roe">Cost of Equity</label><br>
+    <input type="numeric" id="roe" name="roe" class="input-field"><br><br>
+        
+    <label for="rd">Cost of Debt</label><br>
+    <input type="numeric" id="rd" name="rd" class="input-field"><br><br>
+    
+    <label for="file">Upload Valuation CSV</label><br>
+    <input type="file" id="file" name="file"><br><br>
+    <br>
+    <hr>
+    <input type="submit" value="Submit" class="submit-button">
+</form>
+</div>
+
+{% endblock %}

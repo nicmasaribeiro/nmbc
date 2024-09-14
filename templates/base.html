@@ -99,18 +99,42 @@
             <li><a class="dropdown-item" href="/track/inv">Track Investments Receipts</a></li>
             <li><a class="dropdown-item" href="/my/assets">Track My Assets</a></li>
             <li><a class="dropdown-item" href="/my/transactions">Track My Transactions</a></li>
-
-            <li><a class="dropdown-item" href="/get/tokens">Get Tokens</a></li>
+            <li><a class="dropdown-item" href="/get/tokens">Track Tokens</a></li>
 <!--        <li><a class="dropdown-item" href="/valcred">Validator</a></li>-->
           </ul>
         </li>
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Data
+            Templates
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/download/csv">Generate CSV </a></li>
-<!--        <li><a class="dropdown-item" href="/get/tokens">Get Tokens</a></li>-->
+            <li><a class="dropdown-item" href="/bib">Bibliography Template</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Valuation
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/wacc">Rates</a></li>
+            <li><a class="dropdown-item" href="/basic/dcf">DCF</a></li>
+            <li><a class="dropdown-item" href="/ledger/valuation">Valuation Ledger</a></li>
+            <li><a class="dropdown-item" href="/submit/valuation">Submit Valuation</a></li>
+            <li><a class="dropdown-item" href="/track/valuation">Track Valuation</a></li>
+            
+            
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Optimization
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/submit/optimization">Submit Optimization</a></li>
+            <li><a class="dropdown-item" href="/track/opts">Track Optimization</a></li>
+            <li><a class="dropdown-item" href="/mine/optimization">Mine Optimization</a></li>
+            <li><a class="dropdown-item" href="/ledger/optimizations">Optimization Ledger</a></li>
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -147,7 +171,7 @@
       <button class="btn btn-primary btn-lg w-100" onclick="sell()">Sell Coins</button>
     </div>
     <div class="col-md-6">
-      <button class="btn btn-secondary btn-lg w-100" onclick="mywallet()">My Wallet</button>
+      <button class="btn btn-secondary btn-lg w-100" onclick="mywallet()">My Holdings</button>
     </div>
     <div class="col-md-6">
       <button class="btn btn-secondary btn-lg w-100" onclick="minerwallet()">Miner Wallet</button>
@@ -184,6 +208,10 @@
       <a href="/admix" class="btn btn-link">
         <i class="fas fa-chart-line"></i> Graphs
       </a>
+      <a href="/option/probdist" class="btn btn-link">
+        <i class="fas fa-chart-line"></i> Prob. Dist.
+      </a>
+
       <a href="/stats" class="btn btn-link">
         <i class="fas fa-chart-bar"></i> Stats
       </a>
@@ -209,7 +237,7 @@
   const buy = () => window.location.href = "/buy/coins";
   const sell = () => window.location.href = "/sell/coins";
   const mywallet = () => {
-    window.location.href = '/get/mywallet';
+    window.location.href = '/holdings';
   };
   const minerwallet = () => {
     const address = prompt("address", "username/address");

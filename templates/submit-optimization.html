@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Optimization</title>
+</head>
+<body>
+  
+  {% extends "base.html" %}
+  {% block content %}
+    <h1>Submit Your Optimization</h1>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form action="/submit/optimization" method="POST" enctype="multipart/form-data">
+        <label for="file">Upload Optimization File:</label>
+        <input type="text" name="file_name" placeholder="optimization file name">
+        <input type="file" name="file" id="file">
+        <button type="submit">Submit</button>
+    </form>
+  {% endblock %}
+  
+</body>
+</html>

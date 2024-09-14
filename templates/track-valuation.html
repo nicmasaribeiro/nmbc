@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Valuation</title>
+</head>
+<body>
+  
+  {% extends "base.html" %}
+  {% block content %}
+    <h1>Track Valuation</h1>
+  <form method="POST" action="/track/opts">
+        <label for="file">Enter Valuation Receipt:</label>
+        <input type="text" name="receipt" placeholder="optimization receipt">
+        <button type="submit">Submit</button>
+  </form>
+  {% endblock %}
+  
+</body>
+</html>

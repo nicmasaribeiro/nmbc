@@ -1,0 +1,40 @@
+
+
+
+
+{% extends "base.html" %}
+
+{% block title %}Rates Model{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<h1>Rates</h1>
+<div class="container">
+    <form method="POST">
+    
+    <label for="ticker">Debt</label><br>
+    <input type="text" id="debt" name="debt" class="input-field"><br><br>
+
+    <label for="K">Equity</label><br>
+    <input type="text" id="equity" name="equity" class="input-field"><br><br>
+
+    <label for="T">Taxes</label><br>
+    <input type="text" id="taxes" name="taxes" class="input-field"><br><br>
+
+    <label for="ticker">Regression Beta</label><br>
+    <input type="text" id="rg" name="rg" class="input-field"><br><br>
+    
+    <label for="ticker">Risk Free</label><br>
+    <input type="text" id="rf" name="rf" class="input-field"><br><br>
+        
+    <label for="ticker">Equity Risk Premium</label><br>
+    <input type="text" id="erp" name="erp" class="input-field"><br><br>
+    
+    <label for="K">Credit Spread</label><br>
+    <input type="text" id="cs" name="cs" class="input-field"><br><br>
+    
+    <input type="submit" value="Calculate" class="submit-button">
+</form>
+</div>
+
+{% endblock %}
