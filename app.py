@@ -1286,7 +1286,7 @@ def run_optimization():
 			output = []
 			errors = []
 			# Command to create the venv (if needed), install requirements, and run the script
-			command = f"python3.9 local/{name} -i output.txt"
+			command = f"python3 local/{name} -i output.txt"
 			# Open output.txt in append mode to save the output
 			with open("output.txt", "w") as outfile:
 				# Run the process and redirect stdout and stderr to the file
