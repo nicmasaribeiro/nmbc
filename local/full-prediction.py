@@ -6,7 +6,7 @@ import yfinance as yf
 import datetime as dt
 from sklearn.linear_model import LinearRegression
 
-ticker = 'AAPL' #input('enter ticker << \t').upper()
+ticker = 'APPS' #input('enter ticker << \t').upper()
 data = yf.Tickers("{t} ^IRX ^TNX ^TYX ^FVX ^VIX ^GSPC ^NDX ^DJI".format(t=ticker))
 history = data.history(start ='2015-1-1',end =dt.date.today() ,interval='3mo')
 df = history['Close'].dropna()
@@ -18,7 +18,8 @@ A = np.matrix(target)
 b = np.matrix([df[ticker].pct_change()[1:]]).T
 reg = LinearRegression().fit(np.array(A[:-2]), np.array(b[2:]))
 x = reg.coef_
-print('\nScore\n',np.round(reg.score(np.array(A[:-2]), np.array(b[2:])),3))
+score = reg.score(np.array(A[:-2]), np.array(b[2:]))
+#print('\nScore\n',np.round(reg.score(np.array(A[:-2]), np.array(b[2:])),3))
 
 # These are the trailing 1m return im the predictor variables
 irx = target['^IRX'][-1]
@@ -35,6 +36,6 @@ target = target.dropna()
 f = irx*x[0][0] + fvx*x[0][1] + tnx*x[0][2] + tyx*x[0][3] + vix*x[0][4] + snp*x[0][5] + ndx*x[0][6] + dji*x[0][7] + lag*x[0][8]
 def fuc(s0,r,t):
 	return s0*np.exp(r*t)
-print("expected change {t}\n {f}%".format(t=ticker,f=np.round(f*100,3)))   
-print("expected price {t}\n {f}".format(t=ticker,f=fuc(df[ticker][-1], f, 1)))   
-print("current price {t}\n {f}".format(t=ticker,f=df[ticker][-1]))   
+expected_change = f
+expected_price = (1+f)*df[ticker][-1]
+print(score,expected_change,expected_price)
