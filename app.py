@@ -866,6 +866,27 @@ def download_chain_db():
 	
 	return response
 
+@app.route('/download/valuation-db')
+def download_valuation_db():
+	# Query data from the SQLAlchemy model
+	data = ValuationDatabase.query.all() #YourTableModel.query.all()
+	# Create an in-memory CSV file
+	def generate():
+		# Write header
+		yield ','.join(['ID', 'owner', 'target_company','forecast','wacc','roe',
+			'rd','receipt']) + '\n'  # Replace with actual column names
+		
+		# Write data rows
+		for row in data:
+			yield ','.join([str(row.id), str(row.owner), str(row.target_company),
+				str(row.forecast), str(row.wacc), str(row.roe),
+				str(row.rd), str(row.receipt)]) + '\n'  # Replace with actual columns
+			
+	# Create a response object for downloading
+	response = Response(generate(), mimetype='text/csv')
+	response.headers.set('Content-Disposition', 'attachment', filename='valuation_data.csv')
+	return response
+
 @app.route('/download/investment-db')
 def download_investment_db():
 	# Query data from the SQLAlchemy model
@@ -885,7 +906,6 @@ def download_investment_db():
 	# Create a response object for downloading
 	response = Response(generate(), mimetype='text/csv')
 	response.headers.set('Content-Disposition', 'attachment', filename='investment_data.csv')
-	
 	return response
 
 @app.route('/search/<receipt>')
@@ -911,7 +931,7 @@ def invest():
 				house.coin_fee(0.1*staked_coins)
 				new_value = 0.9*staked_coins
 				wal.coins -= staked_coins
-				wal.holdings +=1
+#				wal.holdings +=1
 				inv.coins_value += new_value
 				db.session.commit()
 				new_transaction = TransactionDatabase(
@@ -1220,9 +1240,15 @@ def get_opts():
 def mine_optimization():
 	if request.method == "POST":
 		receipt = request.values.get("receipt")
+		
+		# Ensure the receipt exists in the query
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
-		f = request.files['files']
-		output_data = f.read()	
+		if not optmimization:
+			return """<h2>Receipt not found</h2>""", 400
+		
+		f = request.files['file']
+		output_data = f.read()
+		
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
 							receipt=receipt,
@@ -1231,8 +1257,11 @@ def mine_optimization():
 							created_at=dt.datetime.now())
 		db.session.add(token)
 		db.session.commit()
-		return"""<h2>Sucess</h2>"""
-	return render_template("run-opt.html")
+		
+		return """<h1><a href='/'>Home</a></h1><h2>Success</h2>"""
+	
+	return render_template("mine-optimization.html")
+
 
 @app.route('/ledger/optimizations')
 def opt_ledger():
@@ -1257,15 +1286,8 @@ def run_optimization():
 			# Initialize variables to capture stdout and stderr
 			output = []
 			errors = []
-			# Check if the virtual environment exists, if not, create it
-			if not os.path.exists("venv"):
-				create_venv_cmd = "python3 -m venv venv"
-			else:
-				create_venv_cmd = ""
-			# Path to the virtual environment activation script
-			venv_activate = "source venv/bin/activate &&" #&& pip install yfinance &&"
 			# Command to create the venv (if needed), install requirements, and run the script
-			command = f"python3 local/{name} -i output.txt"
+			command = f"python3.9 local/{name} -i output.txt"
 			# Open output.txt in append mode to save the output
 			with open("output.txt", "w") as outfile:
 				# Run the process and redirect stdout and stderr to the file
@@ -1288,7 +1310,8 @@ def run_optimization():
 			return {"output": output_str,"errors": errors_str}
 		
 		output = run_script(name=name)
-		return jsonify(output) #redirect('/')
+		result = output["output"].replace('\n', '<br>')
+		return result #jsonify(output) #redirect('/')
 	return render_template("run-code.html")
 
 
@@ -1302,9 +1325,9 @@ def basic_dcf():
 	from dcf3 import DCF
 	from wacc import Rates  
 	from ProfMain import ProfiMain
-
+	
 	if request.method == "POST":
-		ticker = request.values.get("ticker")
+		ticker = request.values.get("ticker").upper()
 
 		def get_dep(ticker):
 			url = "https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?limit=120&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
@@ -1375,7 +1398,7 @@ def basic_dcf():
 		html = df.to_html()
 		final = dcf.final(dcf.calculate_cashflow(rev))
 		fcff = (final - get_debt(ticker) + get_cash(ticker))/get_shares_two(ticker)
-		return html
+		return f"<h1>{ticker}</h1>{html}<br><h3>Share Price </h3><h4>{fcff}</h4>"
 	return render_template("basic-dcf.html")
 
 
@@ -1843,7 +1866,7 @@ def stats_binom():
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
-		PendingTransactionDatabase.genisis()
+#		PendingTransactionDatabase.genisis()
 		update()
 	start_background_task()
 	app.run(host="0.0.0.0",port=8080)
