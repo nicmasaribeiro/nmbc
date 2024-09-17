@@ -7,7 +7,6 @@ from dcf4 import DCF
 from wacc import Rates #>)
 from ProfMain import ProfiMain
 import json
-from scipy.stats.mstats import gmean
 import pandas as pd
 
 #ticker= input(">> ticker\t")
