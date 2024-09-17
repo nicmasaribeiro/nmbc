@@ -36,7 +36,7 @@ from subprocess import Popen, PIPE
 import openai
 import threading
 from get_fundamentals import *
-
+from ddm import *
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
@@ -743,6 +743,9 @@ def buy_or_sell():
 		coins = float(request.values.get('coins'))
 		password = request.values.get('password')
 		qt = float(request.values.get("qt"))
+		target_price = float(request.values.get("target_price"))
+		spread = float(request.values.get("sigma"))
+		reversion_coef = float(request.values.get("mu"))
 		user_db = Users.query.filter_by(username=user).first()
 		
 		if not user_db:
@@ -991,7 +994,7 @@ def invest():
 def info_assets(id):
 	update()
 	asset = InvestmentDatabase.query.get_or_404(id)
-	return render_template("asset-info.html", asset=asset)\
+	return render_template("asset-info.html", asset=asset)
 
 @app.route('/get/asset/<int:id>',methods=['GET','POST'])
 def get_asset(id):
@@ -1206,13 +1209,42 @@ def valuation_ledger():
 	return jsonify(ls)
 
 
+@app.route('/general/valuation',methods=["GET","POST"])
+@login_required
+def general_valuation():
+	user = current_user
+	if request.method =="POST":
+		owner = user.username
+		target_company = request.values.get('target_company')
+		forecast = float(request.values.get('forecast'))
+		expected_change = float(request.values.get('expected_change'))
+		receipt = os.urandom(10).hex()
+		val_type = request.values.get('val_type')
+		model = request.files['file']
+		model_data = model.read()
+		new_val = GeneralValuationDatabase(
+			owner = owner,
+			target_company=target_company,
+			forecast = forecast,
+			expected_change= expected_change,
+			receipt = receipt,
+			type = val_type,
+			valuation_model = model)
+		db.session.add(new_val)
+		db.session.commit()
+		return "success"
+	return render_template('general-optimization.html')
+
 @app.route('/submit/optimization', methods=['GET','POST'])
 def submit_optimization():
 	if request.method == 'POST':
 		file = request.files['file']
 		name = request.values.get("file_name")
+		ticker = request.values.get("ticker")
 		file_data = file.read()
-		optimization = Optimization(filename=name,
+		optimization = Optimization(
+							   filename=name,
+							   target=ticker,
 							   created_at = dt.datetime.now(),
 							   file_data=file_data,
 							   receipt=os.urandom(10).hex())
@@ -1239,6 +1271,7 @@ def get_opts():
 def mine_optimization():
 	if request.method == "POST":
 		receipt = request.values.get("receipt")
+		ticker = request.values.get("ticker")
 		
 		# Ensure the receipt exists in the query
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
@@ -1250,6 +1283,7 @@ def mine_optimization():
 		
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
+							target = ticker,
 							receipt=receipt,
 							output_data=output_data,
 							filename=optmimization.filename,
@@ -1262,10 +1296,43 @@ def mine_optimization():
 	return render_template("mine-optimization.html")
 
 
+@app.route('/ledger/optimizations-tokens')
+def optimizatoin_token_ledger():
+	opts = OptimizationToken.query.all()
+	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename,'target_company':o.target,'output':str(o.output_data)} for o in opts]
+	return jsonify(ls)
+
+@app.route('/process/optimization', methods=['GET', 'POST'])
+def process_optimization():
+	if request.method == 'POST':
+		receipt_address = request.values.get('receipt')
+		
+		# Validate the receipt_address
+		if not receipt_address:
+			return "Error: receipt address is missing", 400
+		
+		optimization_token = OptimizationToken.query.filter_by(receipt=receipt_address).first()
+		
+		# Validate if optimization_token was found
+		if not optimization_token:
+			return "Error: No optimization token found for this receipt address", 404
+		
+		# Validate if output_data exists
+		if optimization_token.output_data:
+			output = str(optimization_token.output_data.decode()).split(' ')		
+			print(output)
+			
+		else:
+			return "Error: No output data available for this token", 500
+		
+		return "success"
+	
+	return render_template('process-optimization.html')
+
 @app.route('/ledger/optimizations')
 def opt_ledger():
 	opts = Optimization.query.all()
-	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename} for o in opts]
+	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename,'target_company':o.target} for o in opts]
 	return jsonify(ls)
 
 @app.route("/run/optimization", methods=['GET', 'POST'])
@@ -1286,7 +1353,7 @@ def run_optimization():
 			output = []
 			errors = []
 			# Command to create the venv (if needed), install requirements, and run the script
-			command = f"python3 local/{name} -i output.txt"
+			command = f"python3.9 local/{name} -i output.txt"
 			# Open output.txt in append mode to save the output
 			with open("output.txt", "w") as outfile:
 				# Run the process and redirect stdout and stderr to the file
@@ -1318,6 +1385,48 @@ def run_optimization():
 ##################################################
 # Quantitative Services #########################
 ##################################################
+
+@app.route('/ddm',methods=["GET","POST"])
+def ddm():
+	from wacc import Rates
+	if request.method =='POST':
+		ticker = request.values.get('ticker')
+		rf = float(request.values.get('rf'))
+		erp = float(request.values.get('erp'))
+		cs = float(request.values.get('cs'))
+		interest_coverage = get_interestCoverage(ticker)
+		taxes = get_taxes(ticker)
+		reg = get_beta(ticker)
+		rd = get_costDebt(ticker)
+		debt   = get_debt(ticker)
+		equity = get_equity(ticker)
+		rate = Rates(debt, equity, taxes)
+		ke = rate.re(reg, rf, erp, cs)
+		costOfCapital = rate.wacc(rd,ke)
+		current_price = get_price(ticker) 
+		div_growth = implied_div_growth_rate(ke, get_dps(ticker), current_price)
+		ddm = (get_dps(ticker)*(1+div_growth))/(ke - div_growth)		
+		return f"<h1>{ddm}</h1><h1>{div_growth}</h1>"
+	return render_template("ddm.html")
+
+@app.route('/api/stocks/<symbol>', methods=['GET','POST'])
+def get_stock(symbol):
+	try:
+		stock = yf.Ticker(symbol)
+		stock_info = stock.info
+		print(stock_info)
+		
+		# Extract relevant stock data
+		stock_data = {
+			'symbol': stock_info.get('symbol', symbol),
+			'price': stock_info.get('currentPrice', 'N/A'),
+			'change': f"{stock_info.get('regularMarketChangePercent', 'N/A'):.2f}%"
+		}
+		
+		return jsonify(stock_data)
+	except Exception as e:
+		# In case of any error, return a 500 status code with error message
+		return jsonify({'error': str(e)}), 500
 
 @app.route("/basic/dcf",methods=['POST','GET'])
 def basic_dcf():
@@ -1400,10 +1509,17 @@ def basic_dcf():
 		return f"<h1>{ticker}</h1>{html}<br><h3>Share Price </h3><h4>{fcff}</h4>"
 	return render_template("basic-dcf.html")
 
-
 @app.route('/live/dcf')
 def live_dcf():
 	return render_template('live-dcf.html')
+
+@app.route('/live/fcfe')
+def live_fcfe():
+	return render_template('live-fcfe.html')
+
+@app.route('/live/valuations')
+def live():
+	return render_template("live-value.html")
 
 @app.route("/generate/dcf-xlsx-template")
 def generate_dcf_csv():
@@ -1419,6 +1535,7 @@ def get_fundamentals():
 		
 		try:
 			# Fetch the depreciation and revenue
+			interest_coverage = get_interestCoverage(ticker)
 			depreciation = get_dep(ticker)/get_rev(ticker)
 			revenue = get_rev(ticker)
 			shares = get_shares_two(ticker)
@@ -1430,9 +1547,10 @@ def get_fundamentals():
 			taxes = get_taxes(ticker)
 			operating_income = get_operating_income(ticker)
 			capex = get_capex(ticker)
-			
+			beta = get_beta(ticker)
+			cost_debt = get_costDebt(ticker)
 			# Return the results as JSON
-			return jsonify({
+			results = {
 				"ticker": ticker,
 				"depreciationAndAmortization(%)": depreciation,
 				"revenue": revenue,
@@ -1443,10 +1561,19 @@ def get_fundamentals():
 				"netIncome(%)":ni,
 				"grossProfitRatio(%)":gpr,
 				"taxes(%)":taxes,
-		        "operatingIncome":operating_income})
+		        "operatingIncome":operating_income,
+				'interest_coverage':interest_coverage,
+				"capex":capex,
+				"beta":beta,
+				"cost_debt":cost_debt}
+			return render_template("fundamentals.html",results=results)
 		except Exception as e:
 			return jsonify({"error": str(e)}), 500
 	return render_template("fundamentals.html")
+
+@app.route('/generate/fcfe',methods=["GET","POST"])
+def fcfe():
+	return 0
 
 @app.route('/generate_dcf', methods=['GET','POST'])
 def generate_dcf():

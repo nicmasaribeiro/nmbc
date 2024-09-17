@@ -6,12 +6,13 @@ import yfinance as yf
 from sklearn.linear_model import LinearRegression
 import datetime as dt
 import warnings
+import matplotlib.pyplot as plt
 
 warnings.filterwarnings('ignore')
 
 ticker = input('[=] ticker [=]\t').upper()
 t = yf.Ticker(ticker)
-h = t.history(start='2000-1-1',end=dt.date.today(),interval='1mo')#["Close"]
+h = t.history(start='2000-1-1',end=dt.date.today(),interval='1wk')#["Close"]
 df = h["Close"] 
 ret = df.pct_change()[1:]
 mu = ret.rolling(3).mean()

@@ -1,4 +1,4 @@
-#from flask import Flask, jsonify, request, redirect, url_for
+from flask import Flask, jsonify, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime
@@ -51,8 +51,6 @@ class Wallet(db.Model):
     balance = db.Column(db.Float, default=0)
     password = db.Column(db.String(1024))
     coins = db.Column(db.Float, default=1000)
-    holdings = db.Column(db.Integer,default=0)
-    profit_loss = db.Column(db.Float,default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     token = db.Column(db.String(3072))
 
@@ -86,7 +84,14 @@ class Wallet(db.Model):
         Wallet.balance -= value
         Wallet.coins += value
         db.session.commit()
-        
+
+class SocialNetwork(db.Model):
+    __tablename__ = 'social'
+    
+    id = db.Column(db.Integer,unique=True, primary_key=True)
+    user = db.Column(db.String)
+    friend = db.Column(db.String)
+    
 class BettingHouse(db.Model):
     __tablename__ = 'house'
 
@@ -334,8 +339,29 @@ class ValuationDatabase(db.Model):
     receipt = db.Column(db.String(),unique=True)
     valuation_model = db.Column(db.LargeBinary()) # tokenized_value
 
+class ValuationType(enum.Enum):
+    dcf = 'dcf'
+    ddm = 'ddm'
+    optimization = 'optimization'
+    
+class GeneralValuationDatabase(db.Model):
+    __tablename__ = 'general_valuation'
+    
+    id = db.Column(db.Integer, unique=True ,primary_key=True)
+    owner =  db.Column(db.String(1024))
+    target_company = db.Column(db.String(1024))
+    forecast = db.Column(db.Float(),default=0.0)
+    expected_change = db.Column(db.Float(),default=0.0)
+    receipt = db.Column(db.String(),unique=True)
+    type = db.Column(db.Enum(TransactionType), nullable=False)
+    valuation_model = db.Column(db.LargeBinary())
+
+
 class OptimizationToken(db.Model):
+    __tablename__ = 'optimization_token'
+    
     id = db.Column(db.Integer, primary_key=True)
+    target = db.Column(db.String)
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
     receipt = db.Column(db.String)
     output_data = db.Column(db.LargeBinary, nullable=False)
@@ -344,8 +370,11 @@ class OptimizationToken(db.Model):
 
 
 class Optimization(db.Model):
+    __tablename__ = 'optimization'
+    
     id = db.Column(db.Integer, primary_key=True)
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
+    target = db.Column(db.String)
     receipt = db.Column(db.String)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
