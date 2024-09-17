@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>NMCYBC</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='crawler.png') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -15,9 +18,20 @@
       }
     </style>
   <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='crawler.png') }}" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+        .register('/service-worker.js')
+        .then(reg => console.log('Service Worker: Registered'))
+        .catch(err => console.log(`Service Worker: Error: ${err}`));
+      });
+    }
+
+  </script>
 </head>
 <body>
-  <iframe src="https://www.desmos.com/calculator/rrmno6qntd?embed" width="10" height="10" style="border: 1px solid #ccc" frameborder=0></iframe>
+  <iframe src="https://www.desmos.com/calculator/rrmno6qntd?embed" width="5" height="5" style="border: 0px solid #ccc" frameborder=0></iframe>
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
   <div class="container-fluid">
     <a class="navbar-brand" href="cmc">
@@ -99,7 +113,6 @@
             <li><a class="dropdown-item" href="/my/assets">Track My Assets</a></li>
             <li><a class="dropdown-item" href="/my/transactions">Track My Transactions</a></li>
             <li><a class="dropdown-item" href="/get/tokens">Track Tokens</a></li>
-<!--        <li><a class="dropdown-item" href="/valcred">Validator</a></li>-->
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -120,10 +133,10 @@
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/ledger/valuation">Valuation Ledger</a></li>
+            <li><a class="dropdown-item" href="/ddm">DDM</a></li>
             <li><a class="dropdown-item" href="/wacc">Valuation Rates</a></li>
-            <li><a class="dropdown-item" href="/basic/dcf">Automated DCF Valuation</a></li>
-            <li><a class="dropdown-item" href="/live/dcf">Live DCF Valuation</a></li>
-            <li><a class="dropdown-item" href="/submit/valuation">Submit Valuation to Chain</a></li>
+            <li><a class="dropdown-item" href="/basic/dcf">Automated DCF</a></li>
+            <li><a class="dropdown-item" href="/submit/valuation">Add Valuation </a></li>
             <li><a class="dropdown-item" href="/track/valuation">Track Valuation</a></li>
             <li><a class="dropdown-item" href="/fundamentals">Valuation Fundamentals</a></li>
 
@@ -141,6 +154,16 @@
             <li><a class="dropdown-item" href="/mine/optimization">Mine Optimization</a></li>
             <li><a class="dropdown-item" href="/run/optimization">Run Optimization</a></li>
 
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Databases
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/download/chain-db">Download Chain</a></li>
+            <li><a class="dropdown-item" href="/download/investment-db">Download Investments</a></li>
+            <li><a class="dropdown-item" href="/download/valuation-db">Download Valuations</a></li>
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -233,6 +256,10 @@
       <a class ="" href="/implied-vol" class="btn btn-link" title="Calculate coefficeints that">
         <i class="fas fa-superscript"></i> Implied Volatility
       </a>
+      <a class ="" href="/live/valuations" class="btn btn-link" title="Calculate coefficeints that">
+        <i class="fas fa-superscript"></i> Live Valuations
+      </a>
+      
     </div>
   </footer>
 

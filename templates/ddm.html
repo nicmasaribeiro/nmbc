@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		{% extends "base.html" %}
+		{% block content %}
+		<style>
+			.form{
+				background: #b1b4e3;
+				padding-left: 10px;
+				padding-bottom: 10px;
+				width: 50%;
+				
+			}
+		</style>
+
+		<h1>Dividend Discount Model</h1>
+		<form method="POST" action="/ddm">
+			<input type="text" name="ticker" placeholder="input ticker">
+			<input type="numeric" name="rf" placeholder="risk-free">
+			<input type="numeric" name="erp" placeholder="equity-risk-premium">
+			<input type="numeric" name="cs" placeholder="credit-spread">
+			<input type="Submit">
+		</form>
+		{% endblock %}
+	</body>
+</html>

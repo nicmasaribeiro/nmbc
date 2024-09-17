@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		{% extends "base.html" %}
+		
+		{% block content %}
+	<form method="POST" >
+		<input type="text" name="target_company" placeholder="company ticker">
+		<input type="numeric" name="forecast" placeholder="enter forecast">
+		<input type="numeric" name="expected_change" placeholder="enter expected change">
+		<input type="file" name="file">
+		<label for="val_type">Option Type:</label><br>
+		<select id="val_type" name="val_type" class="input-field">
+			<option value="dcf">DCF</option>
+			<option value="DDM">DDM</option>
+			<option value="numerical">Numerical Optimization</option>
+		</select>
+		<input type="submit">
+	</form>
+	{% endblock %}
+	</body>
+</html>
