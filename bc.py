@@ -6,6 +6,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.hashes import SHA512
+import json
 
 class BCPrivateBlock:
 	def __init__(self, index, previous_hash, timestamp, transactions, hash=None):
@@ -259,3 +260,36 @@ class BCBlockchain(Network):
 				
 		return True
 
+class NMCYBlockchain:
+	def __init__(self):
+		self.chain = []
+		self.pending_optimizations = []
+		self.create_block(previous_hash='0')
+		
+	def create_block(self, previous_hash):
+		block = {
+			'index': len(self.chain) + 1,
+			'timestamp': time.time(),
+			'optimizations': self.pending_optimizations,
+			'previous_hash': previous_hash,
+			'hash': self.hash_block(previous_hash),
+		}
+		self.pending_optimizations = []
+		self.chain.append(block)
+		return block
+	
+	def add_optimization(self, optimization):
+		self.pending_optimizations.append(optimization)
+		
+	def hash_block(self, previous_hash):
+		block_string = json.dumps(previous_hash, sort_keys=True).encode()
+		return hashlib.sha256(block_string).hexdigest()
+	
+	def get_last_block(self):
+		return self.chain[-1]
+	
+	def proof_of_work(self, difficulty=4):
+		nonce = 0
+		while self.hash_block(str(nonce))[:difficulty] != "0" * difficulty:
+			nonce += 1
+		return nonce

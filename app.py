@@ -32,10 +32,18 @@ from flask_login import current_user, login_required, login_user
 import time
 from hashlib import sha256
 from bc import * 
+from flask_socketio import SocketIO
+from subprocess import Popen, PIPE
+import openai
+import threading
+from get_fundamentals import *
 
 
+openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
+global nmbc
+nmbc = NMCYBlockchain()
 global coin
 coin = Coin()
 global blockchain
@@ -45,6 +53,7 @@ global network
 network = Network()
 network.create_genesis_block()
 
+	
 def update():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
@@ -58,6 +67,19 @@ def update():
 		i.update_token_value()
 	return 0
 
+def background_task():
+	while True:
+		update()	# Do some work here, like checking a database or updating something
+		print('Investment Database Updated')
+		time.sleep(5)  # Wait 10 seconds before running again
+		
+# Start the background task in a separate thread
+def start_background_task():
+	thread = threading.Thread(target=background_task)
+	thread.daemon = True  # Ensures the thread exits when the main program does
+	thread.start()
+
+
 @login_manager.user_loader
 def load_user(user_id):
 	update()
@@ -68,6 +90,38 @@ def load_user(user_id):
 	db.session.add(betting_house)
 	db.session.commit()
 	return Users.query.get(int(user_id))
+
+@app.route('/chat', methods=['GET','POST'])
+def chat():
+	try:
+		if request.method == "POST":
+			# Get the user's input from the request body
+			data = request.json
+			user_message = data.get('message')
+			
+			# Make sure the input exists
+			if not user_message:
+				return jsonify({"error": "No input message provided"}), 400
+			
+			# Call the OpenAI API to get a response from ChatGPT
+			response = openai.ChatCompletion.create(
+				model="gpt-4o-mini",  # You can replace with other models like gpt-4
+				messages=[
+					{"role": "system", "content": "You are ChatGPT, a helpful assistant."},
+					{"role": "user", "content": user_message}
+				]
+			)
+			
+			# Extract the message from the API response
+			chatgpt_reply = response['choices'][0]['message']['content']
+			
+			# Return the response as a JSON object
+			return jsonify({"response": chatgpt_reply})
+	
+	except Exception as e:
+		return jsonify({"error": str(e)}), 500
+	
+	return render_template('chat.html')
 
 @app.route('/house')
 def house():
@@ -222,7 +276,7 @@ def login():
 def get_users():
 #	new_transaction = TransactionDatabase()
 	users = Users.query.all()
-	users_list = [{'id': user.id, 'username': user.username, 'email': user.email,'publicKey':str(user.personal_token)} for user in users]
+	users_list = [{'id': user.id, 'username': user.username,'publicKey':str(user.personal_token)} for user in users]
 	return jsonify(users_list)
 
 @app.route('/signup/val', methods=['POST','GET'])
@@ -247,7 +301,7 @@ def signup_val():
 @app.route('/get/vals')
 def get_vals():
 	peers = Peer.query.all()
-	peers_list = [{'id': peer.id, 'username': peer.user_address, 'email': peer.email,'public_key':str(peer.pk)} for peer in peers]
+	peers_list = [{'id': peer.id, 'username': peer.user_address,'public_key':str(peer.pk)} for peer in peers]
 	return jsonify(peers_list) #render_template('validators.html', vals=validators)
 
 @app.route('/peer/<address>/<password>', methods=['GET'])
@@ -377,7 +431,7 @@ def liquidate_asset():
 		if asset.investors == 1:
 			if password == asset.password and user == asset.owner:
 				coin_db = CoinDB.query.get_or_404(1)
-				sell_price = asset.market_cap
+				sell_price = asset.coins_value
 				wal.coins += sell_price
 				db.session.commit()
 				db.session.delete(asset)
@@ -461,6 +515,7 @@ def html_trans_database():
 @login_required
 @app.route('/html/investment/ledger',methods=['GET'])
 def html_investment_ledger():
+	update()
 	t = InvestmentDatabase.query.all()
 	return render_template("html-invest-ledger.html", invs=t)
 
@@ -493,6 +548,7 @@ def get_block(id):
 @app.route('/holdings', methods=['GET'])
 @login_required
 def get_user_wallet():
+	update()
 	user = current_user
 	
 	# Fetch the user's wallet
@@ -517,11 +573,10 @@ def get_user_wallet():
 	
 	for asset in assets:
 		invs = InvestmentDatabase.query.filter_by(receipt=asset.transaction_receipt).first()
-		print(invs)
 		if invs:
 			update()
 			df['inv_name'].append(invs.investment_name)
-			df['quantity'].append(invs.quantity)
+			df['quantity'].append(asset.quantity)
 			df['marketcap'].append(invs.market_cap)
 			df['starting_price'].append(invs.starting_price)
 			df['market_price'].append(invs.market_price)
@@ -789,6 +844,50 @@ def track_invest():
 		return jsonify(ls)
 	return render_template("inv-inv.html")
 
+@app.route('/download/chain-db')
+def download_chain_db():
+	# Query data from the SQLAlchemy model
+	data = Chain.query.all() #YourTableModel.query.all()
+	
+	# Create an in-memory CSV file
+	def generate():
+		# Write header
+		yield ','.join(['ID', 'txid', 'username','from_address','to_address','amount',
+			'timestamp','type','signature']) + '\n'  # Replace with actual column names
+		
+		# Write data rows
+		for row in data:
+			yield ','.join([str(row.id), str(row.txid), str(row.username),
+				str(row.from_address), str(row.to_address), str(row.amount),
+				str(row.timestamp), str(row.type), str(row.signature)]) + '\n'  # Replace with actual columns
+			
+	# Create a response object for downloading
+	response = Response(generate(), mimetype='text/csv')
+	response.headers.set('Content-Disposition', 'attachment', filename='chain_data.csv')
+	
+	return response
+
+@app.route('/download/investment-db')
+def download_investment_db():
+	# Query data from the SQLAlchemy model
+	data = InvestmentDatabase.query.all() #YourTableModel.query.all()
+	
+	# Create an in-memory CSV file
+	def generate():
+		# Write header
+		yield ','.join(['ID', 'owner','investment_name', 'quantity','market_cap','change_value','starting_price',
+			'market_price','coins_value','investors','receipt','tokenized_price']) + '\n'  # Replace with actual column names
+		# Write data rows
+		for row in data:
+			yield ','.join([str(row.id), str(row.owner), str(row.investment_name),
+				str(row.quantity), str(row.market_cap), str(row.change_value),
+				str(row.starting_price), str(row.market_price), str(row.coins_value),
+				str(row.investors), str(row.receipt), str(row.tokenized_price)]) + '\n'  # Replace with actual columns
+	# Create a response object for downloading
+	response = Response(generate(), mimetype='text/csv')
+	response.headers.set('Content-Disposition', 'attachment', filename='investment_data.csv')
+	
+	return response
 
 @app.route('/search/<receipt>')
 def search(receipt):
@@ -813,14 +912,16 @@ def invest():
 				house.coin_fee(0.1*staked_coins)
 				new_value = 0.9*staked_coins
 				wal.coins -= staked_coins
-				inv.coins_value += staked_coins
+				wal.holdings +=1
+				inv.coins_value += new_value
 				db.session.commit()
 				new_transaction = TransactionDatabase(
         								  username=user,
                                           txid=inv.receipt,
                                           from_address=user_name.personal_token,
                                           to_address=inv.investment_name,
-                                          amount=staked_coins,type='investment',
+                                          amount=new_value,
+										  type='investment',
                                           signature=os.urandom(10).hex())
 				db.session.add(new_transaction)
 				db.session.commit()
@@ -837,7 +938,7 @@ def invest():
                      token_address=os.urandom(10).hex(),
                      user_address=user_name.personal_token,
                      transaction_receipt=inv.receipt,
-                     quantity=staked_coins,
+                     quantity = staked_coins,
                      cash = coin.dollar_value*inv.tokenized_price,
                      coins = inv.tokenized_price)
 				db.session.add(a_tk)
@@ -861,6 +962,8 @@ def invest():
                                             'investment_name':inv.investment_name,
                                             'investor_name':user_name.username,
                                             'investor_token':user_name.personal_token})})
+#				blockchain.add_receipt(inv.investment_name, user, new_value)
+#				blockchain.p
 				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {staked_coins} in {inv.investment_name}"""
 			else:
 				return "<h3>Insufficient coins in wallet</h3>"
@@ -1021,15 +1124,20 @@ def sell_asset():
 def bib():
 	return render_template("bib-template.html")
 
+@app.route('/render')
+def render():
+	return render_template("index_render.html")
+
 # Function to check allowed file extensions
 def allowed_file(filename):
 	from models import ALLOWED_EXTENSIONS
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'txt', 'html','py','pdf'}
 
+
 @app.route('/submit/valuation', methods=['GET','POST'])
 @login_required
 def submit_valuation():
-	user = current_user 
+	user = current_user
 	if request.method == 'POST':
 		company = request.values.get('ticker')
 		forecast = float(request.values.get('forecast'))
@@ -1052,19 +1160,19 @@ def submit_valuation():
 		db.session.add(valuation)
 		db.session.commit()
 		return """<h1><a href='/'>Back</a></h1><h2>Sucessfuly submit valuation</h2>"""
-	return render_template("submit-valuation.html")
+	return render_template("submit-val.html")
 
-@app.route('/track/valuation')
+@app.route('/track/valuation',methods=['GET','POST'])
 def track_valuation():
 	if request.method =="POST":
 		receipt = request.values.get("receipt")
 		val = ValuationDatabase.query.filter_by(receipt=receipt).first()
-		name = val.target_company + dt.datetime.now()
+		name = val.target_company
 		data = val.valuation_model
 		f = open('local/{name}','wb')
 		f.write(data)
 		f.flush()
-		return send_file('local/{name}', mimetype='text/csv',download_name='valuation.csv',as_attachment=True)
+		return send_file('local/{name}', mimetype='text/xlsx',download_name='valuation.xlsx',as_attachment=True)
 	return render_template("track-valuation.html")
 
 @app.route("/ledger/valuation")
@@ -1114,8 +1222,8 @@ def mine_optimization():
 	if request.method == "POST":
 		receipt = request.values.get("receipt")
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
-		file = request.files['files']
-		output_data = file.read()	
+		f = request.files['files']
+		output_data = f.read()	
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
 							receipt=receipt,
@@ -1133,9 +1241,63 @@ def opt_ledger():
 	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename} for o in opts]
 	return jsonify(ls)
 
+@app.route("/run/optimization", methods=['GET', 'POST'])
+def run_optimization():
+	if request.method == "POST":
+		receipt = request.values.get('receipt')
+		opt = Optimization.query.filter_by(receipt=receipt).first()
+		name = opt.filename
+		data = opt.file_data
+		os.makedirs('local', exist_ok=True)
+		
+		with open(f'local/{name}', 'wb') as f:
+			f.write(data)
+			f.flush()
+		
+		def run_script(name):
+			# Initialize variables to capture stdout and stderr
+			output = []
+			errors = []
+			# Check if the virtual environment exists, if not, create it
+			if not os.path.exists("venv"):
+				create_venv_cmd = "python3 -m venv venv"
+			else:
+				create_venv_cmd = ""
+			# Path to the virtual environment activation script
+			venv_activate = "source venv/bin/activate &&" #&& pip install yfinance &&"
+			# Command to create the venv (if needed), install requirements, and run the script
+			command = f"{venv_activate} python3.9 local/{name} -i output.txt"
+			# Open output.txt in append mode to save the output
+			with open("output.txt", "w") as outfile:
+				# Run the process and redirect stdout and stderr to the file
+				with Popen(command, stdout=PIPE, stderr=PIPE, text=True, shell=True) as process:
+					# Collect stdout
+					for line in process.stdout:
+						output.append(line)
+						outfile.write(line)  # Write to the output file
+						print(line, end='')  # Optionally print to console
+						
+					# Collect stderr
+					for error in process.stderr:
+						errors.append(error)
+						outfile.write(error)  # Write to the output file
+						print(error, end='')  # Optionally print to console
+			# Join the collected output and errors into strings
+			output_str = ''.join(output)
+			errors_str = ''.join(errors)
+			# Return the result as a dictionary
+			return {"output": output_str,"errors": errors_str}
+		
+		output = run_script(name=name)
+		return jsonify(output) #redirect('/')
+	return render_template("run-code.html")
+
+
+
 ##################################################
 # Quantitative Services #########################
 ##################################################
+
 @app.route("/basic/dcf",methods=['POST','GET'])
 def basic_dcf():
 	from dcf3 import DCF
@@ -1215,9 +1377,120 @@ def basic_dcf():
 		final = dcf.final(dcf.calculate_cashflow(rev))
 		fcff = (final - get_debt(ticker) + get_cash(ticker))/get_shares_two(ticker)
 		return html
-	
 	return render_template("basic-dcf.html")
 
+
+@app.route('/live/dcf')
+def live_dcf():
+	return render_template('live-dcf.html')
+
+@app.route("/generate/dcf-xlsx-template")
+def generate_dcf_csv():
+	return send_file('local/valuation-template.xlsx', mimetype='text/xlsx', download_name='dcf.xlsx',as_attachment=True)
+
+@app.route('/fundamentals', methods=['GET','POST'])
+def get_fundamentals():
+	if request.method == "POST":
+		# Get the ticker from the query parameters
+		ticker = request.values.get('ticker').upper()
+		if not ticker:
+			return jsonify({"error": "Ticker parameter is required"}), 400
+		
+		try:
+			# Fetch the depreciation and revenue
+			depreciation = get_dep(ticker)
+			revenue = get_rev(ticker)
+			shares = get_shares_two(ticker)
+			debt = get_debt(ticker)
+			equity = get_equity(ticker)
+			cash = get_cash(ticker)
+			ni = get_ni(ticker)
+			# Return the results as JSON
+			return jsonify({
+				"ticker": ticker,
+				"depreciationAndAmortization": depreciation,
+				"revenue": revenue,
+				"shares":shares,
+				"debt":debt,
+				"equity":equity,
+				"cash":cash,
+				"netIncome(%)":ni})
+		except Exception as e:
+			return jsonify({"error": str(e)}), 500
+	return render_template("fundamentals.html")
+
+@app.route('/generate_dcf', methods=['GET','POST'])
+def generate_dcf():
+	try:
+		if request.method =='POST':
+			# Fetch input data from the request
+			data = request.get_json()
+			
+			# Extract values from the input JSON
+			years = data.get('years', ['2024E', '2025E', '2026E', '2027E', '2028E', '2029E', '2030E'])
+			revenue = data.get('revenue', [0] * len(years))
+			revenue_growth = data.get('revenue_growth', [0] * len(years))
+			ebitda = data.get('ebitda', [0] * len(years))
+			ebitda_margin = data.get('ebitda_margin', [0] * len(years))
+			depreciation = data.get('depreciation', [0] * len(years))
+			ebit = data.get('ebit', [0] * len(years))
+			taxes = data.get('taxes', [0] * len(years))
+			nopat = data.get('nopat', [0] * len(years))
+			capex = data.get('capex', [0] * len(years))
+			change_in_nwc = data.get('change_in_nwc', [0] * len(years))
+			free_cash_flow = data.get('free_cash_flow', [0] * len(years))
+			discount_factor = data.get('discount_factor', [0] * len(years))
+			present_value_fcf = data.get('present_value_fcf', [0] * len(years))
+			
+			# Create the DCF dataframe
+			dcf_data = {
+				'Year': years,
+				'Revenue': revenue,
+				'Revenue Growth %': revenue_growth,
+				'EBITDA': ebitda,
+				'EBITDA Margin %': ebitda_margin,
+				'Depreciation & Amortization': depreciation,
+				'EBIT': ebit,
+				'Taxes': taxes,
+				'Net Operating Profit After Tax (NOPAT)': nopat,
+				'Capital Expenditure': capex,
+				'Change in Net Working Capital': change_in_nwc,
+				'Free Cash Flow': free_cash_flow,
+				'Discount Factor': discount_factor,
+				'Present Value of FCF': present_value_fcf,
+			}
+			df_dcf = pd.DataFrame(dcf_data)
+			
+			# Terminal Value section
+			terminal_value = data.get('terminal_value', 0)
+			perpetual_growth_rate = data.get('perpetual_growth_rate', 0)
+			terminal_value_discounted = data.get('terminal_value_discounted', 0)
+			
+			terminal_data = {
+				'Terminal Value': [terminal_value],
+				'Perpetual Growth Rate %': [perpetual_growth_rate],
+				'Terminal Value (Discounted)': [terminal_value_discounted]
+			}
+			df_terminal = pd.DataFrame(terminal_data)
+			
+			# Save DCF data to a CSV
+			dcf_file_path = "generated_dcf.csv"
+			df_dcf.to_csv(dcf_file_path, index=False)
+			
+			terminal_value_file_path = "generated_terminal_value.csv"
+			df_terminal.to_csv(terminal_value_file_path, index=False)
+			
+			# Combine both files into one or send them separately as needed
+			return jsonify({
+				"message": "DCF Template Generated",
+				"dcf_file": dcf_file_path,
+				"terminal_value_file": terminal_value_file_path
+			})
+		
+	except Exception as e:
+			return jsonify({"error": str(e)}), 400
+	return render_template("dcf-input.html")
+	
 @app.route('/wacc',methods=['GET','POST'])
 def wacc():
 	from wacc import Rates
@@ -1572,6 +1845,6 @@ if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
 		PendingTransactionDatabase.genisis()
-	app.run(debug=True,host="0.0.0.0",port=8080)
-	while True:
 		update()
+	start_background_task()
+	app.run(host="0.0.0.0",port=8080)

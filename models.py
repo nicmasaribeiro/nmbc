@@ -21,9 +21,11 @@ import os
 import sys
 from sqlalchemy.ext.mutable import MutableList
 import datetime as dt
+from flask_socketio import SocketIO
+from celery import Celery
 
 UPLOAD_FOLDER = 'local'
-ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf'}
+ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -31,6 +33,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blockchain.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.urandom(24).hex()
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -39,7 +42,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 bcrypt = Bcrypt(app)
 login_manager.login_view = 'login'
-
 engine = create_engine('sqlite:///commands.db')
 Session = sessionmaker(bind=engine)()
 
@@ -51,6 +53,8 @@ class Wallet(db.Model):
     balance = db.Column(db.Float, default=0)
     password = db.Column(db.String(1024))
     coins = db.Column(db.Float, default=1000)
+    holdings = db.Column(db.Integer,default=0)
+    profit_loss = db.Column(db.Float,default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     token = db.Column(db.String(3072))
 
@@ -493,6 +497,7 @@ class Blockchain(Network):
         self.stake = []
         self.difficulty = 5
         self.mining_reward = 100
+        self.packets = []
         
     def process_receipts(self,receipts):
         total_sum = 0
@@ -531,7 +536,7 @@ class Blockchain(Network):
         hash = int.from_bytes(sha512(packet).digest(), byteorder='big')
         signature = pow(hash, key.d, key.n)
         print("Signature:", hex(signature))
-        self.receipts.append(signature)
+        self.packets.append(signature)
         return (signature,hex(signature))
     
     def verify_packet(self,packet:bytes, key,signature):
@@ -589,7 +594,7 @@ class Blockchain(Network):
             current_block = self.chain[i]
             previous_block = self.chain[i - 1]
             
-            if current_block.hash != current_block.calculate_hash():
+            if current_block.hash != self.calculate_hash():
                 return False
             
             if current_block.previous_hash != previous_block.hash:
