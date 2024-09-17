@@ -1,0 +1,109 @@
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .navbar {
+        background-color: #f8f8f8;
+        overflow: hidden;
+    }
+
+    .navbar ul {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .navbar li {
+        float: left;
+    }
+
+    .navbar li a {
+        display: block;
+        color: #333;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+    }
+
+    .navbar li a:hover {
+        background-color: #ddd;
+    }
+    .grid-container {
+        display: grid;
+        grid-template-columns: auto auto auto;
+        background-color: #2196F3;
+        padding: 10px;
+    }
+    .grid-item {
+        background-color: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(0, 0, 0, 0.8);
+        padding: 50px;
+        font-size: 30px;
+        text-align: left;
+    }
+
+    .header {
+            background-color: #333;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+        }
+
+    .header h1 {
+            margin: 0;
+        }
+    .sub-grid-item{
+        font-size: 20px;
+        text-align: left;
+    }
+.extra-content{
+    padding: 10px;
+    align-content: center;
+    background-color: navy;
+    font: blue;
+}
+.download{
+    background-color: #4CAF50; /* Green */
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+}
+.counter{
+    text-align: center;
+}
+
+.notebook-container{
+    align-content: center;
+}
+.frame{
+    background-color: aqua;
+    padding-left: 20px;
+}
+.extra-notes{
+    padding-left: 50px;
+}
+.extra-container{
+    
+}
+.download-index{
+    padding: 30px;
+    background-color: green;
+}
+.hidden {
+            display: none;
+        }
+.button {
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+}
