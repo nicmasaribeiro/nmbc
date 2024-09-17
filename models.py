@@ -21,8 +21,6 @@ import os
 import sys
 from sqlalchemy.ext.mutable import MutableList
 import datetime as dt
-from flask_socketio import SocketIO
-from celery import Celery
 
 UPLOAD_FOLDER = 'local'
 ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}

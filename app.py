@@ -32,7 +32,6 @@ from flask_login import current_user, login_required, login_user
 import time
 from hashlib import sha256
 from bc import * 
-from flask_socketio import SocketIO
 from subprocess import Popen, PIPE
 import openai
 import threading
