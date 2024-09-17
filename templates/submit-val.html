@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Submit Valuation</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+	</head>
+	<body>
+
+{% extends "base.html" %}
+{% block content %}
+<h1>Submit Valuation</h1>
+	<div class="container">
+		<form action="/submit/valuation" method="POST" enctype="multipart/form-data">
+			<input type="text" name="ticker" placeholder="Company Ticker" required>
+			<input type="number" step="any" name="forecast" placeholder="Forecast" required>
+			<input type="number" step="any" name="wacc" placeholder="WACC" required>
+			<input type="number" step="any" name="roe" placeholder="ROE" required>
+			<input type="number" step="any" name="rd" placeholder="RD" required>
+			<input type="file" name="file" required>
+			<input type="submit" value="Submit">
+		</form>
+	</div>
+{% endblock %}
+
+	</body>
+</html>

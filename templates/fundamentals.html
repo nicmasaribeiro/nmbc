@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Valuation Fundamentals</title>
+	</head>
+	<body>
+		{% extends "base.html" %}
+		{% block content %}
+		<h1>Search Company Fundamentals</h1>
+		<form method="POST" action="/fundamentals">
+			<input type="text" name="ticker" placeholder="enter company ticker">
+
+			<input type="submit">
+		</form>
+		{% endblock %}
+
+	</body>
+</html>

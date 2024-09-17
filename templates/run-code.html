@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Track Valuation</title>
+    <title>Run Optimization</title>
 </head>
 <body>
   
   {% extends "base.html" %}
   {% block content %}
-    <h1>Track Valuation</h1>
-  <form method="POST" action="/track/valuation">
-        <label for="file">Enter Valuation Receipt:</label>
+    <h1>Run Optimization</h1>
+<form method="POST" action="/run/optimization">
+        <label for="file">Enter Optimization Receipt:</label>
         <input type="text" name="receipt" placeholder="optimization receipt">
         <button type="submit">Submit</button>
-  </form>
+</form>
   {% endblock %}
   
 </body>

@@ -3,8 +3,7 @@
 	<head>
 		<meta charset="UTF-8">
 		<title>bib.io</title>
-		<link rel="stylesheet" type="text/css" href="pages-index.css">
-		<link rel="stylesheet" type="text/css" href="../../pages/pages-index.css">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='pages-index.css') }}">		<link rel="stylesheet" type="text/css" href="../../pages/pages-index.css">
 
 		<style>
 			
@@ -137,12 +136,13 @@
 	</head>
 	<body>
 		<div class="header">
-			<a href="/"><h1>Home</h1></a>
+			<a href="/"><h1>NMCYBC</h1></a>
+			<p>Welcome to NMCYBlockchain Information Exchange</p>
 		</div>
 	
 	<div id="blank_space"></div>
 		
-				<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="./downloads/page.html"><div class="download">Download</div></a>
+				<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="./downloads/page.html"><div class="download">Download Bibliography</div></a>
 		<div id="blank_space"></div>
 	
 	<div>

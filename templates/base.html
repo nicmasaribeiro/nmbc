@@ -40,7 +40,6 @@
             <li><a class="dropdown-item" href="/get/users">Users</a></li>
             <li><a class="dropdown-item" href="/get/vals">Validators</a></li>
             <li><a class="dropdown-item" href="/get/wallets">Wallets</a></li>
-            <li><a class="dropdown-item" href="/get/assets">Investments</a></li>
             <li><a class="dropdown-item" href="/get/blocks">Blocks</a></li>
             <li><a class="dropdown-item" href="/bc/receipts">Blockchain Receipts</a></li>
           </ul>
@@ -108,8 +107,11 @@
             Templates
           </a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="/download/csv">Generate CSV </a></li>
+            <li><a class="dropdown-item" href="/download/csv">Generate Stock CSV</a></li>
             <li><a class="dropdown-item" href="/bib">Bibliography Template</a></li>
+            <li><a class="dropdown-item" href="/generate/dcf-xlsx-template">DCF Template</a></li>
+            <li><a class="dropdown-item" href="/render">Notebook Template</a></li>
+
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -117,12 +119,14 @@
             Valuation
           </a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="/wacc">Rates</a></li>
-            <li><a class="dropdown-item" href="/basic/dcf">DCF</a></li>
             <li><a class="dropdown-item" href="/ledger/valuation">Valuation Ledger</a></li>
-            <li><a class="dropdown-item" href="/submit/valuation">Submit Valuation</a></li>
+            <li><a class="dropdown-item" href="/wacc">Valuation Rates</a></li>
+            <li><a class="dropdown-item" href="/basic/dcf">Automated DCF Valuation</a></li>
+            <li><a class="dropdown-item" href="/live/dcf">Live DCF Valuation</a></li>
+            <li><a class="dropdown-item" href="/submit/valuation">Submit Valuation to Chain</a></li>
             <li><a class="dropdown-item" href="/track/valuation">Track Valuation</a></li>
-            
+            <li><a class="dropdown-item" href="/fundamentals">Valuation Fundamentals</a></li>
+
             
           </ul>
         </li>
@@ -131,10 +135,12 @@
             Optimization
           </a>
           <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/ledger/optimizations">Optimization Ledger</a></li>
             <li><a class="dropdown-item" href="/submit/optimization">Submit Optimization</a></li>
             <li><a class="dropdown-item" href="/track/opts">Track Optimization</a></li>
             <li><a class="dropdown-item" href="/mine/optimization">Mine Optimization</a></li>
-            <li><a class="dropdown-item" href="/ledger/optimizations">Optimization Ledger</a></li>
+            <li><a class="dropdown-item" href="/run/optimization">Run Optimization</a></li>
+
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -150,10 +156,10 @@
         </li>
       </ul>
 
-      <form class="d-flex" role="search">
-        <input class="form-control me-2" name = "query" placeholder="Search" aria-label="Search">
-        <button class="btn btn-outline-success" onclick="search();">Search</button>
-      </form>
+<!--  <form class="d-flex" role="search">-->
+<!--    <input class="form-control me-2" name = "query" placeholder="Search" aria-label="Search">-->
+        <button class="btn btn-outline-success" onclick="chatSearch();">Chat</button>
+<!--  </form>-->
     </div>
   </div>
 </nav>
@@ -261,11 +267,8 @@
     window.location.href = '/get/block/' + index;
   };
   
-  const search = () => {
-    const query = document.getElementsByName("query").innerHTML.value;
-    alert(query);
-    window.location.href = '/search/' + query;
-    
+  const chatSearch = () => {
+    window.location.href = '/chat';    
   };
 </script>
 
