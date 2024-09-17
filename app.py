@@ -1311,7 +1311,7 @@ def run_optimization():
 		
 		output = run_script(name=name)
 		result = output["output"].replace('\n', '<br>')
-		return result #jsonify(output) #redirect('/')
+		return output #jsonify(output) #redirect('/')
 	return render_template("run-code.html")
 
 
