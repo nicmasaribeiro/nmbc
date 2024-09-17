@@ -863,7 +863,6 @@ def download_chain_db():
 	# Create a response object for downloading
 	response = Response(generate(), mimetype='text/csv')
 	response.headers.set('Content-Disposition', 'attachment', filename='chain_data.csv')
-	
 	return response
 
 @app.route('/download/valuation-db')
@@ -1287,7 +1286,7 @@ def run_optimization():
 			output = []
 			errors = []
 			# Command to create the venv (if needed), install requirements, and run the script
-			command = f"python3 local/{name} -i output.txt"
+			command = f"python3.9 local/{name} -i output.txt"
 			# Open output.txt in append mode to save the output
 			with open("output.txt", "w") as outfile:
 				# Run the process and redirect stdout and stderr to the file
@@ -1311,7 +1310,7 @@ def run_optimization():
 		
 		output = run_script(name=name)
 		result = output["output"].replace('\n', '<br>')
-		return output #jsonify(output) #redirect('/')
+		return result #jsonify(output) #redirect('/')
 	return render_template("run-code.html")
 
 
@@ -1420,23 +1419,31 @@ def get_fundamentals():
 		
 		try:
 			# Fetch the depreciation and revenue
-			depreciation = get_dep(ticker)
+			depreciation = get_dep(ticker)/get_rev(ticker)
 			revenue = get_rev(ticker)
 			shares = get_shares_two(ticker)
 			debt = get_debt(ticker)
 			equity = get_equity(ticker)
 			cash = get_cash(ticker)
 			ni = get_ni(ticker)
+			gpr = get_grossProfitRatio(ticker)
+			taxes = get_taxes(ticker)
+			operating_income = get_operating_income(ticker)
+			capex = get_capex(ticker)
+			
 			# Return the results as JSON
 			return jsonify({
 				"ticker": ticker,
-				"depreciationAndAmortization": depreciation,
+				"depreciationAndAmortization(%)": depreciation,
 				"revenue": revenue,
 				"shares":shares,
 				"debt":debt,
 				"equity":equity,
 				"cash":cash,
-				"netIncome(%)":ni})
+				"netIncome(%)":ni,
+				"grossProfitRatio(%)":gpr,
+				"taxes(%)":taxes,
+		        "operatingIncome":operating_income})
 		except Exception as e:
 			return jsonify({"error": str(e)}), 500
 	return render_template("fundamentals.html")
@@ -1866,7 +1873,7 @@ def stats_binom():
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
-#		PendingTransactionDatabase.genisis()
+		PendingTransactionDatabase.genisis()
 		update()
 	start_background_task()
 	app.run(host="0.0.0.0",port=8080)
