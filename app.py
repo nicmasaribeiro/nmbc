@@ -38,6 +38,8 @@ import threading
 from get_fundamentals import *
 from ddm import *
 
+#https://chatgpt.com/share/66e9f5bc-bbf0-8003-9db5-4e86488eb93f
+
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
@@ -58,8 +60,10 @@ def update():
 	for i in invests:
 		t = yf.Ticker(i.investment_name.upper())
 		price = t.history(period='1d',interval='1m')['Close'][-1]
+		current_time = datetime.utcnow()
+		time_difference = current_time - i.timestamp
+		i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
 		change = (price - i.starting_price)/i.starting_price
-		i.change_value = change
 		db.session.commit()
 		i.market_price = price
 		db.session.commit()
@@ -121,6 +125,10 @@ def chat():
 		return jsonify({"error": str(e)}), 500
 	
 	return render_template('chat.html')
+
+@app.route('/index')
+def index():
+	return render_template("index.html")
 
 @app.route('/house')
 def house():
@@ -733,9 +741,9 @@ def mine():
 		return f"<h1><a href='/'> Home </a></h1><h3>Success</h3>You've mined {value} coins"
 	return render_template('mine.html')
 
-
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
+	from pricing_algo import derivative_price
 	update()
 	if request.method == "POST":
 		user = request.values.get('name')
@@ -744,8 +752,10 @@ def buy_or_sell():
 		password = request.values.get('password')
 		qt = float(request.values.get("qt"))
 		target_price = float(request.values.get("target_price"))
+		maturity = float(request.values.get("maturity"))
 		spread = float(request.values.get("sigma"))
 		reversion_coef = float(request.values.get("mu"))
+		option_type = request.values.get("option_type")
 		user_db = Users.query.filter_by(username=user).first()
 		
 		if not user_db:
@@ -760,7 +770,6 @@ def buy_or_sell():
 		price = history['Close'][-1]
 		token_price = price * qt / coins
 
-		
 		wal = Wallet.query.filter_by(address=user).first()
 		if wal and wal.coins >= coins:
 			receipt = os.urandom(10).hex()
@@ -795,8 +804,12 @@ def buy_or_sell():
 				password=password,
 				quantity=qt,
 				market_cap=qt * price,
+				position_type = option_type,
+				target_price=target_price,
 				starting_price=price,
 				market_price=price,
+				timestamp = dt.datetime.utcnow(),
+				time_float=maturity,
 				coins_value=coins,
 				investors=1,
 				receipt=receipt
@@ -1272,27 +1285,26 @@ def mine_optimization():
 	if request.method == "POST":
 		receipt = request.values.get("receipt")
 		ticker = request.values.get("ticker")
-		
+		score = float(request.values.get("score"))
+		optimal_value = float(request.values.get("optimal_value"))
 		# Ensure the receipt exists in the query
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
 		if not optmimization:
 			return """<h2>Receipt not found</h2>""", 400
-		
 		f = request.files['file']
 		output_data = f.read()
-		
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
 							target = ticker,
+							score = score,
+							optimal_value=optimal_value,
 							receipt=receipt,
 							output_data=output_data,
 							filename=optmimization.filename,
 							created_at=dt.datetime.now())
 		db.session.add(token)
 		db.session.commit()
-		
 		return """<h1><a href='/'>Home</a></h1><h2>Success</h2>"""
-	
 	return render_template("mine-optimization.html")
 
 
@@ -1306,27 +1318,7 @@ def optimizatoin_token_ledger():
 def process_optimization():
 	if request.method == 'POST':
 		receipt_address = request.values.get('receipt')
-		
-		# Validate the receipt_address
-		if not receipt_address:
-			return "Error: receipt address is missing", 400
-		
-		optimization_token = OptimizationToken.query.filter_by(receipt=receipt_address).first()
-		
-		# Validate if optimization_token was found
-		if not optimization_token:
-			return "Error: No optimization token found for this receipt address", 404
-		
-		# Validate if output_data exists
-		if optimization_token.output_data:
-			output = str(optimization_token.output_data.decode()).split(' ')		
-			print(output)
-			
-		else:
-			return "Error: No output data available for this token", 500
-		
-		return "success"
-	
+		return receipt_address
 	return render_template('process-optimization.html')
 
 @app.route('/ledger/optimizations')
@@ -1334,52 +1326,6 @@ def opt_ledger():
 	opts = Optimization.query.all()
 	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename,'target_company':o.target} for o in opts]
 	return jsonify(ls)
-
-@app.route("/run/optimization", methods=['GET', 'POST'])
-def run_optimization():
-	if request.method == "POST":
-		receipt = request.values.get('receipt')
-		opt = Optimization.query.filter_by(receipt=receipt).first()
-		name = opt.filename
-		data = opt.file_data
-		os.makedirs('local', exist_ok=True)
-		
-		with open(f'local/{name}', 'wb') as f:
-			f.write(data)
-			f.flush()
-		
-		def run_script(name):
-			# Initialize variables to capture stdout and stderr
-			output = []
-			errors = []
-			# Command to create the venv (if needed), install requirements, and run the script
-			command = f"python3 local/{name} -i output.txt"
-			# Open output.txt in append mode to save the output
-			with open("output.txt", "w") as outfile:
-				# Run the process and redirect stdout and stderr to the file
-				with Popen(command, stdout=PIPE, stderr=PIPE, text=True, shell=True) as process:
-					# Collect stdout
-					for line in process.stdout:
-						output.append(line)
-						outfile.write(line)  # Write to the output file
-						print(line, end='')  # Optionally print to console
-						
-					# Collect stderr
-					for error in process.stderr:
-						errors.append(error)
-						outfile.write(error)  # Write to the output file
-						print(error, end='')  # Optionally print to console
-			# Join the collected output and errors into strings
-			output_str = ''.join(output)
-			errors_str = ''.join(errors)
-			# Return the result as a dictionary
-			return {"output": output_str,"errors": errors_str}
-		
-		output = run_script(name=name)
-		result = output["output"].replace('\n', '<br>')
-		return result #jsonify(output) #redirect('/')
-	return render_template("run-code.html")
-
 
 
 ##################################################

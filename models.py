@@ -17,6 +17,7 @@ from sqlalchemy import create_engine, ARRAY
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import enum
+import yfinance as yf
 import os
 import sys
 from sqlalchemy.ext.mutable import MutableList
@@ -285,7 +286,12 @@ class CoinDB(db.Model):
             new.append(coin)
         self.market_cap = sum(new)
         db.session.commit()
-        
+
+class InvestmentPosition(enum.Enum):
+    bear = 'bear'
+    bull = 'bull'
+    
+
 class InvestmentDatabase(db.Model):
     __tablename__ = 'investments'
     
@@ -301,6 +307,10 @@ class InvestmentDatabase(db.Model):
     coins_value = db.Column(db.Float(), default=0.0)
     investors = db.Column(db.Integer)
     receipt = db.Column(db.String(1024),unique=True)
+    position_type = db.Column(db.Enum(InvestmentPosition))
+    timestamp = db.Column(db.DateTime)
+    time_float = db.Column(db.Float())
+    target_price = db.Column(db.Float())
     tokenized_price = db.Column(db.Float,default=0.0) # tokenized_value
     ls = MutableList()
 
@@ -353,7 +363,7 @@ class GeneralValuationDatabase(db.Model):
     forecast = db.Column(db.Float(),default=0.0)
     expected_change = db.Column(db.Float(),default=0.0)
     receipt = db.Column(db.String(),unique=True)
-    type = db.Column(db.Enum(TransactionType), nullable=False)
+    type = db.Column(db.Enum(ValuationType), nullable=False)
     valuation_model = db.Column(db.LargeBinary())
 
 
@@ -364,6 +374,8 @@ class OptimizationToken(db.Model):
     target = db.Column(db.String)
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
     receipt = db.Column(db.String)
+    score = db.Column(db.Float)
+    optimal_value = db.Column(db.Float)
     output_data = db.Column(db.LargeBinary, nullable=False)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
