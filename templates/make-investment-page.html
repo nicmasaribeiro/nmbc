@@ -70,7 +70,10 @@
             <label for="coins">Coins Leverage</label>
             <input type="float" step="0.01" id="coins" name="coins" placeholder="Enter the number of staked coins">
             <br>
-            <label for="Target Price">Coins Leverage</label>
+            <label for="maturity">Maturity</label>
+            <input type="float" step="0.01" id="maturity" name="maturity" placeholder="Enter the maturity (years)">
+            <br>
+            <label for="Target Price">Target Price</label>
             <input type="float" step="0.01" id="target_price" name="target_price" placeholder="Enter the target price">
             <br>
             <label for="sigma">Spread Coefficient</label>
@@ -82,6 +85,11 @@
             <label for="Quantity">Number Asset Shares</label>
             <input type="float" name="qt" placeholder="Enter the number of tokens Staked">
             <br>
+            <label for="option_type">Postion Type:</label><br>
+            <select id="option_type" name="option_type" class="input-field">
+                <option value="bear">Bear</option>
+                <option value="bull">Bull</option>
+            </select><br><br>
             <input type="submit" value="Submit">
         </form>
     </div>
