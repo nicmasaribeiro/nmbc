@@ -193,10 +193,10 @@
 
   <div class="row g-4">
     <div class="col-md-6">
-      <button class="btn btn-primary btn-lg w-100" onclick="buy()">Buy Coins</button>
+      <button class="btn btn-primary btn-lg w-100" onclick="buy()">Create Asset</button>
     </div>
     <div class="col-md-6">
-      <button class="btn btn-primary btn-lg w-100" onclick="sell()">Sell Coins</button>
+      <button class="btn btn-primary btn-lg w-100" onclick="sell()">Buy Asset</button>
     </div>
     <div class="col-md-6">
       <button class="btn btn-secondary btn-lg w-100" onclick="mywallet()">My Holdings</button>
@@ -266,8 +266,8 @@
 <!--  "{{ url_for('static', filename='crawler.png') }}"-->
 
 <script>
-  const buy = () => window.location.href = "/buy/coins";
-  const sell = () => window.location.href = "/sell/coins";
+  const buy = () => window.location.href = "/create/investment";
+  const sell = () => window.location.href = "/invest/asset";
   const mywallet = () => {
     window.location.href = '/holdings';
   };
