@@ -12,11 +12,11 @@ def derivative_price(prices, mu, alpha, sigma, leverage_factor=10):
 	# Take the average price across simulations
 	return np.mean(derivative_prices)
 
-mu = np.mean(df)  # mean reversion level
-alpha = 2.0  # reversion coefficient (higher means faster reversion)
-sigma = 0.5  # spread coefficient (lower means lower variance around the mean)
-r = 0.1  # population growth rate (logistic)
-K = 150  # carrying capacity for the population dynamics
-
-price = derivative_price(df, mu, alpha, sigma, .10)
-print(price)
+#mu = np.mean(df)  # mean reversion level
+#alpha = 2.0  # reversion coefficient (higher means faster reversion)
+#sigma = 0.5  # spread coefficient (lower means lower variance around the mean)
+#r = 0.1  # population growth rate (logistic)
+#K = 150  # carrying capacity for the population dynamics
+#
+#price = derivative_price(df, mu, alpha, sigma, .10)
+#print(price)
