@@ -82,13 +82,16 @@
             <label for="mu">Reversion Coefficient</label>
             <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficeint">
             <br>
+            <label for="eta">Risk Neutral Measure</label>
+            <input type="float" step="0.01" id="eta" name="eta" placeholder="Enter the risk neutral coefficeint">
+            <br>
             <label for="Quantity">Number Asset Shares</label>
             <input type="float" name="qt" placeholder="Enter the number of tokens Staked">
             <br>
             <label for="option_type">Postion Type:</label><br>
             <select id="option_type" name="option_type" class="input-field">
-                <option value="bear">Bear</option>
-                <option value="bull">Bull</option>
+                <option value="put">Put</option>
+                <option value="call">Call</option>
             </select><br><br>
             <input type="submit" value="Submit">
         </form>

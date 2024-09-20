@@ -34,7 +34,7 @@
   <iframe src="https://www.desmos.com/calculator/rrmno6qntd?embed" width="5" height="5" style="border: 0px solid #ccc" frameborder=0></iframe>
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
   <div class="container-fluid">
-    <a class="navbar-brand" href="cmc">
+    <a class="navbar-brand" href="/">
       <img src="{{ url_for('static', filename='crawler.png') }}" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
       NMCYBC
     </a>
@@ -133,10 +133,8 @@
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/ledger/valuation">Valuation Ledger</a></li>
-            <li><a class="dropdown-item" href="/ddm">DDM</a></li>
             <li><a class="dropdown-item" href="/wacc">Valuation Rates</a></li>
-            <li><a class="dropdown-item" href="/basic/dcf">Automated DCF</a></li>
-            <li><a class="dropdown-item" href="/submit/valuation">Add Valuation </a></li>
+            <li><a class="dropdown-item" href="/submit/valuation">Submit Valuation</a></li>
             <li><a class="dropdown-item" href="/track/valuation">Track Valuation</a></li>
             <li><a class="dropdown-item" href="/fundamentals">Valuation Fundamentals</a></li>
 
@@ -151,7 +149,7 @@
             <li><a class="dropdown-item" href="/ledger/optimizations">Optimization Ledger</a></li>
             <li><a class="dropdown-item" href="/submit/optimization">Submit Optimization</a></li>
             <li><a class="dropdown-item" href="/track/opts">Track Optimization</a></li>
-            <li><a class="dropdown-item" href="/mine/optimization">Mine Optimization</a></li>
+            <li><a class="dropdown-item" href="/mine/optimization">Validate Optimization</a></li>
 
           </ul>
         </li>
@@ -206,7 +204,7 @@
     </div>
 
     <div class="col-md-6">
-      <button class="btn btn-info btn-lg w-100" onclick="GetAsset()">View Asset</button>
+      <button class="btn btn-info btn-lg w-100" onclick="GetAsset()">My Wallet</button>
     </div>
     <div class="col-md-6">
       <button class="btn btn-info btn-lg w-100" onclick="GetBlock()">View Block</button>
@@ -217,50 +215,128 @@
 </div>
 {% endblock %}
 
-<style>
-.footer{
-  background-color: white;
-  text-indent: 10px;
-}
-  
-</style>
-
-  <footer style="background: white;" class="mt-4">
-    <div class="footer">
-      <a class="f1" href="/login" class="btn btn-link">
-        <i class="fas fa-sign-in-alt"></i> Login
-      </a>
-      <a class="f2" href="/signup" class="btn btn-link">
-        <i class="fas fa-user-plus"></i> Register
-      </a>
-      <a href="/admix" class="btn btn-link">
-        <i class="fas fa-chart-line"></i> Graphs
-      </a>
-      <a href="/option/probdist" class="btn btn-link">
-        <i class="fas fa-chart-line"></i> Prob. Dist.
-      </a>
-
-      <a href="/stats" class="btn btn-link">
-        <i class="fas fa-chart-bar"></i> Stats
-      </a>
-      <a href="/tree" class="btn btn-link">
-        <i class="fas fa-sitemap"></i> Binomial Matrix
-      </a>
-      <a href="/price" class="btn btn-link">
-        <i class="fas fa-calculator"></i> Options Pricing
-      </a>
-      <a class ="" href="/stats/binom" class="btn btn-link" title="Calculate coefficeints that">
-        <i class="fas fa-superscript"></i> Binomial Coefficients
-      </a>
-      <a class ="" href="/implied-vol" class="btn btn-link" title="Calculate coefficeints that">
-        <i class="fas fa-superscript"></i> Implied Volatility
-      </a>
-      <a class ="" href="/live/valuations" class="btn btn-link" title="Calculate coefficeints that">
-        <i class="fas fa-superscript"></i> Live Valuations
-      </a>
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 80px; /* Adjust this to the height of your footer */
+      box-sizing: border-box;
+    }
+    
+    .footer {
+      background-color: white;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      box-sizing: border-box;
+      height: auto; /* Let the height adjust automatically based on content */
+    }
+    
+    .footer a {
+      margin: 10px;
+      text-decoration: none;
+      color: #333;
+      font-size: 16px;
+      transition: color 0.3s ease-in-out;
+      display: inline-block;
+    }
+    
+    .footer a:hover {
+      color: #007bff;
+    }
+    
+    .footer a.active {
+      color: #007bff;
+      font-weight: bold;
+    }
+    
+    /* For responsive design */
+    @media (max-width: 768px) {
+      .footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 15px;
+        height: auto; /* Let it adjust automatically for mobile */
+      }
       
-    </div>
+      .footer a {
+        flex: 1 1 45%; /* Each link takes half of the row space on smaller screens */
+        text-align: center;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .footer a {
+        flex: 1 1 100%; /* Stack links on very small screens */
+      }
+    }
+  </style>
+  
+  <!-- Page content -->
+  <div class="content">
+    <!-- Your content goes here -->
+  </div>
+  
+  <footer class="footer">
+    <a class="f1" href="/login" class="btn btn-link">
+      <i class="fas fa-sign-in-alt"></i> Login
+    </a>
+    <a class="f2" href="/signup" class="btn btn-link">
+      <i class="fas fa-user-plus"></i> Register
+    </a>
+    <a href="/admix" class="btn btn-link">
+      <i class="fas fa-chart-line"></i> Graphs
+    </a>
+    <a href="/option/probdist" class="btn btn-link">
+      <i class="fas fa-chart-line"></i> Prob. Dist.
+    </a>
+    <a href="/stats" class="btn btn-link">
+      <i class="fas fa-chart-bar"></i> Stats
+    </a>
+    <a href="/tree" class="btn btn-link">
+      <i class="fas fa-sitemap"></i> Binomial Matrix
+    </a>
+    <a href="/price" class="btn btn-link">
+      <i class="fas fa-calculator"></i> Options Pricing
+    </a>
+    <a href="/stats/binom" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Binomial Coefficients
+    </a>
+    <a href="/implied-vol" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Implied Volatility
+    </a>
+    <a href="/live/valuations" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Live Valuations
+    </a>
+    <a href="/risk-neutral-measure" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Risk Neutral Estimation
+    </a>
+    <a href="/coef-calibration" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Risk Spread and Reversion Estimation
+    </a>
   </footer>
+
+
+  
+  <script>
+    // Highlight the active link based on the current URL
+    document.querySelectorAll('.footer a').forEach(link => {
+      if (link.href === window.location.href) {
+        link.classList.add('active');
+      }
+      
+      // Add click event for smooth scrolling or other actions if needed
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = this.href;
+      });
+    });
+  </script>
 
   
 <!--  "{{ url_for('static', filename='crawler.png') }}"-->
@@ -285,8 +361,7 @@
     window.location.href = '/get/db/' + address;
   };
   const GetAsset = () => {
-    const index = prompt("investment", "id/index");
-    window.location.href = '/get/asset/' + index;
+    window.location.href = '/html/mywallet';
   };
   const GetBlock = () => {
     const index = prompt("block", "id/index");
