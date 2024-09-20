@@ -19,9 +19,9 @@ def black_scholes(S, K, T, r, sigma, option_type='call'):
     d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
     d2 = d1 - sigma * np.sqrt(T)
     
-    if option_type == 'call':
+    if option_type == 'bull' or 'call':
         price = S * norm_cdf(d1) - K * np.exp(-r * T) * norm_cdf(d2)
-    elif option_type == 'put':
+    elif option_type == 'bear' or 'put':
         price = K * np.exp(-r * T) * norm_cdf(-d2) - S * norm_cdf(-d1)
     else:
         raise ValueError("option_type must be 'call' or 'put'")

@@ -287,10 +287,9 @@ class CoinDB(db.Model):
         self.market_cap = sum(new)
         db.session.commit()
 
-class InvestmentPosition(enum.Enum):
-    bear = 'bear'
-    bull = 'bull'
-    
+class InvestmentType(enum.Enum):
+    call = 'call'
+    put = 'put'    
 
 class InvestmentDatabase(db.Model):
     __tablename__ = 'investments'
@@ -305,9 +304,9 @@ class InvestmentDatabase(db.Model):
     starting_price = db.Column(db.Float(), default=0.0)
     market_price = db.Column(db.Float,default=0.0)
     coins_value = db.Column(db.Float(), default=0.0)
+    investment_type = db.Column(db.Enum(InvestmentType))
     investors = db.Column(db.Integer)
     receipt = db.Column(db.String(1024),unique=True)
-    position_type = db.Column(db.Enum(InvestmentPosition))
     timestamp = db.Column(db.DateTime)
     time_float = db.Column(db.Float())
     target_price = db.Column(db.Float())
@@ -331,8 +330,11 @@ class InvestmentDatabase(db.Model):
         db.session.commit()
    
     def append_investor_token(self,name,address,receipt,amount,currency):
-        self.ls += [{'name':name,'address':address,'receipt':receipt,'amount':amount,'currency':currency}]
-        # db.session.add(self.ls)
+        self.ls += [{'name':name,
+            'address':address,
+            'receipt':receipt,
+            'amount':amount,
+            'currency':currency}]
         db.session.commit()
 
 class ValuationDatabase(db.Model):
@@ -346,8 +348,11 @@ class ValuationDatabase(db.Model):
     roe  = db.Column(db.Float(), default=0.0)
     rd = db.Column(db.Float(), default=0.0)
     change_value = db.Column(db.Float(), default=0.0)
+    price = db.Column(db.Float,default=1)
     receipt = db.Column(db.String(),unique=True)
     valuation_model = db.Column(db.LargeBinary()) # tokenized_value
+
+
 
 class ValuationType(enum.Enum):
     dcf = 'dcf'

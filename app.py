@@ -64,10 +64,12 @@ def update():
 		time_difference = current_time - i.timestamp
 		i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
 		change = (price - i.starting_price)/i.starting_price
+		i.change_value = change
+		token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type)
+		i.tokenized_price = token_price
 		db.session.commit()
 		i.market_price = price
 		db.session.commit()
-		i.update_token_value()
 	return 0
 
 def background_task():
@@ -126,7 +128,7 @@ def chat():
 	
 	return render_template('chat.html')
 
-@app.route('/index')
+@app.route('/index.html')
 def index():
 	return render_template("index.html")
 
@@ -363,7 +365,6 @@ def get_user(user,password):
 		return redirect('/')
 	
 @app.route('/transact',methods=['GET','POST'])
-@login_required
 def create_transact():
 	if request.method == "POST":
 		id_from = request.values.get("username_from")
@@ -681,7 +682,6 @@ def validate():
 	return render_template("validate-hash.html")
 
 
-@login_required
 @app.route('/get/pending')
 def get_pending():
 	trans = PendingTransactionDatabase.query.all()
@@ -741,9 +741,12 @@ def mine():
 		return f"<h1><a href='/'> Home </a></h1><h3>Success</h3>You've mined {value} coins"
 	return render_template('mine.html')
 
+
+
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
 	from pricing_algo import derivative_price
+	from bs import black_scholes
 	update()
 	if request.method == "POST":
 		user = request.values.get('name')
@@ -753,10 +756,14 @@ def buy_or_sell():
 		qt = float(request.values.get("qt"))
 		target_price = float(request.values.get("target_price"))
 		maturity = float(request.values.get("maturity"))
+		risk_netural = float(request.values.get("eta"))
 		spread = float(request.values.get("sigma"))
 		reversion_coef = float(request.values.get("mu"))
-		option_type = request.values.get("option_type")
+		option_type = request.values.get("option_type").lower()
 		user_db = Users.query.filter_by(username=user).first()
+		
+		if risk_netural > 1.1 or risk_netural < 0 :
+			return "Wrong Neural Measure"
 		
 		if not user_db:
 			return "<h3>User not found</h3>"
@@ -768,8 +775,14 @@ def buy_or_sell():
 			return "<h3>Invalid ticker symbol</h3>"
 		
 		price = history['Close'][-1]
-		token_price = price * qt / coins
-
+		option = black_scholes(price, target_price, maturity, .05, np.std(history['Close'].pct_change()[1:])*np.sqrt(525960),option_type)
+		def sech(x):
+			return 1 / np.cosh(x)
+		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2) # 0 < t < 1.1
+		
+		token_price = option + derivative_price(history['Close'], risk_netural ,reversion_coef, spread) + np.exp(Px(risk_netural))
+		print("token price",token_price)
+		
 		wal = Wallet.query.filter_by(address=user).first()
 		if wal and wal.coins >= coins:
 			receipt = os.urandom(10).hex()
@@ -792,7 +805,7 @@ def buy_or_sell():
 				token_name = invest_name,
 				transaction_receipt=os.urandom(10).hex(),
 				quantity=qt,
-				cash = qt * price,
+				cash = qt * token_price,
 				coins=coins
 			)
 			db.session.add(new_asset_token)
@@ -804,8 +817,8 @@ def buy_or_sell():
 				password=password,
 				quantity=qt,
 				market_cap=qt * price,
-				position_type = option_type,
 				target_price=target_price,
+				investment_type=option_type,
 				starting_price=price,
 				market_price=price,
 				timestamp = dt.datetime.utcnow(),
@@ -828,7 +841,7 @@ def buy_or_sell():
 				'transactions': all_pending,
 			}
 			encoded_packet = str(packet).encode().hex()
-		
+			
 			blockdata = Block(
 				index = len(Block.query.all())+1,
 				previous_hash=pen_trans.signature,
@@ -944,6 +957,9 @@ def invest():
 		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 		wal = Wallet.query.filter_by(address=user_name.username).first()
 		
+		investment_owner = inv.owner
+		owner_wallet = Wallet.query.filter_by(address=investment_owner).first()
+		
 		if not user_name or not inv or not wal:
 			return "<h3>Invalid user or investment</h3>"
 		
@@ -955,7 +971,8 @@ def invest():
 			try:
 				house = BettingHouse.query.get_or_404(1)
 				house.coin_fee(0.1 * staked_coins)
-				new_value = 0.9 * staked_coins
+				owner_wallet.coins += 0.1 * staked_coins
+				new_value = 0.8 * staked_coins
 				wal.coins -= staked_coins
 				inv.coins_value += new_value
 				db.session.commit()
@@ -1194,6 +1211,46 @@ def allowed_file(filename):
 	from models import ALLOWED_EXTENSIONS
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'txt', 'html','py','pdf'}
 
+@app.route("/risk-neutral-measure",methods=['GET','POST'])
+def risk_neutral_measure():
+	if request.method == 'POST':
+		def indicator(x, threshold):
+			return 1 if x > threshold else 0
+		tickers = request.values.get("tickers").upper()
+		tickers = tickers.replace(',', ' ')
+		t = yf.Tickers(tickers)
+		h = t.history(start='2020-1-1',end=dt.date.today(),interval="1d")
+		df = h["Close"].pct_change()[1:]
+		cov = df.cov()
+		covariance = np.matrix(cov)*np.sqrt(256)
+		mu = np.matrix(df.mean()).T*np.sqrt(256)
+		sig = np.matrix(df.std()).T*np.sqrt(256)
+		results = np.zeros((4, 10000))
+		for i in range(10000):
+			weights = np.random.random(len(mu))
+			weights /= np.sum(weights)
+			portfolio_return = np.dot(weights, mu)
+			portfolio_stddev = (weights * covariance)@weights.T
+			sharpe_ratio = (portfolio_return) / portfolio_stddev
+			results[0,i] = portfolio_return
+			results[1,i] = portfolio_stddev
+			results[2,i] = sharpe_ratio
+			results[3,i] = i
+		results_df = pd.DataFrame(results.T, columns=['Returns', 'Volatility', 'SharpeRatio', 'Portfolio Index'])
+		deviation = results_df["SharpeRatio"].std()
+		mean = results_df["SharpeRatio"].mean()
+		status = []
+		for i in range(len(results_df)):
+			sharp = results_df["SharpeRatio"][i]
+			r = indicator(sharp, mean)
+			status.append(r)
+		results_df["indicator"] = status
+		results_df.to_csv("results.csv")
+		i_prob = results_df["indicator"].loc[results_df["indicator"] == 1]
+		ic_prob = results_df["indicator"].loc[results_df["indicator"] == 0]
+		risk_netural = len(i_prob)/(len(i_prob)+len(ic_prob))
+		return render_template("risk-neutral-measure.html",risk_netural=risk_netural)
+	return render_template("risk-neutral-measure.html")
 
 @app.route('/submit/valuation', methods=['GET','POST'])
 @login_required
@@ -1205,6 +1262,7 @@ def submit_valuation():
 		wacc = float(request.values.get('wacc'))
 		roe = float(request.values.get('roe'))
 		rd = float(request.values.get('rd'))
+		price = float(request.values.get("price"))
 		file = request.files['file']
 		name = request.values.get("file_name")
 		file_data = file.read()
@@ -1213,6 +1271,7 @@ def submit_valuation():
 			target_company=company,
 			forecast = forecast,
 			wacc=wacc,
+			price=price,
 			roe=roe,
 			rd=rd,
 			change_value=0,
@@ -1224,16 +1283,26 @@ def submit_valuation():
 	return render_template("submit-val.html")
 
 @app.route('/track/valuation',methods=['GET','POST'])
+@login_required
 def track_valuation():
 	if request.method =="POST":
+		user = current_user
+		wal = Wallet.query.filter_by(address=user.username).first()
 		receipt = request.values.get("receipt")
 		val = ValuationDatabase.query.filter_by(receipt=receipt).first()
-		name = val.target_company
-		data = val.valuation_model
-		f = open('local/{name}','wb')
-		f.write(data)
-		f.flush()
-		return send_file('local/{name}', mimetype='text/xlsx',download_name='valuation.xlsx',as_attachment=True)
+		wal2 = User.query.filter_by(username=val.owner).first()
+		if val.price <= wal.coins:
+			wal-= val.price
+			wal2+= val.price
+			db.session.commit()
+			name = val.target_company
+			data = val.valuation_model
+			f = open('local/{name}','wb')
+			f.write(data)
+			f.flush()
+			return send_file('local/{name}', mimetype='text/xlsx',download_name='valuation.xlsx',as_attachment=True)
+		else:
+			return "<h1><a href='/'>Home</a></h1><h2>Insufficient Coins in WALLET</h2>"
 	return render_template("track-valuation.html")
 
 @app.route("/ledger/valuation")
@@ -1245,9 +1314,15 @@ def valuation_ledger():
 		'wacc':v.wacc,
 		'roe':v.roe,
 		'rd':v.rd,
+		'price':v.price,
 		'receipt':v.receipt} for v in vals]
 	return jsonify(ls)
 
+@app.route("/validate/valuation",methods=["GET","POST"])
+def validate_val():
+	if request.method == "POST":
+		return 0
+	return render_template("validate_valuation.html")
 
 @app.route('/general/valuation',methods=["GET","POST"])
 @login_required
@@ -1481,6 +1556,37 @@ def basic_dcf():
 		fcff = (final - get_debt(ticker) + get_cash(ticker))/get_shares_two(ticker)
 		return f"<h1>{ticker}</h1>{html}<br><h3>Share Price </h3><h4>{fcff}</h4>"
 	return render_template("basic-dcf.html")
+
+@app.route('/coef-calibration',methods=["GET","POST"])
+def calibration():
+	import math
+	def eucdist(Xk,Yk):
+		return np.sqrt(sum([(Xk[i] - Yk[i])**2 for i in range(len(Xk))]))*(np.linalg.norm(Xk)*np.linalg.norm(Yk))
+	if request.method == "POST":
+		tickers = request.values.get("tickers").upper()
+		tickers = tickers.replace(',', ' ')
+		t = yf.Tickers(tickers)
+		h = t.history(start='2020-1-1',end=dt.date.today(),interval="1d")
+		df = h["Close"].pct_change()[1:]
+		cov = df.cov()
+		covariance = np.matrix(cov)*np.sqrt(256)
+		mu = np.matrix(df.mean()).T*np.sqrt(256)
+		sig = np.matrix(df.std()).T*np.sqrt(256)
+		spread = eucdist(mu,sig)
+		def epsilon_ball(Xk,Yk,omega,lmd,dt=0.01):
+			interval = max(Xk) - min(Yk)
+			start = - abs(interval - lmd*eucdist(Xk, Yk)**omega)
+			end = interval + lmd*eucdist(Xk, Yk)**omega,
+			space = np.arange(start=start, stop=end[0], step=dt)
+			return space*np.linalg.norm(Xk)*np.linalg.norm(Yk)
+		e_ball = epsilon_ball(np.log(abs(mu)), np.log(abs(sig)), 3, .3, dt=.1)
+		def poisson(lmd,x):
+			return (lmd**x)*np.exp(-lmd)/math.factorial(x)
+		Ak = np.matrix(e_ball*poisson(np.mean(mu),2))#*expected_indicator
+		reversion = (1/np.linalg.norm(Ak))*1000000
+		return render_template('calibration.html',spread=spread.item(),reversion=reversion)
+	return render_template('calibration.html')
+		
 
 @app.route('/live/dcf')
 def live_dcf():
@@ -1976,4 +2082,4 @@ if __name__ == '__main__':
 		PendingTransactionDatabase.genisis()
 		update()
 	start_background_task()
-	app.run(host="0.0.0.0",port=8080)
+	app.run(debug=True,host="0.0.0.0",port=8080)

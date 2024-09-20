@@ -1,5 +1,5 @@
 import numpy as np
-from bs import black_scholes#(<#S#>, <#K#>, <#T#>, <#r#>, <#sigma#>, <#option_type#>)
+from bs import black_scholes
 
 def derivative_price(prices, mu, alpha, sigma, leverage_factor=10):
 	# Compute variance from the mean over time
@@ -11,8 +11,8 @@ def derivative_price(prices, mu, alpha, sigma, leverage_factor=10):
 	derivative_prices = leverage_factor * alpha / (1 + sigma * np.sqrt(deviations))
 	# Take the average price across simulations
 	return np.mean(derivative_prices)
-
-#mu = np.mean(df)  # mean reversion level
+#
+#mu = 80 #np.mean(df)  # mean reversion level
 #alpha = 2.0  # reversion coefficient (higher means faster reversion)
 #sigma = 0.5  # spread coefficient (lower means lower variance around the mean)
 #r = 0.1  # population growth rate (logistic)
