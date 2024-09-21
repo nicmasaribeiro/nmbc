@@ -61,7 +61,7 @@ def update():
 	for i in invests:
 		t = yf.Ticker(i.investment_name.upper())
 		prices_vector = t.history(period='1wk',interval='1m')
-		price = t.history(period='1wk',interval='1m')['Close'][-1]
+		price = t.history()['Close'][-1]
 		current_time = datetime.utcnow()
 		time_difference = current_time - i.timestamp
 		i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
