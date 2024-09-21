@@ -61,17 +61,6 @@
             <div><span class="label">Receipt:</span> {{asset.receipt}}</div>
             <div><span class="label">Tokenized Price:</span> {{asset.tokenized_price}}</div>
         </div>
-        <div class="asset-ls">
-            <h2>Asset List</h2>
-            {% for i in asset.ls %}
-            <div>
-                <div><span class="label">Address:</span> {{i.address}}</div>
-                <div><span class="label">Amount:</span> {{i.amount}}</div>
-                <div><span class="label">Currency:</span> {{i.currency}}</div>
-                <div><span class="label">Name:</span> {{i.name}}</div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+
 </body>
 </html>

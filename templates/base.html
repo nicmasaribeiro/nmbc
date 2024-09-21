@@ -218,7 +218,7 @@
   <style>
     body {
       margin: 0;
-      padding-bottom: 80px; /* Adjust this to the height of your footer */
+      padding-bottom: 500px; /* Adjust this to the height of your footer */
       box-sizing: border-box;
     }
     
@@ -234,47 +234,47 @@
       height: auto; /* Let the height adjust automatically based on content */
     }
     
-    .footer a {
-      margin: 10px;
-      text-decoration: none;
-      color: #333;
-      font-size: 16px;
-      transition: color 0.3s ease-in-out;
-      display: inline-block;
-    }
+/*  .footer a {*/
+/*    margin: 10px;*/
+/*    text-decoration: none;*/
+/*    color: #333;*/
+/*    font-size: 16px;*/
+/*    transition: color 0.3s ease-in-out;*/
+/*    display: inline-block;*/
+/*  }*/
     
-    .footer a:hover {
-      color: #007bff;
-    }
-    
-    .footer a.active {
-      color: #007bff;
-      font-weight: bold;
-    }
-    
-    /* For responsive design */
-    @media (max-width: 768px) {
-      .footer {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 15px;
-        height: auto; /* Let it adjust automatically for mobile */
+      .footer a:hover {
+`       color: #007bff;
       }
       
-      .footer a {
-        flex: 1 1 45%; /* Each link takes half of the row space on smaller screens */
-        text-align: center;
-        padding: 10px;
-        box-sizing: border-box;
+      .footer a.active {
+        color: #007bff;
+        font-weight: bold;
       }
-    }
-    
-    @media (max-width: 480px) {
-      .footer a {
-        flex: 1 1 100%; /* Stack links on very small screens */
-      }
-    }
+      
+/*  /* For responsive design */*/
+/*  @media (max-width: 768px) {*/
+/*    .footer {*/
+/*      display: flex;*/
+/*      flex-wrap: wrap;*/
+/*      justify-content: center;*/
+/*      padding: 15px;*/
+/*      height: auto; /* Let it adjust automatically for mobile */*/
+/*    }*/
+/*    */
+/*    .footer a {*/
+/*      flex: 1 1 45%; /* Each link takes half of the row space on smaller screens */*/
+/*      text-align: center;*/
+/*      padding: 10px;*/
+/*      box-sizing: border-box;*/
+/*    }*/
+/*  }*/
+/*  */
+/*  @media (max-width: 768px) {*/
+/*    .footer a {*/
+/*      flex: 1 1 100%; /* Stack links on very small screens */*/
+/*    }*/
+/*  }*/
   </style>
   
   <!-- Page content -->
@@ -314,11 +314,25 @@
       <i class="fas fa-superscript"></i> Live Valuations
     </a>
     <a href="/risk-neutral-measure" class="btn btn-link">
-      <i class="fas fa-superscript"></i> Risk Neutral Estimation
+      <i class="fas fa-superscript"></i> Portfolio Risk Neutral Estimation
     </a>
     <a href="/coef-calibration" class="btn btn-link">
-      <i class="fas fa-superscript"></i> Risk Spread and Reversion Estimation
+      <i class="fas fa-superscript"></i> Portfolio Risk Spread and Reversion Estimation
     </a>
+    <a href="/single-reversion-coef" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Stock Reversion Coef
+    </a>
+    <a href="/single-stock-calibration" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Stock Spread Coefs
+    </a>
+    <a href="/single-stock-risk-neutral" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Stock Risk Neutral    </a>
+<!--<a href="/ddm" class="btn btn-link">-->
+<!--  <i class="fas fa-superscript"></i> DDM-->
+<!--</a>-->
+<!--<a href="/basic/dcf" class="btn btn-link">-->
+<!--  <i class="fas fa-superscript"></i> Basic FCFF-->
+<!--</a>-->
   </footer>
 
 
