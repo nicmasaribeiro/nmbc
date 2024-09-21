@@ -35,6 +35,7 @@ from bc import *
 from subprocess import Popen, PIPE
 import openai
 import threading
+from sklearn.linear_model import LinearRegression 
 from get_fundamentals import *
 from ddm import *
 
@@ -53,20 +54,23 @@ blockchain.create_genesis_block()
 global network
 network = Network()
 network.create_genesis_block()
-
+from pricing_algo import derivative_price
 	
 def update():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
 		t = yf.Ticker(i.investment_name.upper())
-		price = t.history(period='1d',interval='1m')['Close'][-1]
+		prices_vector = t.history(period='1wk',interval='1m')
+		price = t.history(period='1wk',interval='1m')['Close'][-1]
 		current_time = datetime.utcnow()
 		time_difference = current_time - i.timestamp
 		i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
 		change = (price - i.starting_price)/i.starting_price
 		i.change_value = change
-		token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type)
+		token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type) + derivative_price(prices_vector, i.risk_neutral, i.reversion, i.spread)
+		print(token_price)
 		i.tokenized_price = token_price
+		i.coins = token_price
 		db.session.commit()
 		i.market_price = price
 		db.session.commit()
@@ -78,7 +82,7 @@ def background_task():
 		print('Investment Database Updated')
 		time.sleep(5)  # Wait 10 seconds before running again
 		
-# Start the background task in a separate thread
+		# Start the background task in a separate thread
 def start_background_task():
 	thread = threading.Thread(target=background_task)
 	thread.daemon = True  # Ensures the thread exits when the main program does
@@ -427,29 +431,24 @@ def create_transact():
 	return render_template("trans.html")
 
 @app.route('/liquidate', methods=["POST","GET"])
-def liquidate_asset():
+def delete_asset():
 	if request.method == 'POST':
 		address = request.values.get('address')
 		user = request.values.get('user')
 		password = request.values.get('password')
 		user_db = Users.query.filter_by(username=user).first()
 		wal = Wallet.query.filter_by(address=user).first()
-		transaction = TransactionDatabase.query.filter_by(from_address=user_db.personal_token).first()
+		transaction = TransactionDatabase.query.filter_by(username=user).first()
 		asset = InvestmentDatabase.query.filter_by(receipt=address).first()
-		if asset.investors == 1:
-			if password == asset.password and user == asset.owner:
-				coin_db = CoinDB.query.get_or_404(1)
-				sell_price = asset.coins_value
-				wal.coins += sell_price
-				db.session.commit()
-				db.session.delete(asset)
-				db.session.commit()
-				return f"""<a href='/'><h1>Home</h1></a><h3>Successfully Liquidated Asset...{sell_price}</h3>"""
-			else:
-				pass
+		if asset.investors == 1 and password == asset.password and user == asset.owner:
+			db.session.delete(asset)
+			db.session.commit()
+			return "<h1>Asset Closed</h1>"
 		else:
 			return "<h1>Can't close position</h1>"
 	return render_template("close_asset.html")
+
+
 
 @app.route('/get/tokens', methods=["POST","GET"])
 def get_asset_token():
@@ -579,6 +578,7 @@ def get_user_wallet():
 		'change_value': []
 	}
 	
+	profit_loss = 0
 	for asset in assets:
 		invs = InvestmentDatabase.query.filter_by(receipt=asset.transaction_receipt).first()
 		if invs:
@@ -590,10 +590,11 @@ def get_user_wallet():
 			df['market_price'].append(invs.market_price)
 			df['coins_value'].append(invs.coins_value)
 			df['change_value'].append(invs.change_value)
+			profit_loss+=invs.change_value
     
     # Convert the dictionary to a pandas DataFrame
 	dataframe = pd.DataFrame(df)
-    
+		
     # Transport list for potential future JSON response
 	transports_list = [{"address": wallet.address, "balance": wallet.balance, "coins": wallet.coins}]
     
@@ -617,8 +618,10 @@ def get_user_wallet():
 				background-color: #f9f9f9;
 			}}
 		</style>
-		<h1><a href="/cmc">Back</a></h1>
+		<h1><a href="/">Back</a></h1>
 		{html}
+		<h2>Profit-Loss</h2>
+		<h3>{profit_loss}</h3>
 	"""
 	
 	# Render the HTML table as a response
@@ -756,14 +759,14 @@ def buy_or_sell():
 		qt = float(request.values.get("qt"))
 		target_price = float(request.values.get("target_price"))
 		maturity = float(request.values.get("maturity"))
-		risk_netural = float(request.values.get("eta"))
+		risk_neutral = float(request.values.get("eta"))
 		spread = float(request.values.get("sigma"))
-		reversion_coef = float(request.values.get("mu"))
+		reversion = float(request.values.get("mu"))
 		option_type = request.values.get("option_type").lower()
 		user_db = Users.query.filter_by(username=user).first()
 		
-		if risk_netural > 1.1 or risk_netural < 0 :
-			return "Wrong Neural Measure"
+		if risk_neutral > 1.1 or risk_neutral < 0 :
+			return "Wrong Neutral Measure"
 		
 		if not user_db:
 			return "<h3>User not found</h3>"
@@ -780,7 +783,7 @@ def buy_or_sell():
 			return 1 / np.cosh(x)
 		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2) # 0 < t < 1.1
 		
-		token_price = option + derivative_price(history['Close'], risk_netural ,reversion_coef, spread) + np.exp(Px(risk_netural))
+		token_price = option + derivative_price(history['Close'], risk_neutral ,reversion, spread) + np.exp(Px(risk_neutral))
 		print("token price",token_price)
 		
 		wal = Wallet.query.filter_by(address=user).first()
@@ -816,6 +819,9 @@ def buy_or_sell():
 				investment_name=invest_name,
 				password=password,
 				quantity=qt,
+				risk_neutral=risk_neutral,
+				spread =  spread,
+				reversion=reversion,
 				market_cap=qt * price,
 				target_price=target_price,
 				investment_type=option_type,
@@ -823,7 +829,8 @@ def buy_or_sell():
 				market_price=price,
 				timestamp = dt.datetime.utcnow(),
 				time_float=maturity,
-				coins_value=coins,
+				coins_value=token_price,
+				tokenized_price=token_price,
 				investors=1,
 				receipt=receipt
 			)
@@ -831,17 +838,30 @@ def buy_or_sell():
 			db.session.commit()
 			wal.coins -= coins
 			db.session.commit()
+			
 			# Create the block data
-			pen_trans=PendingTransactionDatabase.query.all()[-1]
+			pen_trans = PendingTransactionDatabase.query.all()[-1]
 			all_pending = PendingTransactionDatabase.query.all()
+#			
+			new_transaction = PendingTransactionDatabase(
+				txid=os.urandom(10).hex(),
+				username=user,
+				from_address=user,
+				to_address='market',
+				amount=token_price,
+				timestamp=dt.datetime.utcnow(),
+				type='investment',
+				signature=receipt)
+			db.session.add(new_transaction)
+			db.session.commit()
+			
 			packet = {
 				'index': len(blockchain.chain) + 1,
-				'previous_hash': hash(str(blockchain.get_latest_block())),
+				'previous_hash': sha256(str(blockchain.get_latest_block()).encode()).hexdigest(),
 				'datetime': str(dt.datetime.now()),
 				'transactions': all_pending,
 			}
 			encoded_packet = str(packet).encode().hex()
-			
 			blockdata = Block(
 				index = len(Block.query.all())+1,
 				previous_hash=pen_trans.signature,
@@ -946,17 +966,11 @@ def invest():
 	if request.method == "POST":
 		user = request.values.get('name')
 		receipt = request.values.get('address')
-		try:
-			staked_coins = float(request.values.get('amount'))
-		except (ValueError, TypeError):
-			return "<h3>Invalid amount</h3>"
-		
+		staked_coins = float(request.values.get('amount'))
 		password = request.values.get('password')
-		
 		user_name = Users.query.filter_by(username=user).first()
 		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 		wal = Wallet.query.filter_by(address=user_name.username).first()
-		
 		investment_owner = inv.owner
 		owner_wallet = Wallet.query.filter_by(address=investment_owner).first()
 		
@@ -967,14 +981,14 @@ def invest():
 		if not password == wal.password:
 			return "<h3>Invalid password</h3>"
 		
-		if wal.coins >= staked_coins:
+		if wal.coins >= staked_coins*inv.tokenized_price:
 			try:
+				total_value = staked_coins*inv.coins_value
 				house = BettingHouse.query.get_or_404(1)
 				house.coin_fee(0.1 * staked_coins)
 				owner_wallet.coins += 0.1 * staked_coins
 				new_value = 0.8 * staked_coins
-				wal.coins -= staked_coins
-				inv.coins_value += new_value
+				wal.coins -= total_value
 				db.session.commit()
 				
 				new_transaction = TransactionDatabase(
@@ -1004,7 +1018,7 @@ def invest():
 					transaction_receipt=inv.receipt,
 					quantity=staked_coins,
 					cash=coin.dollar_value * inv.tokenized_price,
-					coins=inv.tokenized_price
+					coins=total_value
 				)
 				db.session.add(a_tk)
 				
@@ -1036,12 +1050,12 @@ def invest():
 				})
 				
 				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>
-							<p>You've successfully invested {staked_coins} in {inv.investment_name}</p>"""
+							<p>You've successfully invested {total_value} in {inv.investment_name}</p>"""
 			
 			except Exception as e:
 				db.session.rollback()  # Rollback in case of error
 				return f"<h3>Error processing your investment: {str(e)}</h3>"
-			
+
 		return "<h3>Insufficient coins in wallet</h3>"
 	
 	return render_template("invest-in-asset.html")
@@ -1433,6 +1447,26 @@ def opt_ledger():
 ##################################################
 # Quantitative Services #########################
 ##################################################
+@app.route("/single-reversion-coef",methods=["GET",'POST'])
+def reversion():
+	if request.method=="POST":
+		ticker = request.values.get("tickers")
+		t = yf.Ticker(ticker)
+		history = t.history(period='max',interval='1d')
+		prices = history["Close"]
+		log_returns = np.log(prices / prices.shift(1)).dropna()
+		lagged_returns = log_returns.shift(1).dropna()
+		log_returns = log_returns.iloc[1:]
+		lagged_returns = lagged_returns.iloc[1:]
+		X = lagged_returns.values.reshape(-1, 1)  # Reshape for sklearn
+		y = log_returns.values
+		lr = LinearRegression()
+		fit = lr.fit(X, y[1:])
+		beta = fit.coef_
+		reversion_coefficient = -np.log(1 - beta)
+		
+		return render_template('single-reversion.html',reversion=reversion_coefficient.item())
+	return render_template('single-reversion.html')
 
 @app.route('/ddm',methods=["GET","POST"])
 def ddm():
@@ -1587,6 +1621,47 @@ def calibration():
 		return render_template('calibration.html',spread=spread.item(),reversion=reversion)
 	return render_template('calibration.html')
 		
+@app.route("/single-stock-risk-neutral", methods=["GET","POST"])
+def single_risk_neutral():
+	import math
+	def risk_neutral_probability(r, u, d, delta_t=1):
+		risk_free_growth = math.exp(r * delta_t)
+		q = (risk_free_growth - d) / (u - d)
+		return q
+	if request.method == "POST":
+		r = float(request.values.get("r"))
+		u = float(request.values.get("u"))
+		d = float(request.values.get("d"))
+		delta = float(request.values.get("delta"))
+		risk_neutral = risk_neutral_probability(r,u,d,delta)
+		print(risk_neutral)
+		return render_template("stock-risk-neutral.html",risk_neutral=risk_neutral)
+	return render_template("stock-risk-neutral.html")
+			
+			
+			
+@app.route('/single-stock-calibration',methods=["GET","POST"])
+def single_calibration():
+	import math
+	def eucdist(Xk,Yk):
+		return np.sqrt(sum([(Xk[i] - Yk[i])**2 for i in range(len(Xk))]))*(np.linalg.norm(Xk)*np.linalg.norm(Yk))
+	if request.method == "POST":
+		ticker = request.values.get("tickers").upper()
+		def eucdist(Xk,Yk):
+			return np.sqrt(sum([(Xk[i] - Yk[i])**2 for i in range(len(Xk))]))*(np.linalg.norm(Xk)*np.linalg.norm(Yk))
+		t = yf.Ticker(ticker)
+		h = t.history(period='max',interval="1d")
+		o = h["Open"].pct_change()[1:]
+		c = h["Close"].pct_change()[1:]
+		spread = eucdist(c, o)
+		o = h["Open"].pct_change()[1:].rolling(7).std()[7:]
+		c = h["Close"].pct_change()[1:].rolling(7).std()[7:]
+		spread2 = eucdist(c, o)
+		o = h["Open"].pct_change()[1:].rolling(5).mean()[5:]
+		c = h["Close"].pct_change()[1:].rolling(5).mean()[5:]
+		spread3 = eucdist(c, o)
+		return render_template('singel-calibration.html',spread=spread.item(), spread2=spread2.item(), spread3=spread3.item())
+	return render_template('singel-calibration.html')
 
 @app.route('/live/dcf')
 def live_dcf():

@@ -11,7 +11,7 @@ def derivative_price(prices, mu, alpha, sigma, leverage_factor=10):
 	derivative_prices = leverage_factor * alpha / (1 + sigma * np.sqrt(deviations))
 	# Take the average price across simulations
 	return np.mean(derivative_prices)
-#
+
 #mu = 80 #np.mean(df)  # mean reversion level
 #alpha = 2.0  # reversion coefficient (higher means faster reversion)
 #sigma = 0.5  # spread coefficient (lower means lower variance around the mean)

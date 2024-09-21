@@ -307,6 +307,9 @@ class InvestmentDatabase(db.Model):
     investment_type = db.Column(db.Enum(InvestmentType))
     investors = db.Column(db.Integer)
     receipt = db.Column(db.String(1024),unique=True)
+    risk_neutral = db.Column(db.Float)
+    spread = db.Column(db.Float)
+    reversion = db.Column(db.Float)
     timestamp = db.Column(db.DateTime)
     time_float = db.Column(db.Float())
     target_price = db.Column(db.Float())
@@ -553,11 +556,11 @@ class Blockchain(Network):
                 self.stake.append(total_sum)
         return total_sum, once
     
-    def add_receipt(self,_to,_from,value):
-        self.receipts['to'].append()
-        self.receipts['from'].append()
-        self.receipts['value'].append()
-        self.receipts['txid'].append()
+    def add_receipt(self,_to,_from,value,txid):
+        self.receipts['to'].append(_to)
+        self.receipts['from'].append(_from)
+        self.receipts['value'].append(value)
+        self.receipts['txid'].append(txid)
 
     def get_pending(self):
         return self.pending_transactions
