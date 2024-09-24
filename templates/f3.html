@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate f₃(s, u)</title>
+    <!-- Load MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Define N(s, u) function
+        function N(s, u) {
+            // Placeholder for N(s, u), adjust based on your model
+            return Math.sin(s) + Math.cos(u); // Example: simple trigonometric function
+        }
+
+        // Function to approximate the integral of a function f from a to b
+        function integrate(f, a, b, step = 0.01) {
+            let result = 0;
+            for (let t = a; t <= b; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f₃(s, u)
+        function f3(s, u) {
+            const Ns_u = N(s, u); // N(s, u)
+            const first_term = s * s * u * u * Math.pow(Ns_u, 2);
+
+            // Second term: -2su N(s, u) * integral from 1/u to s of N(t, t) dt
+            const second_term_integral = integrate(t => N(t, t), 1/u, s);
+            const second_term = -2 * s * u * Ns_u * second_term_integral;
+
+            // Third term: integral from 1/u to s of (integral from 1/u to s of N(x, y)^2 dx) dy
+            const inner_integral = (x, y) => Math.pow(N(x, y), 2);
+            const outer_integral = (y) => integrate(x => inner_integral(x, y), 1/u, s); // Inner integral for x
+            const third_term = integrate(outer_integral, 1/u, s); // Outer integral for y
+
+            // Calculate final f₃(s, u)
+            return first_term + second_term + third_term;
+        }
+
+        // Function to calculate and display f₃(s, u)
+        function calculateF3() {
+            const s = parseFloat(document.getElementById("s").value);
+            const u = parseFloat(document.getElementById("u").value);
+
+            // Calculate f₃(s, u)
+            const f3_result = f3(s, u);
+
+            // Display the result
+            document.getElementById("result_F3").innerText = `f₃(${s}, ${u}) = ${f3_result.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h1>Calculate and Display f₃(s, u)</h1>
+
+    <div>
+        <h3>The formula for \( f_3(s, u) \) is:</h3>
+        <p>
+            \[
+            f_3(s, u) = s^2 u^2 N(s, u)^2 - 2su N(s, u) \int_{\frac{1}{u}}^{s} N(t, t) \, dt + \int_{\frac{1}{u}}^{s} \left( \int_{\frac{1}{u}}^{s} N(x, y)^2 \, dx \right) dy
+            \]
+        </p>
+    </div>
+
+    <label for="s">Enter value for s: </label>
+    <input type="number" id="s" step="0.01" value="1"><br><br>
+
+    <label for="u">Enter value for u: </label>
+    <input type="number" id="u" step="0.01" value="1"><br><br>
+
+    <button onclick="calculateF3()">Calculate f₃(s, u)</button>
+
+    <h3 id="result_F3">f₃(s, u) = </h3>
+
+    <!-- Add some margin for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+    </style>
+</body>
+</html>

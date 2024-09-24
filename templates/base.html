@@ -207,7 +207,7 @@
       <button class="btn btn-info btn-lg w-100" onclick="GetAsset()">My Wallet</button>
     </div>
     <div class="col-md-6">
-      <button class="btn btn-info btn-lg w-100" onclick="GetBlock()">View Block</button>
+      <button class="btn btn-info btn-lg w-100" onclick="GetBlock()">Financial Tools Dashboard</button>
     </div>
     <div class="col-md-6 offset-md-6">
     </div>
@@ -326,13 +326,11 @@
       <i class="fas fa-superscript"></i> Stock Spread Coefs
     </a>
     <a href="/single-stock-risk-neutral" class="btn btn-link">
-      <i class="fas fa-superscript"></i> Stock Risk Neutral    </a>
-<!--<a href="/ddm" class="btn btn-link">-->
-<!--  <i class="fas fa-superscript"></i> DDM-->
-<!--</a>-->
-<!--<a href="/basic/dcf" class="btn btn-link">-->
-<!--  <i class="fas fa-superscript"></i> Basic FCFF-->
-<!--</a>-->
+      <i class="fas fa-superscript"></i> Single Stock Risk Neutral Coef</a>
+    <a href="/stoch/price" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Stochastic Price Simulation</a>
+    <a href="/stoch/tools" class="btn btn-link">
+      <i class="fas fa-superscript"></i> Stochastic Tools</a>
   </footer>
 
 
@@ -378,8 +376,8 @@
     window.location.href = '/html/mywallet';
   };
   const GetBlock = () => {
-    const index = prompt("block", "id/index");
-    window.location.href = '/get/block/' + index;
+//  const index = prompt("block", "id/index");
+    window.location.href = '/dash'
   };
   
   const chatSearch = () => {

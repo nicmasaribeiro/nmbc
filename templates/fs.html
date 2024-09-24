@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula f(s) Calculation</title>
+    <!-- Load MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Function to approximate the integral from 0 to s of a function f
+        function integrate(f, s, step = 0.01) {
+            let result = 0;
+            for (let t = 0; t <= s; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            // First term: s^2 * B(s)^2
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+
+            // Second term: -2s * B(s) * integral of B(t) from 0 to s
+            const second_term = -2 * s * B(s) * integrate(B, s);
+
+            // Third term: integral from 0 to s of (integral from 0 to s of B(x)^2 dx) dy
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s); // Inner integral with respect to x
+            const third_term = integrate(outer_integral, s);
+
+            // Calculate final f(s)
+            return first_term + second_term + third_term;
+        }
+
+        function calculateFS() {
+            const s = parseFloat(document.getElementById("s").value);
+            const result = f(s);
+            document.getElementById("result").innerText = `f(${s}) = ${result.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h1>Calculate f(s)</h1>
+    
+    <!-- Display the formula using MathJax -->
+    <div>
+        <h3>The formula for \( f(s) \) is:</h3>
+        <p>
+            \[
+            f(s) = s^2 B(s)^2 - 2s B(s) \int_{0}^{s} B(t) \, dt + \int_{0}^{s} \left( \int_{0}^{s} B(x)^2 \, dx \right) \, dy
+            \]
+        </p>
+    </div>
+
+    <label for="s">Enter value for s: </label>
+    <input type="number" id="s" step="0.01" value="1">
+    <button onclick="calculateFS()">Calculate f(s)</button>
+
+    <h3 id="result">f(s) = </h3>
+
+    <!-- Add some margin for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+    </style>
+</body>
+</html>

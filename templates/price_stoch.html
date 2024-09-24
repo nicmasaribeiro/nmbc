@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate P₀(t, r, u, ρ, n)</title>
+    <!-- Load MathJax for formula display -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(t) as the PDF of a normal distribution with mean 0 and variance 1/t
+        function B(t) {
+            if (t === 0) return 0; // Avoid division by zero
+            return normPdf(t, 0, 1 / Math.max(t, 0.01)); // Safeguard small t values
+        }
+
+        // Function to approximate the integral from 0 to s of a function f
+        function integrate(f, s, step = 0.01) {
+            let result = 0;
+            for (let t = 0; t <= s; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+            const second_term = -2 * s * B(s) * integrate(B, s);
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s);
+            const third_term = integrate(outer_integral, s);
+            return first_term + second_term + third_term;
+        }
+
+        // Function to compute g(t, r) = (1 - r^2) * e^(r * f(t))
+        function g(t, r) {
+            const ft = f(t);
+            return (1 - Math.pow(r, 2)) * Math.exp(r * ft);
+        }
+
+        // Function to compute S(t, r)
+        function S(t, r, dt) {
+            const gt = g(t, r);
+            const ft = f(t);
+            const bt = B(t);
+            return Math.pow(gt, t) * dt + Math.exp(ft) * bt;
+        }
+
+        // Function to compute F(t)
+        function F(t) {
+            return Math.pow(f(t), 2);
+        }
+
+        // Function to compute P₀(t, r, u, ρ, n)
+        function P0(t, r, u, rho, S0, K, dt) {
+            const Ft = F(t);
+            const St = S(t, r, dt);
+            const expFactor = Math.exp((u - (rho * rho) / 2) * t + rho * B(t));
+            const first_term = Ft * (St * S0 - K * Math.exp(-r * t));
+            const second_term = Math.exp(r) * Ft * (1 - Ft / K);
+            const third_term = expFactor * dt;
+            return first_term + second_term + third_term;
+        }
+
+        // Function to calculate and display P₀(t, r, u, ρ, n)
+        function calculateP0() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const u = parseFloat(document.getElementById("u").value);
+            const rho = parseFloat(document.getElementById("rho").value);
+            const S0 = parseFloat(document.getElementById("S0").value);
+            const K = parseFloat(document.getElementById("K").value);
+            const dt = parseFloat(document.getElementById("dt").value);
+
+            // Calculate P₀(t, r, u, ρ, n)
+            const p0 = P0(t, r, u, rho, S0, K, dt);
+
+            // Display the result
+            document.getElementById("result_P0").innerText = `P₀(${t}, ${r}, ${u}, ${rho}) = ${p0.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate P₀(t, r, u, ρ, n)</h1>
+
+    <!-- Display the formula for P₀(t, r, u, ρ, n) using MathJax -->
+    <div>
+        <h3>The formula for \( P₀(t, r, u, \rho, n) \) is:</h3>
+        <p>
+            \[
+            P₀(t, r, u, \rho, n) = F(t) \left(S(t, r) S_0 - K e^{-rt}\right) + \exp(r) F(t) \left(1 - \frac{F(t)}{K}\right) + \exp\left(\left(u - \frac{\rho^2}{2}\right)t + \rho B(t)\right) d_t
+            \]
+        </p>
+    </div>
+
+    <label for="t">Enter value for t: </label>
+    <input type="number" id="t" step="0.01" value="1"><br><br>
+
+    <label for="r">Enter value for r: </label>
+    <input type="number" id="r" step="0.01" value="0.5"><br><br>
+
+    <label for="u">Enter value for u: </label>
+    <input type="number" id="u" step="0.01" value="0.1"><br><br>
+
+    <label for="rho">Enter value for ρ (rho): </label>
+    <input type="number" id="rho" step="0.01" value="0.2"><br><br>
+
+    <label for="S0">Enter value for S₀ (Initial Stock Price): </label>
+    <input type="number" id="S0" step="0.01" value="100"><br><br>
+
+    <label for="K">Enter value for K (Strike Price): </label>
+    <input type="number" id="K" step="0.01" value="100"><br><br>
+
+    <label for="dt">Enter value for dt: </label>
+    <input type="number" id="dt" step="0.01" value="1"><br><br>
+
+    <button onclick="calculateP0()">Calculate P₀(t, r, u, ρ, n)</button>
+
+    <h3 id="result_P0">P₀(t, r, u, ρ, n) = </h3>
+
+    <!-- Add some margin for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+    </style>
+</body>
+</html>

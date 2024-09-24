@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate P(t, r)</title>
+    <!-- Load MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Function to approximate the integral from 0 to s of a function f
+        function integrate(f, s, step = 0.01) {
+            let result = 0;
+            for (let t = 0; t <= s; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            // First term: s^2 * B(s)^2
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+
+            // Second term: -2s * B(s) * integral of B(t) from 0 to s
+            const second_term = -2 * s * B(s) * integrate(B, s);
+
+            // Third term: integral from 0 to s of (integral from 0 to s of B(x)^2 dx) dy
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s); // Inner integral with respect to x
+            const third_term = integrate(outer_integral, s);
+
+            // Calculate final f(s)
+            return first_term + second_term + third_term;
+        }
+
+        // Function to compute g(t, r) = (1 - r^2) * e^(r * f(t))
+        function g(t, r) {
+            const ft = f(t);
+            return (1 - Math.pow(r, 2)) * Math.exp(r * ft);
+        }
+
+        // Function to compute S(t, r)
+        // S(t, r) = g(t, r)^t * d_t + exp(f(t)) * B(t)
+        function S(t, r, dt) {
+            const gt = g(t, r);
+            const ft = f(t);
+            const bt = B(t);
+            return Math.pow(gt, t) * dt + Math.exp(ft) * bt;
+        }
+
+        // Function to compute F(t)
+        function F(t) {
+            // Example F(t) based on some function of f(t)
+            return Math.pow(f(t), 2); // Can be adjusted to fit your model
+        }
+
+        // Function to compute N(t, r)
+        function N(t, r) {
+            // Example N(t, r) function, can be adjusted based on your model
+            return Math.exp(-r * t) * Math.random(1/t); // Placeholder formula for N(t, r)
+        }
+
+        // Function to compute P(t, r)
+        function P(t, r, S0, K, dt) {
+            const Ft = F(t);
+            const St = S(t, r, dt);
+            const Nt = N(t, r);
+            const first_term = -Ft * (St * S0 - K * Math.exp(-r * t));
+            const second_term = Ft * (1 - Ft / K) * Nt;
+            return first_term + second_term;
+        }
+
+        // Function to calculate and display P(t, r)
+        function calculateP() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const S0 = parseFloat(document.getElementById("S0").value);
+            const K = parseFloat(document.getElementById("K").value);
+            const dt = parseFloat(document.getElementById("dt").value);
+
+            // Calculate P(t, r)
+            const pt = P(t, r, S0, K, dt);
+
+            // Display the result
+            document.getElementById("result_P").innerText = `P(${t}, ${r}) = ${pt.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h1>Calculate P(t, r)</h1>
+
+    <!-- Display the formula for P(t, r) using MathJax -->
+    <div>
+        <h3>The formula for \( P(t, r) \) is:</h3>
+        <p>
+            \[
+            P(t, r) = -F(t) \left(S(t, r) S_0 - K e^{-rt}\right) + F(t)\left(1 - \frac{F(t)}{K}\right)N(t, r)
+            \]
+        </p>
+    </div>
+
+    <label for="t">Enter value for t: </label>
+    <input type="number" id="t" step="0.01" value="1"><br><br>
+
+    <label for="r">Enter value for r: </label>
+    <input type="number" id="r" step="0.01" value="0.5"><br><br>
+
+    <label for="S0">Enter value for S0 (Initial Stock Price): </label>
+    <input type="number" id="S0" step="0.01" value="100"><br><br>
+
+    <label for="K">Enter value for K (Strike Price): </label>
+    <input type="number" id="K" step="0.01" value="100"><br><br>
+
+    <label for="dt">Enter value for dt: </label>
+    <input type="number" id="dt" step="0.01" value="1"><br><br>
+
+    <button onclick="calculateP()">Calculate P(t, r)</button>
+
+    <h3 id="result_P">P(t, r) = </h3>
+
+    <!-- Add some margin for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate c(s)</title>
+    <!-- Include MathJax for rendering mathematical equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Define the function k2(s), adjust based on the model
+        function k2(s) {
+            // Example: Define k2(s) as some function of s
+            return (s**3 - 3*s**2*(1 - s)); // Placeholder formula for k2(s), you can change this
+        }
+
+        // Function to compute c(s)
+        function c(s) {
+            const k2_val = k2(s);
+            return s * (s - 1 / k2_val);
+        }
+
+        // Function to calculate and display c(s)
+        function calculateC() {
+            const s = parseFloat(document.getElementById("s").value);
+
+            // Validate input
+            if (isNaN(s)) {
+                document.getElementById("result_C").innerText = "Please enter a valid number for s.";
+                return;
+            }
+
+            // Calculate c(s)
+            const cs = c(s);
+
+            // Display the result
+            document.getElementById("result_C").innerText = `c(${s}) = ${cs.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h1>Calculate c(s)</h1>
+
+    <!-- Display the function using MathJax -->
+    <p>Function: \( c(s) = s \left( s - \frac{1}{k_2(s)} \right) \)</p>
+
+    <label for="s">Enter value for s: </label>
+    <input type="number" id="s" step="0.01" max="100" value="1"><br><br>
+
+    <button onclick="calculateC()">Calculate c(s)</button>
+
+    <h3 id="result_C">c(s) = </h3>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate S(t, r)</title>
+    
+    <!-- Include MathJax for rendering mathematical equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Define f(t) function
+        function f(t) {
+            // Placeholder for f(t), you can customize this function based on your model
+            return Math.log(t + 1); // Example: log(t + 1)
+        }
+
+        // Define g(t, r) function
+        function g(t, r) {
+            // Placeholder for g(t, r), customize this based on your model
+            return Math.exp(-r * t); // Example: exponential decay
+        }
+
+        // Function to compute S(t, r)
+        // S(t, r) = g(t, r)^t * d_t + exp(f(t))
+        function S(t, r, dt) {
+            const gt = g(t, r);
+            const ft = f(t);
+            return Math.pow(gt, t) * dt + Math.exp(ft);
+        }
+
+        // Function to calculate and display S(t, r)
+        function calculateS() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const dt = parseFloat(document.getElementById("dt").value);
+
+            // Validate inputs
+            if (isNaN(t) || isNaN(r) || isNaN(dt)) {
+                document.getElementById("result_S").innerText = "Please enter valid numbers for t, r, and dt.";
+                return;
+            }
+
+            // Calculate S(t, r)
+            const st = S(t, r, dt);
+
+            // Display the result
+            document.getElementById("result_S").innerText = `S(${t}, ${r}) = ${st.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h4><a href="/">Back</a></h4>   
+    <h1>Calculate S(t, r)</h1>
+
+    <!-- Display the function using MathJax -->
+    <p>Function: \( S(t, r) = g(t, r)^t \cdot d_t + e^{f(t)} \)</p>
+
+    <label for="t">Enter value for t: </label>
+    <input type="number" id="t" step="0.01" value="1"><br><br>
+
+    <label for="r">Enter value for r: </label>
+    <input type="number" id="r" step="0.01" value="0.5"><br><br>
+
+    <label for="dt">Enter value for dt (d_t): </label>
+    <input type="number" id="dt" step="0.01" value="1"><br><br>
+
+    <button onclick="calculateS()">Calculate S(t, r)</button>
+
+    <h3 id="result_S">S(t, r) = </h3>
+</body>
+</html>

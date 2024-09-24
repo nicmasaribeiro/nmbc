@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate F(t)</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Simulate Wiener process W(s) (Standard Brownian motion)
+        function W(s) {
+            return Math.random() * Math.sqrt(s); // Simplified random walk approach
+        }
+
+        // Function to approximate the integral from 0 to t of a function f
+        function integrate(f, t, step = 0.01) {
+            let result = 0;
+            for (let s = 0; s <= t; s += step) {
+                result += f(s) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+            const second_term = -2 * s * B(s) * integrate(B, s);
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s);
+            const third_term = integrate(outer_integral, s);
+
+            return first_term + second_term + third_term;
+        }
+
+        // Function to compute F(t)
+        // F(t) = (integral from 0 to t of f(s)^2 * W(s) ds)^(1/t)
+        function F(t) {
+            const integrand = (s) => Math.pow(f(s), 2) * W(s);
+            const integral_value = integrate(integrand, t);
+
+            return Math.pow(integral_value, 1 / t);
+        }
+
+        // Function to calculate and display F(t)
+        function calculateF() {
+            const t = parseFloat(document.getElementById("t").value);
+
+            if (isNaN(t) || t <= 0) {
+                document.getElementById("result_F").innerText = "Please enter a valid positive number for t.";
+                return;
+            }
+
+            const ft = F(t);
+
+            document.getElementById("result_F").innerText = `F(${t}) = ${ft.toFixed(6)}`;
+        }
+    </script>
+</head>
+<body>
+    <h3><a href="/">Back</a></h3>
+    <h1>Calculate F(t)</h1>
+
+    <!-- Display the equation -->
+    <p>Equation: \( F\left(t\right)=\left(\int_{0}^{t}f\left(s\right)^{2}W\left(s\right)ds\right)^{\frac{1}{t}} \)</p>
+
+    <label for="t">Enter value for t: </label>
+    <input type="number" id="t" step="0.01" value="1" min="0.01"><br><br>
+
+    <button onclick="calculateF()">Calculate F(t)</button>
+
+    <h3 id="result_F">F(t) = </h3>
+</body>
+</html>

@@ -1,23 +1,140 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title></title>
-	</head>
-	<body>
-		
-		{% extends 'base.html' %}
-		
-		{% block title %}Dashboard - Brokerage App{% endblock %}
-		
-		{% block content %}
-		<section class="dashboard">
-			<h2>Hello, {{ user.username }}</h2>
-			<p>Email: {{ user.email }}</p>
-			<!-- Add more dashboard content as needed -->
-		</section>
-		{% endblock %}
+<html lang="en">
 
-		
-	</body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            padding-top: 500px;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+        }
+
+        .dashboard a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            text-decoration: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard a i {
+            margin-right: 8px;
+        }
+
+        .dashboard a:hover {
+            background-color: #0056b3;
+        }
+
+        .dashboard a.f2 {
+            background-color: #28a745;
+        }
+
+        .dashboard a.f2:hover {
+            background-color: #218838;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            width: 100%;
+            padding: 20px;
+        }
+
+    </style>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Financial Tools Dashboard</h1>
+        <div class="dashboard">
+            <a class="f1" href="/login">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+            <a class="f2" href="/signup">
+                <i class="fas fa-user-plus"></i> Register
+            </a>
+            <a href="/admix">
+                <i class="fas fa-chart-line"></i> Graphs
+            </a>
+            <a href="/option/probdist">
+                <i class="fas fa-chart-line"></i> Prob. Dist.
+            </a>
+            <a href="/stats">
+                <i class="fas fa-chart-bar"></i> Stats
+            </a>
+            <a href="/tree">
+                <i class="fas fa-sitemap"></i> Binomial Matrix
+            </a>
+            <a href="/price">
+                <i class="fas fa-calculator"></i> Options Pricing
+            </a>
+            <a href="/stats/binom">
+                <i class="fas fa-superscript"></i> Binomial Coefficients
+            </a>
+            <a href="/implied-vol">
+                <i class="fas fa-superscript"></i> Implied Volatility
+            </a>
+            <a href="/live/valuations">
+                <i class="fas fa-superscript"></i> Live Valuations
+            </a>
+            <a href="/risk-neutral-measure">
+                <i class="fas fa-superscript"></i> Portfolio Risk Neutral Estimation
+            </a>
+            <a href="/coef-calibration">
+                <i class="fas fa-superscript"></i> Portfolio Risk Spread and Reversion Estimation
+            </a>
+            <a href="/single-reversion-coef">
+                <i class="fas fa-superscript"></i> Stock Reversion Coef
+            </a>
+            <a href="/single-stock-calibration">
+                <i class="fas fa-superscript"></i> Stock Spread Coefs
+            </a>
+            <a href="/single-stock-risk-neutral">
+                <i class="fas fa-superscript"></i> Single Stock Risk Neutral Coef
+            </a>
+            <a href="/stoch/price">
+                <i class="fas fa-superscript"></i> Stochastic Price Simulation
+            </a>
+            <a href="/stoch/tools">
+                <i class="fas fa-superscript"></i> Stochastic Tools
+            </a>
+        </div>
+    </div>
+
+</body>
+
 </html>
