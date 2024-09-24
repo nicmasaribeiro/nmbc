@@ -38,6 +38,7 @@ import threading
 from sklearn.linear_model import LinearRegression 
 from get_fundamentals import *
 from ddm import *
+from algo import stoch_price
 
 #https://chatgpt.com/share/66e9f5bc-bbf0-8003-9db5-4e86488eb93f
 
@@ -55,25 +56,43 @@ global network
 network = Network()
 network.create_genesis_block()
 from pricing_algo import derivative_price
-	
-def update():
+
+
+def recalculate():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
-		t = yf.Ticker(i.investment_name.upper())
-		prices_vector = t.history(period='1wk',interval='1m')
-		price = t.history()['Close'][-1]
-		current_time = datetime.utcnow()
-		time_difference = current_time - i.timestamp
-		i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
-		change = (price - i.starting_price)/i.starting_price
-		i.change_value = change
-		token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type) + derivative_price(prices_vector, i.risk_neutral, i.reversion, i.spread)
-		print(token_price)
-		i.tokenized_price = token_price
-		i.coins = token_price
-		db.session.commit()
-		i.market_price = price
-		db.session.commit()
+		try:
+			t = yf.Ticker(i.investment_name.upper())
+			prices_vector = t.history(period='5d',interval='1m')
+			price = t.history()['Close'][-1]
+			s = stoch_price(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
+			print(s)
+			i.stoch_price = s
+			db.session.commit()
+		except:
+			pass
+		
+def update():
+	recalculate()
+	invests = InvestmentDatabase.query.all()
+	try:
+		for i in invests:
+			t = yf.Ticker(i.investment_name.upper())
+			prices_vector = t.history(period='6mo',interval='1m')
+			price = t.history(period='1wk',interval='1m')['Close'][-1]
+			current_time = datetime.utcnow()
+			time_difference = current_time - i.timestamp
+			i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
+			change = (price - i.starting_price)/i.starting_price
+			i.change_value = change
+			token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type) + derivative_price(prices_vector, i.risk_neutral, i.reversion, i.spread)
+			i.tokenized_price = token_price
+			i.coins = token_price
+			db.session.commit()
+			i.market_price = price
+			db.session.commit()
+	except:
+		pass
 	return 0
 
 def background_task():
@@ -88,7 +107,7 @@ def start_background_task():
 	thread.daemon = True  # Ensures the thread exits when the main program does
 	thread.start()
 
-
+		
 @login_manager.user_loader
 def load_user(user_id):
 	update()
@@ -750,6 +769,7 @@ def mine():
 def buy_or_sell():
 	from pricing_algo import derivative_price
 	from bs import black_scholes
+	from algo import stoch_price#(<#dt#>, <#t#>, <#r#>, <#sigma#>, <#mu#>, <#s0#>, <#k#>, <#option_type#>)
 	update()
 	if request.method == "POST":
 		user = request.values.get('name')
@@ -782,9 +802,10 @@ def buy_or_sell():
 		def sech(x):
 			return 1 / np.cosh(x)
 		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2) # 0 < t < 1.1
+		stoch = stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type)
+		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread))
+		print("token price",token_price,'TKP\t',stoch)
 		
-		token_price = option + derivative_price(history['Close'], risk_neutral ,reversion, spread) + np.exp(Px(risk_neutral))
-		print("token price",token_price)
 		
 		wal = Wallet.query.filter_by(address=user).first()
 		if wal and wal.coins >= coins:
@@ -829,6 +850,7 @@ def buy_or_sell():
 				market_price=price,
 				timestamp = dt.datetime.utcnow(),
 				time_float=maturity,
+				stoch_price=stoch,
 				coins_value=token_price,
 				tokenized_price=token_price,
 				investors=1,
@@ -2077,6 +2099,58 @@ def tree():
 		return html_table_with_styles
 	return render_template("tree-view.html",style="color red;")
 
+@app.route("/dash")
+def dash():
+	return render_template("dashboard.html")
+
+@app.route('/stoch/price', methods=['GET','POST'])
+def get_stoch_price():
+	return render_template("stoch.html")
+
+@app.route('/stoch/fs', methods=['GET','POST'])
+def get_stoch_fs():
+	return render_template("fs.html")
+
+@app.route('/stoch/g(t,r)', methods=['GET','POST'])
+def get_stoch_gtr():
+	return render_template("gt.html")
+
+@app.route('/stoch/g&f&s', methods=['GET','POST'])
+def get_stoch_gfs():
+	return render_template("f-g-s.html")
+
+@app.route('/stoch/p(t,r)', methods=['GET','POST'])
+def get_stoch_ptr():
+	return render_template("p(t,r).html")
+
+@app.route('/stoch/value', methods=['GET','POST'])
+def get_stoch_value():
+	return render_template("stoch-value.html")
+
+@app.route('/stoch/Ft', methods=['GET','POST'])
+def get_stoch_Ft():
+	return render_template("Ft.html")
+
+@app.route('/stoch/C(s)', methods=['GET','POST'])
+def get_stoch_Cs():
+	return render_template("c(s).html")
+
+@app.route('/stoch/S(t,r)', methods=['GET','POST'])
+def get_stoch_Str():
+	return render_template("s(r,t).html")
+
+@app.route('/stoch/f3', methods=['GET','POST'])
+def get_stoch_f3():
+	return render_template("f3.html")
+
+@app.route('/stoch/tools', methods=['GET','POST'])
+def get_stoch_tools():
+	return render_template("stoch-tools.html")
+
+@app.route('/stoch/price-expanded', methods=['GET','POST'])
+def get_stoch_p_exp():
+	return render_template("price_stoch.html")
+
 @app.route('/option/probdist',methods=["GET","POST"])
 def prodist():
 	if request.method=="POST":
@@ -2155,6 +2229,5 @@ if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
 		PendingTransactionDatabase.genisis()
-		update()
-	start_background_task()
-	app.run(debug=True,host="0.0.0.0",port=8080)
+#	start_background_task()
+	app.run(host="0.0.0.0",port=8080)

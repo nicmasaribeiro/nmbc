@@ -313,6 +313,7 @@ class InvestmentDatabase(db.Model):
     timestamp = db.Column(db.DateTime)
     time_float = db.Column(db.Float())
     target_price = db.Column(db.Float())
+    stoch_price = db.Column(db.Float())
     tokenized_price = db.Column(db.Float,default=0.0) # tokenized_value
     ls = MutableList()
 

@@ -1,3 +1,4 @@
+scipy
 scikit-learn
 openpyxl
 celery==5.3.0      
