@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stochastic Price Simulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .slider-label {
+            margin-bottom: 10px;
+        }
+        .slider {
+            width: 300px;
+        }
+    </style>
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Define a simple W(s) approximation (this should return deterministic values for easier debugging)
+        function W(s) {
+            return Math.random(); // Simulate Wiener process with a random number for simplicity
+        }
+
+        // Define the function f(s)
+        function f(s) {
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+
+            // Second term: -2s * B(s) * integral of B(t) from 0 to s
+            let second_term = 0;
+            for (let t = 0; t < s; t += 0.01) {
+                second_term += B(t) * 0.01; // Simple approximation of integral
+            }
+            second_term = -2 * s * B(s) * second_term;
+
+            // Third term: integral from 0 to s of B(x)^2
+            let third_term = 0;
+            for (let x = 0; x < s; x += 0.01) {
+                third_term += Math.pow(B(x), 2) * 0.01; // Simple approximation of integral
+            }
+
+            return first_term + second_term + third_term;
+        }
+
+        // Define the function g(t, r)
+        function g(t, r) {
+            return (1 - Math.abs(r)) * Math.exp(r * f(t));
+        }
+
+        // Define F(t)
+        function F(t) {
+            let integral_result = 0;
+            for (let s = 0; s < t; s += 0.01) {
+                integral_result += Math.pow(f(s), 2) * W(s) * 0.01; // Approximate integral
+            }
+            return Math.pow(integral_result, 1 / t);
+        }
+
+        // Define S(t, r, dt)
+        function S(t, r, dt) {
+            return Math.pow(g(t, r), t) * dt + Math.exp(f(t));
+        }
+
+        // Stochastic price function for call or put option
+        function stoch_price(dt, t, r, sigma, mu, s0, k, option_type) {
+            const F_t = F(t);
+            const S_t = S(t, r, dt);
+            const third_term = Math.exp((mu - (sigma ** 2) / 2) * t + sigma * W(t));  // Calculate third_term correctly
+
+            let first, second, result;
+
+            if (option_type.toLowerCase() === "call") {
+                first = F_t * (S_t * s0 - k);
+                second = Math.exp(r) * F_t * (1 - F_t / k);
+                result = first + second + third_term;  // Use third_term here
+                return Math.max(0, result);
+            } else if (option_type.toLowerCase() === "put") {
+                first = F_t * (S_t * k - s0);
+                second = Math.exp(r) * F_t * (1 - F_t / k);
+                result = first + second + third_term;  // Use third_term here
+                return Math.max(0, result);
+            }
+        }
+
+        function updateLabels() {
+            document.getElementById("dtLabel").innerText = `Time step (dt): ${document.getElementById("dt").value}`;
+            document.getElementById("tLabel").innerText = `Time (t): ${document.getElementById("t").value}`;
+            document.getElementById("rLabel").innerText = `Risk-free rate (r): ${document.getElementById("r").value}`;
+            document.getElementById("sigmaLabel").innerText = `Volatility (sigma): ${document.getElementById("sigma").value}`;
+            document.getElementById("muLabel").innerText = `Drift (mu): ${document.getElementById("mu").value}`;
+            document.getElementById("s0Label").innerText = `Initial Stock Price (S0): ${document.getElementById("s0").value}`;
+            document.getElementById("kLabel").innerText = `Strike Price (K): ${document.getElementById("k").value}`;
+        }
+
+        function setupSliders() {
+            const sliders = document.querySelectorAll("input[type='range']");
+            sliders.forEach(slider => {
+                slider.addEventListener('input', () => {
+                    updateLabels();
+                });
+            });
+        }
+
+        function calculatePrice() {
+            const dt = parseFloat(document.getElementById("dt").value);
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const sigma = parseFloat(document.getElementById("sigma").value);
+            const mu = parseFloat(document.getElementById("mu").value);
+            const s0 = parseFloat(document.getElementById("s0").value);
+            const k = parseFloat(document.getElementById("k").value);
+            const optionType = document.getElementById("optionType").value;
+
+            const price = stoch_price(dt, t, r, sigma, mu, s0, k, optionType);
+            document.getElementById("result").innerText = `Option Price: ${price.toFixed(2)}`;
+        }
+
+        window.onload = function() {
+            setupSliders();
+            updateLabels();  // Update labels when page loads
+        }
+    </script>
+</head>
+<body>
+    <h1>Stochastic Option Price Simulation</h1>
+
+    <div>
+        <div class="slider-label" id="dtLabel">Time step (dt): 0.01</div>
+        <input type="range" id="dt" min="0.01" max="1.0" step="0.01" value="0.01" class="slider"><br><br>
+
+        <div class="slider-label" id="tLabel">Time (t): 1</div>
+        <input type="range" id="t" min="1" max="30" step="1" value="1" class="slider"><br><br>
+
+        <div class="slider-label" id="rLabel">Risk-free rate (r): 0.05</div>
+        <input type="range" id="r" min="0" max="0.2" step="0.01" value="0.05" class="slider"><br><br>
+
+        <div class="slider-label" id="sigmaLabel">Volatility (sigma): 0.2</div>
+        <input type="range" id="sigma" min="0.01" max="1" step="0.01" value="0.2" class="slider"><br><br>
+
+        <div class="slider-label" id="muLabel">Drift (mu): 0.1</div>
+        <input type="range" id="mu" min="0" max="1" step="0.01" value="0.1" class="slider"><br><br>
+
+        <div class="slider-label" id="s0Label">Initial Stock Price (S0): 100</div>
+        <input type="range" id="s0" min="1" max="500" step="1" value="100" class="slider"><br><br>
+
+        <div class="slider-label" id="kLabel">Strike Price (K): 100</div>
+        <input type="range" id="k" min="1" max="500" step="1" value="100" class="slider"><br><br>
+
+        <label for="optionType">Option Type: </label>
+        <select id="optionType">
+            <option value="call">Call</option>
+            <option value="put">Put</option>
+        </select><br><br>
+
+        <button onclick="calculatePrice()">Calculate Option Price</button><br><br>
+
+        <h3 id="result">Option Price: </h3>
+    </div>
+</body>
+</html>
