@@ -66,7 +66,7 @@ def recalculate():
 			prices_vector = t.history(period='5d',interval='1m')
 			price = t.history()['Close'][-1]
 			s = stoch_price(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
-			print(s)
+#			print(s)
 			i.stoch_price = s
 			db.session.commit()
 		except:
@@ -78,7 +78,7 @@ def update():
 	try:
 		for i in invests:
 			t = yf.Ticker(i.investment_name.upper())
-			prices_vector = t.history(period='6mo',interval='1m')
+			prices_vector = t.history(period='5d',interval='1m')
 			price = t.history(period='1wk',interval='1m')['Close'][-1]
 			current_time = datetime.utcnow()
 			time_difference = current_time - i.timestamp
@@ -769,7 +769,13 @@ def mine():
 def buy_or_sell():
 	from pricing_algo import derivative_price
 	from bs import black_scholes
-	from algo import stoch_price#(<#dt#>, <#t#>, <#r#>, <#sigma#>, <#mu#>, <#s0#>, <#k#>, <#option_type#>)
+	from algo import stoch_price
+	from scipy.stats import norm
+	def normal_pdf(x, mean=0, std_dev=1):
+		return norm.pdf(x, loc=mean, scale=std_dev)
+	def C(s):
+		K = s**3-3*s**2*(1-s)
+		return (s*(s-1/K))**(1/s)*normal_pdf(s)
 	update()
 	if request.method == "POST":
 		user = request.values.get('name')
@@ -785,6 +791,9 @@ def buy_or_sell():
 		option_type = request.values.get("option_type").lower()
 		user_db = Users.query.filter_by(username=user).first()
 		
+		if coins < .1:
+			return "<h3>Invalid Leverage Value</h3>"
+		
 		if risk_neutral > 1.1 or risk_neutral < 0 :
 			return "Wrong Neutral Measure"
 		
@@ -797,13 +806,14 @@ def buy_or_sell():
 		if history.empty:
 			return "<h3>Invalid ticker symbol</h3>"
 		
+		
 		price = history['Close'][-1]
 		option = black_scholes(price, target_price, maturity, .05, np.std(history['Close'].pct_change()[1:])*np.sqrt(525960),option_type)
 		def sech(x):
 			return 1 / np.cosh(x)
 		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2) # 0 < t < 1.1
 		stoch = stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type)
-		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread))
+		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
 		print("token price",token_price,'TKP\t',stoch)
 		
 		
@@ -1005,7 +1015,7 @@ def invest():
 		
 		if wal.coins >= staked_coins*inv.tokenized_price:
 			try:
-				total_value = staked_coins*inv.coins_value
+				total_value = staked_coins*inv.tokenized_price
 				house = BettingHouse.query.get_or_404(1)
 				house.coin_fee(0.1 * staked_coins)
 				owner_wallet.coins += 0.1 * staked_coins
@@ -1057,6 +1067,17 @@ def invest():
 				# Commit all changes
 				db.session.commit()
 				
+				pending = PendingTransactionDatabase(
+												txid=os.urandom(10).hex(),
+												username=user,
+												from_address=user.personal_token,
+												to_address=inv.investment_name,
+												amount=total_value,
+												timestamp=dt.datetime.now(),
+												type='investment',
+												signature=inv.receipt)
+				db.session.add(pending)
+				db.session.commit()
 				blockchain.add_transaction({
 					'index': len(blockchain.chain) + 1,
 					"previous_hash": str(blockchain.get_latest_block()).encode().hex(),
