@@ -68,7 +68,7 @@
             <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
             <br>
             <label for="coins">Coins Staked</label>
-            <input type="float" step="0.01" id="coins" name="coins" placeholder="Enter the number of staked coins">
+            <input type="float" step="0.01" id="coins" min=.1 name="coins" placeholder="Enter the number of staked coins">
             <br>
             <label for="maturity">Maturity</label>
             <input type="float" step="0.01" id="maturity" name="maturity" placeholder="Enter the maturity (years)">
@@ -76,13 +76,13 @@
             <label for="Target Price">Target Price</label>
             <input type="float" step="0.01" id="target_price" name="target_price" placeholder="Enter the target price">
             <br>
-            <label for="sigma">Spread Coefficient</label>
+            <label for="sigma">Spread Coefficient (or, Softmax of Forward Rate)</label>
             <input type="float" step="0.01" id="sigma" name="sigma" placeholder="Enter the spread coefficeint">
             <br>
-            <label for="mu">Reversion Coefficient</label>
+            <label for="mu">Reversion Coefficient (or, Softmax of Growth Rate)</label>
             <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficeint">
             <br>
-            <label for="eta">Risk Neutral Measure</label>
+            <label for="eta">Risk Neutral Measure (or, Softmax of Filtration)</label>
             <input type="float" step="0.01" id="eta" name="eta" placeholder="Enter the risk neutral coefficeint">
             <br>
             <label for="Quantity">Number Asset Shares</label>

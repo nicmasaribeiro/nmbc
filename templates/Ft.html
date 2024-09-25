@@ -67,20 +67,97 @@
 
             document.getElementById("result_F").innerText = `F(${t}) = ${ft.toFixed(6)}`;
         }
+
+        // Function to simulate F(t) over a range of t values
+        function simulate() {
+            const start_t = parseFloat(document.getElementById("start_t").value);
+            const end_t = parseFloat(document.getElementById("end_t").value);
+            const step_t = parseFloat(document.getElementById("step_t").value);
+
+            if (isNaN(start_t) || isNaN(end_t) || isNaN(step_t) || start_t <= 0 || end_t <= start_t || step_t <= 0) {
+                document.getElementById("simulationResult").innerText = "Please enter valid positive numbers for the range and step.";
+                return;
+            }
+
+            let output = "<table border='1'><tr><th>t</th><th>F(t)</th></tr>";
+
+            for (let t = start_t; t <= end_t; t += step_t) {
+                const ft = F(t);
+                output += `<tr><td>${t.toFixed(2)}</td><td>${ft.toFixed(6)}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById("simulationResult").innerHTML = output;
+        }
     </script>
 </head>
 <body>
-    <h3><a href="/">Back</a></h3>
+    <h3><a href="/stoch/tools">Back</a></h3>
     <h1>Calculate F(t)</h1>
 
     <!-- Display the equation -->
     <p>Equation: \( F\left(t\right)=\left(\int_{0}^{t}f\left(s\right)^{2}W\left(s\right)ds\right)^{\frac{1}{t}} \)</p>
 
+    <!-- Explanation of the equation -->
+    <h2>Explanation of the Equation</h2>
+    <p>
+        The function \( F(t) \) models a stochastic process influenced by both the function \( f(s) \) and a Wiener process \( W(s) \), which represents Brownian motion (random fluctuations over time). The integral captures the interaction between these two processes, modeling how random noise accumulates over time. The expression \( \left(\int_0^t f(s)^2 W(s) ds\right)^{\frac{1}{t}} \) takes the average effect of this interaction over time.
+    </p>
+    <p>
+        The Wiener process \( W(s) \) models the random fluctuations, while \( f(s) \) represents the deterministic part of the system's behavior. Together, they simulate a stochastic process often used in fields like finance (e.g., stock prices), physics (e.g., particle diffusion), and engineering (e.g., noise in electrical signals).
+    </p>
+    <p>
+        As \( t \) increases, \( F(t) \) provides insight into how the system evolves under random fluctuations. The function can simulate how different systems evolve over time, depending on the nature of \( f(s) \) and \( W(s) \).
+    </p>
+
+    <!-- Input for t -->
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1" min="0.01"><br><br>
 
     <button onclick="calculateF()">Calculate F(t)</button>
 
     <h3 id="result_F">F(t) = </h3>
+
+    <h2>Simulation of F(t)</h2>
+
+    <label for="start_t">Start value for t: </label>
+    <input type="number" id="start_t" step="0.01" value="0.1"><br><br>
+
+    <label for="end_t">End value for t: </label>
+    <input type="number" id="end_t" step="0.1" value="5"><br><br>
+
+    <label for="step_t">Step size for t: </label>
+    <input type="number" id="step_t" step="0.01" value="0.1"><br><br>
+
+    <button onclick="simulate()">Run Simulation</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <!-- Style for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
+        }
+    </style>
 </body>
 </html>

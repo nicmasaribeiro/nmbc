@@ -2,19 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculate f₃(s, u)</title>
-    <!-- Load MathJax -->
+    <!-- Include MathJax for rendering mathematical equations -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <script>
-        // Define N(s, u) function
+        // Define N(s, u) function (adjust based on your model)
         function N(s, u) {
-            // Placeholder for N(s, u), adjust based on your model
-            return Math.sin(s) + Math.cos(u); // Example: simple trigonometric function
+            return Math.sin(s) + Math.cos(u); // Example function for N(s, u)
         }
 
         // Function to approximate the integral of a function f from a to b
@@ -55,9 +52,28 @@
             // Display the result
             document.getElementById("result_F3").innerText = `f₃(${s}, ${u}) = ${f3_result.toFixed(6)}`;
         }
+
+        // Function to simulate f₃(s, u) over a range of values
+        function simulateF3() {
+            const start_s = parseFloat(document.getElementById("start_s").value);
+            const end_s = parseFloat(document.getElementById("end_s").value);
+            const step_s = parseFloat(document.getElementById("step_s").value);
+            const u = parseFloat(document.getElementById("u_sim").value);
+
+            let output = "<table border='1'><tr><th>s</th><th>f₃(s, u)</th></tr>";
+
+            for (let s = start_s; s <= end_s; s += step_s) {
+                const f3_result = f3(s, u);
+                output += `<tr><td>${s.toFixed(2)}</td><td>${f3_result.toFixed(6)}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById("simulationResult").innerHTML = output;
+        }
     </script>
 </head>
 <body>
+    <h4><a href="/stoch/tools">Back</a></h4>
     <h1>Calculate and Display f₃(s, u)</h1>
 
     <div>
@@ -69,6 +85,28 @@
         </p>
     </div>
 
+    <!-- Explanation of the formula -->
+    <h2>Explanation of the Formula</h2>
+    <p>
+        The function \( f_3(s, u) \) represents the interaction between two variables \( s \) and \( u \), where the function \( N(s, u) \) introduces a relationship between them, such as oscillatory behavior using sine and cosine. This equation has three main parts:
+    </p>
+    <ul>
+        <li>
+            The first term, \( s^2 u^2 N(s, u)^2 \), models how \( N(s, u) \) is magnified by both \( s \) and \( u \), reflecting how the relationship between the two variables scales quadratically.
+        </li>
+        <li>
+            The second term, \( -2su N(s, u) \int_{\frac{1}{u}}^{s} N(t, t) \, dt \), captures a correction factor that depends on the integral of the interaction between \( t \) and itself (i.e., \( N(t, t) \)).
+        </li>
+        <li>
+            The third term represents a double integral, capturing interactions between all points \( x \) and \( y \) in the range from \( \frac{1}{u} \) to \( s \), which incorporates a complex relationship between the two variables over this range.
+        </li>
+    </ul>
+    <p>
+        This equation can be used to model systems where there are non-linear relationships between two interacting variables, such as in physics, biology, or economics, where oscillations or wave-like behavior may be present. The introduction of the integrals adds complexity, capturing cumulative interactions between points in a range.
+    </p>
+
+    <h2>Calculate f₃(s, u)</h2>
+
     <label for="s">Enter value for s: </label>
     <input type="number" id="s" step="0.01" value="1"><br><br>
 
@@ -79,19 +117,49 @@
 
     <h3 id="result_F3">f₃(s, u) = </h3>
 
-    <!-- Add some margin for better presentation -->
+    <!-- Simulation section -->
+    <h2>Simulation of f₃(s, u)</h2>
+
+    <label for="start_s">Start value for s: </label>
+    <input type="number" id="start_s" step="0.01" value="0.1"><br><br>
+
+    <label for="end_s">End value for s: </label>
+    <input type="number" id="end_s" step="0.1" value="5"><br><br>
+
+    <label for="step_s">Step size for s: </label>
+    <input type="number" id="step_s" step="0.01" value="0.1"><br><br>
+
+    <label for="u_sim">Enter value for u (for simulation): </label>
+    <input type="number" id="u_sim" step="0.01" value="1"><br><br>
+
+    <button onclick="simulateF3()">Run Simulation</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <!-- Style for better presentation -->
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
 
-        h1, h3 {
+        h1, h2, h3 {
             margin-bottom: 10px;
         }
 
         p {
             font-size: 1.2em;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
         }
     </style>
 </body>

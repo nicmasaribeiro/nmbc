@@ -12,14 +12,12 @@
     <script>
         // Define f(t) function
         function f(t) {
-            // Placeholder for f(t), you can customize this function based on your model
-            return Math.log(t + 1); // Example: log(t + 1)
+            return Math.log(t + 1); // Example function: log(t + 1)
         }
 
         // Define g(t, r) function
         function g(t, r) {
-            // Placeholder for g(t, r), customize this based on your model
-            return Math.exp(-r * t); // Example: exponential decay
+            return Math.exp(-r * t); // Example function: exponential decay
         }
 
         // Function to compute S(t, r)
@@ -48,6 +46,30 @@
             // Display the result
             document.getElementById("result_S").innerText = `S(${t}, ${r}) = ${st.toFixed(6)}`;
         }
+
+        // Function to simulate S(t, r) over a range of t and r values
+        function simulateS() {
+            const start_t = parseFloat(document.getElementById("start_t").value);
+            const end_t = parseFloat(document.getElementById("end_t").value);
+            const step_t = parseFloat(document.getElementById("step_t").value);
+            const r = parseFloat(document.getElementById("r_sim").value);
+            const dt = parseFloat(document.getElementById("dt_sim").value);
+
+            if (isNaN(start_t) || isNaN(end_t) || isNaN(step_t) || isNaN(r) || isNaN(dt)) {
+                document.getElementById("simulationResult").innerText = "Please enter valid numbers for the simulation.";
+                return;
+            }
+
+            let output = "<table border='1'><tr><th>t</th><th>S(t, r)</th></tr>";
+
+            for (let t = start_t; t <= end_t; t += step_t) {
+                const st = S(t, r, dt);
+                output += `<tr><td>${t.toFixed(2)}</td><td>${st.toFixed(6)}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById("simulationResult").innerHTML = output;
+        }
     </script>
 </head>
 <body>
@@ -56,6 +78,23 @@
 
     <!-- Display the function using MathJax -->
     <p>Function: \( S(t, r) = g(t, r)^t \cdot d_t + e^{f(t)} \)</p>
+
+    <!-- Explanation of the Equation -->
+    <h2>Explanation of the Equation</h2>
+    <p>
+        The function \( S(t, r) \) models the relationship between two variables \( t \) and \( r \), where:
+    </p>
+    <ul>
+        <li>\( g(t, r) \): Represents an exponential decay function, often modeling the decreasing effect of a rate \( r \) over time \( t \). This term typically appears in processes where the effect of a factor diminishes exponentially over time (e.g., interest rates or decay processes).</li>
+        <li>\( f(t) \): A logarithmic growth function (in this example, \( \log(t + 1) \)) captures the slow, steady growth of a quantity over time. It is commonly used in models where growth slows down as time progresses.</li>
+        <li>\( d_t \): A constant scaling factor (or time increment), which modifies the influence of the exponential term on \( S(t, r) \).</li>
+        <li>\( e^{f(t)} \): Represents an exponential growth term, where \( f(t) \) governs how the function grows exponentially with time. This term often captures cumulative effects or multiplicative growth processes.</li>
+    </ul>
+    <p>
+        The combination of these terms can represent real-world phenomena such as the balance between growth and decay processes over time. For instance, \( g(t, r) \) can represent the diminishing impact of an interest rate over time, while \( f(t) \) models slower, logarithmic growth. This function could be applied in finance, physics, or biology, where decay and growth are interlinked.
+    </p>
+
+    <h2>Calculate S(t, r)</h2>
 
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1"><br><br>
@@ -69,5 +108,54 @@
     <button onclick="calculateS()">Calculate S(t, r)</button>
 
     <h3 id="result_S">S(t, r) = </h3>
+
+    <!-- Simulation Section -->
+    <h2>Simulation of S(t, r) over a Range of t</h2>
+
+    <label for="start_t">Start value for t: </label>
+    <input type="number" id="start_t" step="0.01" value="0.1"><br><br>
+
+    <label for="end_t">End value for t: </label>
+    <input type="number" id="end_t" step="0.1" value="5"><br><br>
+
+    <label for="step_t">Step size for t: </label>
+    <input type="number" id="step_t" step="0.01" value="0.1"><br><br>
+
+    <label for="r_sim">Enter value for r (for simulation): </label>
+    <input type="number" id="r_sim" step="0.01" value="0.5"><br><br>
+
+    <label for="dt_sim">Enter value for dt (d_t) (for simulation): </label>
+    <input type="number" id="dt_sim" step="0.01" value="1"><br><br>
+
+    <button onclick="simulateS()">Run Simulation</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <!-- Style for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
+        }
+    </style>
 </body>
 </html>

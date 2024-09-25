@@ -9,16 +9,28 @@
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <script>
-        // Define the function k2(s), adjust based on the model
-        function k2(s) {
-            // Example: Define k2(s) as some function of s
-            return (s**3 - 3*s**2*(1 - s)); // Placeholder formula for k2(s), you can change this
+        // Function for the normal PDF (Gaussian distribution) approximation
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
         }
 
-        // Function to compute c(s)
+        // Define the function k2(s), adjust based on the model
+        function k2(s) {
+            // Example: Define k2(s) as a cubic function of s (you can change this)
+            return (s ** 3 - 3 * s ** 2 * (1 - s)); // Placeholder formula for k2(s)
+        }
+
+        // Function to compute c(s) that incorporates the normal PDF
         function c(s) {
             const k2_val = k2(s);
-            return s * (s - 1 / k2_val);
+            // Handle edge case where k2(s) is zero (to avoid division by zero)
+            if (k2_val === 0) {
+                return "undefined (division by zero)";
+            }
+            // Calculate c(s) using the given equation and normal PDF
+            return (s * (s - 1 / k2_val)) * normPdf(s, 0, s);
         }
 
         // Function to calculate and display c(s)
@@ -35,15 +47,54 @@
             const cs = c(s);
 
             // Display the result
-            document.getElementById("result_C").innerText = `c(${s}) = ${cs.toFixed(6)}`;
+            document.getElementById("result_C").innerText = `c(${s}) = ${cs}`;
+        }
+
+        // Function to simulate values over a range of s
+        function simulate() {
+            const start_s = parseFloat(document.getElementById("start_s").value);
+            const end_s = parseFloat(document.getElementById("end_s").value);
+            const step_s = parseFloat(document.getElementById("step_s").value);
+
+            if (isNaN(start_s) || isNaN(end_s) || isNaN(step_s) || step_s <= 0) {
+                document.getElementById("simulationResult").innerText = "Please enter valid numbers for the range and step.";
+                return;
+            }
+
+            let output = "<table border='1'><tr><th>s</th><th>c(s)</th></tr>";
+
+            for (let s = start_s; s <= end_s; s += step_s) {
+                const cs = c(s);
+                output += `<tr><td>${s.toFixed(2)}</td><td>${cs}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById("simulationResult").innerHTML = output;
         }
     </script>
 </head>
 <body>
+    <h4><a href="/stoch/tools">Back</a></h4>
     <h1>Calculate c(s)</h1>
 
     <!-- Display the function using MathJax -->
-    <p>Function: \( c(s) = s \left( s - \frac{1}{k_2(s)} \right) \)</p>
+    <p>Function: \( c(s) = s \left( s - \frac{1}{k_2(s)} \right) \cdot \text{PDF}(s) \)</p>
+
+    <!-- Explanation of the equation -->
+    <h2>Explanation of the Equation: Trading Volume Differential Measure</h2>
+    <p>
+        The function \( c(s) \) models the evolution of trading volume in response to price changes in a financial market. This version of the equation includes a **normal probability density function (PDF)**, adding randomness and uncertainty to the model. The term \( k_2(s) \) captures the market's response to price changes or volatility, while the normal PDF accounts for stochastic effects.
+    </p>
+    <ul>
+        <li>\( s \): Represents trading volume or another variable related to market activity, such as price or time.</li>
+        <li>\( k_2(s) \): A function that models how market conditions (like price changes or volatility) influence trading volume. It modulates the relationship between current and historical trading volumes.</li>
+        <li>\( \text{PDF}(s) \): A Gaussian (normal) probability density function, which introduces stochastic (random) elements into the equation. This reflects real-world market conditions where randomness affects trading behavior.</li>
+    </ul>
+    <p>
+        The equation \( c(s) = s \left( s - \frac{1}{k_2(s)} \right) \cdot \text{PDF}(s) \) provides insights into how both deterministic and stochastic market forces impact trading volume. This is useful in understanding how trading volumes fluctuate under varying conditions, including both market trends and random noise.
+    </p>
+
+    <h2>Calculate c(s) at a specific value</h2>
 
     <label for="s">Enter value for s: </label>
     <input type="number" id="s" step="0.01" max="100" value="1"><br><br>
@@ -51,5 +102,47 @@
     <button onclick="calculateC()">Calculate c(s)</button>
 
     <h3 id="result_C">c(s) = </h3>
+
+    <h2>Simulation of c(s) over a range</h2>
+
+    <label for="start_s">Start value for s: </label>
+    <input type="number" id="start_s" step="0.01" value="0"><br><br>
+
+    <label for="end_s">End value for s: </label>
+    <input type="number" id="end_s" step="0.01" value="5"><br><br>
+
+    <label for="step_s">Step size for s: </label>
+    <input type="number" id="step_s" step="0.01" value="0.1"><br><br>
+
+    <button onclick="simulate()">Run Simulation</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <!-- Style for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
+        }
+    </style>
 </body>
 </html>

@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1">
-    
+    <meta charset="UTF-8">    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Formula f(s) Calculation</title>
     <!-- Load MathJax -->
@@ -49,14 +48,37 @@
             return first_term + second_term + third_term;
         }
 
+        // Function to simulate f(s) over a range of s values
+        function simulateFS(start, end, step = 0.1) {
+            let results = [];
+            for (let s = start; s <= end; s += step) {
+                results.push({ s: s.toFixed(2), f_value: f(s).toFixed(6) });
+            }
+            return results;
+        }
+
         function calculateFS() {
             const s = parseFloat(document.getElementById("s").value);
             const result = f(s);
             document.getElementById("result").innerText = `f(${s}) = ${result.toFixed(6)}`;
         }
+
+        function runSimulation() {
+            const start = parseFloat(document.getElementById("start_s").value);
+            const end = parseFloat(document.getElementById("end_s").value);
+
+            const simulationResults = simulateFS(start, end);
+            let output = `<table border="1"><tr><th>s</th><th>f(s)</th></tr>`;
+            simulationResults.forEach(result => {
+                output += `<tr><td>${result.s}</td><td>${result.f_value}</td></tr>`;
+            });
+            output += `</table>`;
+            document.getElementById("simulationResult").innerHTML = output;
+        }
     </script>
 </head>
 <body>
+    <h4><a href="/stoch/tools">Backs</a></h4>
     <h1>Calculate f(s)</h1>
     
     <!-- Display the formula using MathJax -->
@@ -69,11 +91,43 @@
         </p>
     </div>
 
+    <!-- Explanation of the function -->
+    <h2>Explanation</h2>
+    <p>
+        The function \( f(s) \) models a system where random noise or fluctuations affect the behavior of the system over time. 
+        It captures the relationship between the variable \( s \), which may represent time or space, and the probability distribution \( B(s) \), 
+        which models random effects using a normal (Gaussian) distribution with a variance inversely proportional to \( s \). 
+        The formula integrates both the local and cumulative effects of this stochastic noise.
+    </p>
+    <p>
+        The first term \( s^2 B(s)^2 \) represents the squared magnitude of noise at the point \( s \), while the second term 
+        captures the interaction between noise at \( s \) and its integrated history up to \( s \). The third term accounts for the 
+        cumulative squared noise over the interval from 0 to \( s \). Overall, this equation models how stochastic effects accumulate and interact, 
+        influencing a system's behavior.
+    </p>
+    <p>
+        This function is particularly useful in fields like stochastic processes, signal processing, and financial modeling, where random 
+        fluctuations (noise) play a critical role.
+    </p>
+
+    <h2>Calculate f(s) at a specific value</h2>
     <label for="s">Enter value for s: </label>
     <input type="number" id="s" step="0.01" value="1">
     <button onclick="calculateFS()">Calculate f(s)</button>
 
     <h3 id="result">f(s) = </h3>
+
+    <h2>Simulate f(s) over a range of values</h2>
+    <label for="start_s">Start value for s: </label>
+    <input type="number" id="start_s" step="0.1" value="0"><br><br>
+
+    <label for="end_s">End value for s: </label>
+    <input type="number" id="end_s" step="0.1" value="5"><br><br>
+
+    <button onclick="runSimulation()">Simulate f(s)</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
 
     <!-- Add some margin for better presentation -->
     <style>
@@ -88,6 +142,16 @@
 
         p {
             font-size: 1.2em;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
         }
     </style>
 </body>

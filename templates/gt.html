@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculate g(t, r)</title>
+    <title>Calculate and Simulate g(t, r)</title>
     <!-- Load MathJax -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -54,17 +54,41 @@
             return (1 - Math.pow(r, 2)) * Math.exp(r * ft);
         }
 
+        // Function to simulate g(t, r) over time
+        function simulateG(startTime, endTime, r, step = 0.1) {
+            const results = [];
+            for (let t = startTime; t <= endTime; t += step) {
+                results.push({ t: t.toFixed(2), g_value: g(t, r).toFixed(6) });
+            }
+            return results;
+        }
+
         function calculateG() {
             const t = parseFloat(document.getElementById("t").value);
             const r = parseFloat(document.getElementById("r").value);
             const result = g(t, r);
             document.getElementById("result").innerText = `g(${t}, ${r}) = ${result.toFixed(6)}`;
         }
+
+        function runSimulation() {
+            const startTime = parseFloat(document.getElementById("startTime").value);
+            const endTime = parseFloat(document.getElementById("endTime").value);
+            const r = parseFloat(document.getElementById("r_sim").value);
+
+            const simulationResults = simulateG(startTime, endTime, r);
+            let output = `<table border="1"><tr><th>t</th><th>g(t, r)</th></tr>`;
+            simulationResults.forEach(result => {
+                output += `<tr><td>${result.t}</td><td>${result.g_value}</td></tr>`;
+            });
+            output += `</table>`;
+            document.getElementById("simulationResult").innerHTML = output;
+        }
     </script>
 </head>
 <body>
-    <h1>Calculate g(t, r)</h1>
-    
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate and Simulate g(t, r)</h1>
+
     <!-- Display the formula using MathJax -->
     <div>
         <h3>The formula for \( g(t, r) \) is:</h3>
@@ -75,29 +99,78 @@
         </p>
     </div>
 
+    <!-- Explanation of g(t, r) -->
+    <div>
+        <h2>Explanation</h2>
+        <p>
+            The function \( g(t, r) \) represents a stochastic growth coefficient that models how random fluctuations influence growth over time. It has two primary variables:
+        </p>
+        <ul>
+            <li>
+                \( t \) – typically represents time or some progressive process. As time changes, the value of \( g(t, r) \) evolves, reflecting growth or decay with stochastic effects.
+            </li>
+            <li>
+                \( r \) – represents the randomness or noise factor. When \( r = 0 \), the function behaves deterministically (i.e., with no random influence). As \( r \) increases, stochasticity becomes more prominent in the model, simulating the effect of randomness on the system's growth.
+            </li>
+        </ul>
+        <p>
+            The term \( f(t) \) is a more complex function that captures various integrated behaviors of the system over time. The exponential term \( e^{r f(t)} \) amplifies or dampens the growth based on how \( r \) modulates the stochastic influence.
+        </p>
+        <p>
+            In summary, \( g(t, r) \) describes a system where random fluctuations impact its growth. The balance between deterministic and stochastic behavior is controlled by \( r \), while \( t \) shows how the system evolves over time.
+        </p>
+    </div>
+
+    <h2>Calculate g(t, r) at a specific point</h2>
+
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1"><br><br>
 
     <label for="r">Enter value for r: </label>
-    <input type="number" id="r" step="0.01" value="0"><br><br>
+    <input type="number" id="r" step="0.01" value="0.5"><br><br>
 
     <button onclick="calculateG()">Calculate g(t, r)</button>
 
     <h3 id="result">g(t, r) = </h3>
 
-    <!-- Add some margin for better presentation -->
+    <h2>Simulate g(t, r) over a time range</h2>
+
+    <label for="startTime">Start time (t): </label>
+    <input type="number" id="startTime" step="0.1" value="0"><br><br>
+
+    <label for="endTime">End time (t): </label>
+    <input type="number" id="endTime" step="0.1" value="5"><br><br>
+
+    <label for="r_sim">Enter value for r: </label>
+    <input type="number" id="r_sim" step="0.01" value="0.5"><br><br>
+
+    <button onclick="runSimulation()">Simulate g(t, r)</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
 
-        h1, h3 {
+        h1, h2, h3 {
             margin-bottom: 10px;
         }
 
         p {
             font-size: 1.2em;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
         }
     </style>
 </body>
