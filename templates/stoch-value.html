@@ -17,7 +17,7 @@
         }
         
         .container {
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             background-color: #fff;
             padding: 20px;
@@ -77,6 +77,8 @@
             border: 1px solid #ddd;
         }
     </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evaluate V(t, r, u, rho, alpha, K, S)</title>
     <script>
@@ -86,7 +88,7 @@
         }
 
         function B(t) {
-            return t * Math.random(1/t); // Example function for B(t)
+            return t * Math.random(); // Example function for B(t)
         }
 
         function f(s) {
@@ -132,121 +134,63 @@
             const K = parseFloat(document.getElementById('K').value);
 
             const result = evaluateV(t, r, u, rho, alpha, K, S);
-            document.getElementById('result').innerText = `V = ${result}`;
+            document.getElementById('result').innerText = `V = ${result.toFixed(6)}`;
+        }
+
+        // Simulation of V(t, r) over a range of t
+        function simulateV() {
+            const r = parseFloat(document.getElementById('r_sim').value);
+            const u = parseFloat(document.getElementById('u_sim').value);
+            const rho = parseFloat(document.getElementById('rho_sim').value);
+            const alpha = parseFloat(document.getElementById('alpha_sim').value);
+            const K = parseFloat(document.getElementById('K_sim').value);
+            const start_t = parseFloat(document.getElementById('start_t').value);
+            const end_t = parseFloat(document.getElementById('end_t').value);
+            const step_t = parseFloat(document.getElementById('step_t').value);
+
+            let output = "<table border='1'><tr><th>t</th><th>V(t)</th></tr>";
+
+            for (let t = start_t; t <= end_t; t += step_t) {
+                const V_t = evaluateV(t, r, u, rho, alpha, K, S);
+                output += `<tr><td>${t.toFixed(2)}</td><td>${V_t.toFixed(6)}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById('simulationResult').innerHTML = output;
         }
     </script>
 </head>
 <body>
 
     <div class="container">
-        <h4><a href="/">Back</a></h4>
+        <h4><a href="/stoch/tools">Back</a></h4>
         <h1>Evaluate V(t, r, u, ρ, α, K, S)</h1>
         
         <p class="formula">
-            <math xmlns="http://www.w3.org/1998/Math/MathML">
-                
-                
-            <mrow>
-                <mi>V</mi>
-                <mo>(</mo>
-                <mi>t</mi>
-                <mo>,</mo>
-                <mi>r</mi>
-                <mo>,</mo>
-                <mi>u</mi>
-                <mo>,</mo>
-                <mi>ρ</mi>
-                <mo>,</mo>
-                <mi>α</mi>
-                <mo>,</mo>
-                <mi>K</mi>
-                <mo>,</mo>
-                <mi>S</mi>
-                <mo>)</mo>
-                <mo>=</mo>
-                <mfrac>
-                    <mrow>
-                        <mi>α</mi>
-                        <mo>-</mo>
-                        <msup>
-                            <mi>e</mi>
-                            <mi>r</mi>
-                        </msup>
-                        <mo>&#xB7;</mo> <!-- Multiplication dot -->
-                        <mrow>
-                            <mi>F</mi>
-                            <mo>(</mo>
-                            <mi>t</mi>
-                            <mo>)</mo>
-                        </mrow>
-                        <mo>&#xB7;</mo>
-                        <mrow>
-                            <mo>(</mo>
-                            <mn>1</mn>
-                            <mo>-</mo>
-                            <mfrac>
-                                <mrow>
-                                    <mi>F</mi>
-                                    <mo>(</mo>
-                                    <mi>t</mi>
-                                    <mo>)</mo>
-                                </mrow>
-                                <mi>K</mi>
-                            </mfrac>
-                            <mo>)</mo>
-                        </mrow>
-                        <mo>-</mo>
-                        <msup>
-                            <mi>e</mi>
-                            <mrow>
-                                <mo>(</mo>
-                                <mi>u</mi>
-                                <mo>-</mo>
-                                <mfrac>
-                                    <mi>ρ</mi>
-                                    <mn>2</mn>
-                                </mfrac>
-                                <msup>
-                                    <mi>t</mi>
-                                </msup>
-                                <mo>+</mo>
-                                <mi>ρ</mi>
-                                <mi>B</mi>
-                                <mo>(</mo>
-                                <mi>t</mi>
-                                <mo>)</mo>
-                                <mo>)</mo>
-                            </mrow>
-                        </msup>
-                        <mo>+</mo>
-                        <mi>F</mi>
-                        <mo>(</mo>
-                        <mi>t</mi>
-                        <mo>)</mo>
-                        <mo>&#xB7;</mo>
-                        <msup>
-                            <mi>K</mi>
-                            <mo>-rt</mo>
-                        </msup>
-                    </mrow>
-                    <mrow>
-                        <mi>F</mi>
-                        <mo>(</mo>
-                        <mi>t</mi>
-                        <mo>)</mo>
-                        <mo>&#xB7;</mo>
-                        <mi>S</mi>
-                        <mo>(</mo>
-                        <mi>t</mi>
-                        <mo>,</mo>
-                        <mi>r</mi>
-                        <mo>)</mo>
-                    </mrow>
-                </mfrac>
-            </mrow>
-            </math>
+            \[
+            V(t, r, u, \rho, \alpha, K, S) = \frac{\alpha - e^r \cdot F(t) \cdot \left(1 - \frac{F(t)}{K}\right) - e^{\left(u - \frac{\rho^2}{2}\right)t + \rho B(t)} + F(t) \cdot K^{-rt}}{F(t) \cdot S(t, r)}
+            \]
         </p>
-        
+
+        <h2>Explanation of the Equation</h2>
+        <p>
+            The equation \( V(t, r, u, \rho, \alpha, K, S) \) models a complex financial process, potentially representing the valuation of an asset or financial product over time \( t \), with influences from multiple parameters. Here's an overview of each component:
+        </p>
+        <ul>
+            <li>\( F(t) \): A discount factor that decreases over time, simulating the decaying value of money or an asset over time.</li>
+            <li>\( r \): A rate, often representing an interest rate or growth rate.</li>
+            <li>\( u \) and \( \rho \): Parameters that represent other market factors, such as volatility or drift. These may vary based on the specific asset or market being modeled.</li>
+            <li>\( B(t) \): A Brownian motion term representing randomness or uncertainty in the market.</li>
+            <li>\( \alpha \): A constant parameter, representing the initial value or some fixed contribution.</li>
+            <li>\( K \): A constant that acts as a threshold or boundary condition in the model.</li>
+            <li>\( S(t, r) \): A function that represents systemic factors, such as market trends or external conditions affecting the asset.</li>
+        </ul>
+        <p>
+            The equation balances deterministic terms (such as \( e^r \cdot F(t) \)) with stochastic terms involving Brownian motion, capturing both predictable market behaviors and random fluctuations.
+        </p>
+
+        <h2>Calculate V(t, r, u, ρ, α, K)</h2>
+
         <label for="t">t (time):</label>
         <input type="number" id="t" value="1"><br><br>
         
@@ -268,5 +212,36 @@
         <button onclick="calculateV()">Calculate V</button>
         
         <div id="result"></div>
-    </div></body>
+
+        <h2>Simulation of V(t, r) over a range</h2>
+        
+        <label for="start_t">Start value for t:</label>
+        <input type="number" id="start_t" step="0.1" value="0.1"><br><br>
+        
+        <label for="end_t">End value for t:</label>
+        <input type="number" id="end_t" step="0.1" value="5"><br><br>
+        
+        <label for="step_t">Step size for t:</label>
+        <input type="number" id="step_t" step="0.1" value="0.1"><br><br>
+        
+        <label for="r_sim">r (rate for simulation):</label>
+        <input type="number" id="r_sim" value="0.05"><br><br>
+
+        <label for="u_sim">u (parameter u for simulation):</label>
+        <input type="number" id="u_sim" value="0.1"><br><br>
+
+        <label for="rho_sim">ρ (rho for simulation):</label>
+        <input type="number" id="rho_sim" value="0.2"><br><br>
+
+        <label for="alpha_sim">α (alpha for simulation):</label>
+        <input type="number" id="alpha_sim" value="1"><br><br>
+
+        <label for="K_sim">K (constant K for simulation):</label>
+        <input type="number" id="K_sim" value="100"><br><br>
+
+        <button onclick="simulateV()">Run Simulation</button>
+
+        <div id="simulationResult"></div>
+    </div>
+</body>
 </html>
