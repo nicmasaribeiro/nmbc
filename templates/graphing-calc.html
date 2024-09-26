@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphing Calculator</title>
+
+    <!-- Load Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- Load Math.js (to parse and evaluate math expressions) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f6f9;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 70%;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #graph {
+            width: 100%;
+            height: 500px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Graphing Calculator</h1>
+
+        <!-- Input field for the mathematical function -->
+        <input type="text" id="functionInput" placeholder="Enter a function, e.g., sin(x), x^2, exp(x), log(x)" />
+
+        <!-- Button to plot the function -->
+        <button onclick="plotFunction()">Plot Function</button>
+
+        <!-- Div to hold the graph -->
+        <div id="graph"></div>
+    </div>
+
+    <script>
+        // Function to plot the graph based on user input
+        function plotFunction() {
+            const funcInput = document.getElementById("functionInput").value;
+            
+            // Parse the mathematical function using math.js
+            let expr;
+            try {
+                expr = math.compile(funcInput);
+            } catch (e) {
+                alert("Invalid function. Please enter a valid mathematical expression.");
+                return;
+            }
+
+            // Generate values for x and compute corresponding y values
+            const xValues = math.range(-10, 10, 0.1).toArray();
+            const yValues = xValues.map(function(x) {
+                try {
+                    return expr.evaluate({x: x});
+                } catch (e) {
+                    return NaN; // Return NaN if the function is invalid at a point
+                }
+            });
+
+            // Plot the function using Plotly
+            const trace = {
+                x: xValues,
+                y: yValues,
+                mode: 'lines',
+                type: 'scatter',
+                line: {color: '#1f77b4'}
+            };
+
+            const layout = {
+                title: `Plot of ${funcInput}`,
+                xaxis: {title: 'x'},
+                yaxis: {title: 'y'},
+                plot_bgcolor: '#f4f6f9',
+                paper_bgcolor: '#f4f6f9'
+            };
+
+            Plotly.newPlot('graph', [trace], layout);
+        }
+    </script>
+</body>
+</html>

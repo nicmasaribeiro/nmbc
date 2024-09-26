@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculate f₃(s, u)</title>
+    <title>Calculate f₃(s, u) with Drift and Volatility Coefficients</title>
     <!-- Include MathJax for rendering mathematical equations -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Load Plotly.js for graphing -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
     <script>
         // Define N(s, u) function (adjust based on your model)
@@ -41,16 +43,35 @@
             return first_term + second_term + third_term;
         }
 
-        // Function to calculate and display f₃(s, u)
+        // Function to calculate drift coefficient
+        function driftCoefficient(s, u) {
+            return integrate(t => N(s, t), 0, u); // Example drift based on N(s, u)
+        }
+
+        // Function to calculate volatility coefficient
+        function volatilityCoefficient(s, u) {
+            return Math.sqrt(integrate(t => Math.pow(N(s, t), 2), 0, u)); // Volatility as sqrt of variance
+        }
+
+        // Function to calculate expected appreciation
+        function expectedAppreciation(s, u, drift, volatility, timePeriods) {
+            return drift * timePeriods + 0.5 * Math.pow(volatility, 2) * timePeriods; // Appreciation formula
+        }
+
+        // Function to calculate and display f₃(s, u), drift, and volatility
         function calculateF3() {
             const s = parseFloat(document.getElementById("s").value);
             const u = parseFloat(document.getElementById("u").value);
 
-            // Calculate f₃(s, u)
+            // Calculate f₃(s, u), drift, and volatility
             const f3_result = f3(s, u);
+            const drift = driftCoefficient(s, u);
+            const volatility = volatilityCoefficient(s, u);
 
             // Display the result
             document.getElementById("result_F3").innerText = `f₃(${s}, ${u}) = ${f3_result.toFixed(6)}`;
+            document.getElementById("result_drift").innerText = `Drift Coefficient = ${drift.toFixed(6)}`;
+            document.getElementById("result_volatility").innerText = `Volatility Coefficient = ${volatility.toFixed(6)}`;
         }
 
         // Function to simulate f₃(s, u) over a range of values
@@ -70,11 +91,48 @@
             output += "</table>";
             document.getElementById("simulationResult").innerHTML = output;
         }
+
+        // Function to simulate expected appreciation over time
+        function simulateAppreciation() {
+            const s = parseFloat(document.getElementById("s_appreciation").value);
+            const u = parseFloat(document.getElementById("u_appreciation").value);
+            const drift = driftCoefficient(s, u);
+            const volatility = volatilityCoefficient(s, u);
+            const timePeriods = parseFloat(document.getElementById("timePeriods").value);
+
+            let timeValues = [];
+            let appreciationValues = [];
+
+            for (let t = 0; t <= timePeriods; t += 1) {
+                const appreciation = expectedAppreciation(s, u, drift, volatility, t);
+                timeValues.push(t);
+                appreciationValues.push(appreciation);
+            }
+
+            // Plot the graph using Plotly.js
+            const trace = {
+                x: timeValues,
+                y: appreciationValues,
+                mode: 'lines',
+                name: 'Expected Appreciation',
+                line: { color: '#1f77b4' }
+            };
+
+            const layout = {
+                title: 'Expected Stock Appreciation Over Time',
+                xaxis: { title: 'Time Periods' },
+                yaxis: { title: 'Expected Appreciation' },
+                paper_bgcolor: '#f4f6f9',
+                plot_bgcolor: '#f4f6f9'
+            };
+
+            Plotly.react('appreciationGraph', [trace], layout);
+        }
     </script>
 </head>
 <body>
     <h4><a href="/stoch/tools">Back</a></h4>
-    <h1>Calculate and Display f₃(s, u)</h1>
+    <h1>Calculate and Display f₃(s, u), Drift, and Volatility</h1>
 
     <div>
         <h3>The formula for \( f_3(s, u) \) is:</h3>
@@ -88,24 +146,10 @@
     <!-- Explanation of the formula -->
     <h2>Explanation of the Formula</h2>
     <p>
-        The function \( f_3(s, u) \) represents the interaction between two variables \( s \) and \( u \), where the function \( N(s, u) \) introduces a relationship between them, such as oscillatory behavior using sine and cosine. This equation has three main parts:
-    </p>
-    <ul>
-        <li>
-            The first term, \( s^2 u^2 N(s, u)^2 \), models how \( N(s, u) \) is magnified by both \( s \) and \( u \), reflecting how the relationship between the two variables scales quadratically.
-        </li>
-        <li>
-            The second term, \( -2su N(s, u) \int_{\frac{1}{u}}^{s} N(t, t) \, dt \), captures a correction factor that depends on the integral of the interaction between \( t \) and itself (i.e., \( N(t, t) \)).
-        </li>
-        <li>
-            The third term represents a double integral, capturing interactions between all points \( x \) and \( y \) in the range from \( \frac{1}{u} \) to \( s \), which incorporates a complex relationship between the two variables over this range.
-        </li>
-    </ul>
-    <p>
-        This equation can be used to model systems where there are non-linear relationships between two interacting variables, such as in physics, biology, or economics, where oscillations or wave-like behavior may be present. The introduction of the integrals adds complexity, capturing cumulative interactions between points in a range.
+        The function \( f_3(s, u) \) represents the interaction between two variables \( s \) and \( u \), where the function \( N(s, u) \) introduces a relationship between them. The drift coefficient captures the trend, and the volatility coefficient captures the uncertainty or variability over time.
     </p>
 
-    <h2>Calculate f₃(s, u)</h2>
+    <h2>Calculate f₃(s, u), Drift, and Volatility</h2>
 
     <label for="s">Enter value for s: </label>
     <input type="number" id="s" step="0.01" value="1"><br><br>
@@ -116,6 +160,8 @@
     <button onclick="calculateF3()">Calculate f₃(s, u)</button>
 
     <h3 id="result_F3">f₃(s, u) = </h3>
+    <h3 id="result_drift">Drift Coefficient = </h3>
+    <h3 id="result_volatility">Volatility Coefficient = </h3>
 
     <!-- Simulation section -->
     <h2>Simulation of f₃(s, u)</h2>
@@ -137,11 +183,29 @@
     <h3>Simulation Results:</h3>
     <div id="simulationResult"></div>
 
+    <!-- Expected appreciation section -->
+    <h2>Simulate Expected Stock Appreciation</h2>
+
+    <label for="s_appreciation">Enter value for s: </label>
+    <input type="number" id="s_appreciation" step="0.01" value="1"><br><br>
+
+    <label for="u_appreciation">Enter value for u: </label>
+    <input type="number" id="u_appreciation" step="0.01" value="1"><br><br>
+
+    <label for="timePeriods">Enter number of time periods: </label>
+    <input type="number" id="timePeriods" step="1" value="10"><br><br>
+
+    <button onclick="simulateAppreciation()">Simulate Expected Appreciation</button>
+
+    <h3>Appreciation Graph:</h3>
+    <div id="appreciationGraph" style="width:100%;height:500px;"></div>
+
     <!-- Style for better presentation -->
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #f4f6f9;
         }
 
         h1, h2, h3 {
@@ -152,14 +216,38 @@
             font-size: 1.2em;
         }
 
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
         table {
             border-collapse: collapse;
             margin-top: 10px;
+            width: 100%;
         }
 
         th, td {
-            padding: 5px 10px;
+            padding: 10px;
             text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
         }
     </style>
 </body>

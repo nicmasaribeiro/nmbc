@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculate P(t, r)</title>
-    <!-- Load MathJax -->
+    <title>Calculate P(t, r) with Reversion and Spread Coefficient</title>
+    <!-- Load MathJax for formula display -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
@@ -82,10 +82,24 @@
             const Nt = N(t, r);
             const first_term = -Ft * (St * S0 - K * Math.exp(-r * t));
             const second_term = Ft * (1 - Ft / K) * Nt;
-            return first_term + second_term;
+            return Math.abs(first_term + second_term);
         }
 
-        // Function to calculate and display P(t, r)
+        // Function to compute the reversion coefficient
+        function reversionCoefficient(t, r) {
+            const Ft = F(t);
+            const St = S(t, r, 1); // Example using dt=1
+            return 1 / (1 + Ft * St);
+        }
+
+        // Function to compute the spread coefficient
+        function spreadCoefficient(t, r, S0, K, dt) {
+            const Pt = P(t, r, S0, K, dt);
+            const Nt = N(t, r);
+            return Pt / Nt; // Example formula for spread coefficient
+        }
+
+        // Function to calculate and display P(t, r), reversion, and spread coefficient
         function calculateP() {
             const t = parseFloat(document.getElementById("t").value);
             const r = parseFloat(document.getElementById("r").value);
@@ -93,16 +107,21 @@
             const K = parseFloat(document.getElementById("K").value);
             const dt = parseFloat(document.getElementById("dt").value);
 
-            // Calculate P(t, r)
+            // Calculate P(t, r), reversion coefficient, and spread coefficient
             const pt = P(t, r, S0, K, dt);
+            const reversion = reversionCoefficient(t, r);
+            const spread = spreadCoefficient(t, r, S0, K, dt);
 
-            // Display the result
+            // Display the results
             document.getElementById("result_P").innerText = `P(${t}, ${r}) = ${pt.toFixed(6)}`;
+            document.getElementById("result_reversion").innerText = `Reversion Coefficient = ${reversion.toFixed(6)}`;
+            document.getElementById("result_spread").innerText = `Spread Coefficient = ${spread.toFixed(6)}`;
         }
     </script>
 </head>
 <body>
-    <h1>Calculate P(t, r)</h1>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate P(t, r), Reversion, and Spread Coefficient</h1>
 
     <!-- Display the formula for P(t, r) using MathJax -->
     <div>
@@ -114,13 +133,27 @@
         </p>
     </div>
 
+    <h2>Explanation of Variables</h2>
+    <ul>
+        <li><strong>t</strong>: Time variable, typically measured in years.</li>
+        <li><strong>r</strong>: The interest rate or reversion rate in the system.</li>
+        <li><strong>S₀</strong>: The initial stock price, representing the current price of the asset.</li>
+        <li><strong>K</strong>: Strike price, representing the price at which the option can be exercised.</li>
+        <li><strong>dt</strong>: A small time increment for approximating the behavior of the stochastic process.</li>
+        <li><strong>F(t)</strong>: Represents a complex stochastic function based on \( f(t) \), often related to volatility or accumulated noise in the system.</li>
+        <li><strong>S(t, r)</strong>: A function that captures the interaction between time, interest rate, and stochastic processes.</li>
+        <li><strong>N(t, r)</strong>: A random process modeling noise or randomness in the system.</li>
+    </ul>
+
+    <h2>Calculate P(t, r), Reversion, and Spread Coefficient</h2>
+
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1"><br><br>
 
     <label for="r">Enter value for r: </label>
     <input type="number" id="r" step="0.01" value="0.5"><br><br>
 
-    <label for="S0">Enter value for S0 (Initial Stock Price): </label>
+    <label for="S0">Enter value for S₀ (Initial Stock Price): </label>
     <input type="number" id="S0" step="0.01" value="100"><br><br>
 
     <label for="K">Enter value for K (Strike Price): </label>
@@ -132,6 +165,8 @@
     <button onclick="calculateP()">Calculate P(t, r)</button>
 
     <h3 id="result_P">P(t, r) = </h3>
+    <h3 id="result_reversion">Reversion Coefficient = </h3>
+    <h3 id="result_spread">Spread Coefficient = </h3>
 
     <!-- Add some margin for better presentation -->
     <style>
@@ -140,12 +175,38 @@
             margin: 20px;
         }
 
-        h1, h3 {
+        h1, h2, h3 {
             margin-bottom: 10px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
         }
 
         p {
             font-size: 1.2em;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: #3498db;
+        }
+
+        h4 a:hover {
+            color: #2980b9;
         }
     </style>
 </body>

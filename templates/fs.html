@@ -7,6 +7,8 @@
     <!-- Load MathJax -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Load Plotly.js for graphing -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
     <script>
         // Normal PDF (Gaussian distribution) approximation function
@@ -51,9 +53,30 @@
         // Function to simulate f(s) over a range of s values
         function simulateFS(start, end, step = 0.1) {
             let results = [];
+            let xValues = [];
+            let yValues = [];
+
             for (let s = start; s <= end; s += step) {
-                results.push({ s: s.toFixed(2), f_value: f(s).toFixed(6) });
+                const fVal = f(s);
+                results.push({ s: s.toFixed(2), f_value: fVal.toFixed(6) });
+                xValues.push(s);
+                yValues.push(fVal);
             }
+
+            // Plot the graph using Plotly
+            Plotly.newPlot('graph', [{
+                x: xValues,
+                y: yValues,
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#1f77b4' }
+            }], {
+                title: 'Graph of f(s)',
+                xaxis: { title: 's' },
+                yaxis: { title: 'f(s)' },
+                paper_bgcolor: '#f4f6f9'
+            });
+
             return results;
         }
 
@@ -78,8 +101,8 @@
     </script>
 </head>
 <body>
-    <h4><a href="/stoch/tools">Backs</a></h4>
-    <h1>Calculate f(s)</h1>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate and Graph f(s)</h1>
     
     <!-- Display the formula using MathJax -->
     <div>
@@ -94,20 +117,25 @@
     <!-- Explanation of the function -->
     <h2>Explanation</h2>
     <p>
-        The function \( f(s) \) models a system where random noise or fluctuations affect the behavior of the system over time. 
-        It captures the relationship between the variable \( s \), which may represent time or space, and the probability distribution \( B(s) \), 
-        which models random effects using a normal (Gaussian) distribution with a variance inversely proportional to \( s \). 
-        The formula integrates both the local and cumulative effects of this stochastic noise.
+        The function \( f(s) \) models a filtration process where stochastic noise, represented by the normal distribution \( B(s) \), affects the quadratic variance of an asset. 
+        This filtration smooths out the effects of the random fluctuations over time, allowing us to better understand the underlying behavior of the asset's variance.
     </p>
     <p>
-        The first term \( s^2 B(s)^2 \) represents the squared magnitude of noise at the point \( s \), while the second term 
-        captures the interaction between noise at \( s \) and its integrated history up to \( s \). The third term accounts for the 
-        cumulative squared noise over the interval from 0 to \( s \). Overall, this equation models how stochastic effects accumulate and interact, 
-        influencing a system's behavior.
+        The filtration of stochastic noise is crucial in financial models where volatility is random and time-dependent. The term \( s^2 B(s)^2 \) captures the magnitude of noise at a particular point in time, 
+        while the integral terms capture the cumulative impact of noise over the interval from 0 to \( s \).
     </p>
     <p>
-        This function is particularly useful in fields like stochastic processes, signal processing, and financial modeling, where random 
-        fluctuations (noise) play a critical role.
+        This is important in situations like modeling the quadratic variance of an asset (e.g., a stock) in models such as the Heston stochastic volatility model. In these models, 
+        the quadratic variance influences option prices, as higher noise (volatility) leads to higher option premiums.
+    </p>
+
+    <h2>Examples of Similar Situations</h2>
+    <p>
+        1. Heston Model: A well-known financial model where the variance of an asset is stochastic and follows its own random process. The quadratic variation of the asset's price 
+        is crucial for pricing options in this model.
+    </p>
+    <p>
+        2. Signal Processing: In systems affected by random noise, filtering techniques are used to reduce the impact of stochastic variations, much like \( f(s) \) does.
     </p>
 
     <h2>Calculate f(s) at a specific value</h2>
@@ -117,26 +145,30 @@
 
     <h3 id="result">f(s) = </h3>
 
-    <h2>Simulate f(s) over a range of values</h2>
+    <h2>Simulate f(s) over a range of values and Graph</h2>
     <label for="start_s">Start value for s: </label>
     <input type="number" id="start_s" step="0.1" value="0"><br><br>
 
     <label for="end_s">End value for s: </label>
     <input type="number" id="end_s" step="0.1" value="5"><br><br>
 
-    <button onclick="runSimulation()">Simulate f(s)</button>
+    <button onclick="runSimulation()">Simulate and Graph f(s)</button>
 
     <h3>Simulation Results:</h3>
     <div id="simulationResult"></div>
+
+    <h2>Graph of f(s)</h2>
+    <div id="graph" style="width:100%;height:500px;"></div>
 
     <!-- Add some margin for better presentation -->
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #f4f6f9;
         }
 
-        h1, h3 {
+        h1, h3, h2 {
             margin-bottom: 10px;
         }
 
@@ -144,14 +176,46 @@
             font-size: 1.2em;
         }
 
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
         table {
             border-collapse: collapse;
             margin-top: 10px;
+            width: 100%;
         }
 
         th, td {
             padding: 5px 10px;
             text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: #3498db;
+        }
+
+        h4 a:hover {
+            color: #2980b9;
+        }
+
+        #graph {
+            margin-top: 20px;
         }
     </style>
 </body>

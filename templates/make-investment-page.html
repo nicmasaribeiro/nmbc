@@ -5,47 +5,85 @@
     <title>Create Asset</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f4f4f4 25%, #e0e0e0 100%);
             margin: 0;
             padding: 0;
         }
         .container {
-            width: 50%;
-            margin: 50px auto;
-            padding: 20px;
+            max-width: 600px;
+            margin: 60px auto;
+            padding: 30px;
             background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
         }
         form {
             display: flex;
             flex-direction: column;
         }
         label {
-            padding: 10px;
-            margin-bottom: 5px;
+            padding-bottom: 5px;
+            margin-top: 15px;
             font-weight: bold;
-            color: black;
+            color: #333;
         }
-
-        input[type="submit"] {
+        input[type="text"],
+        input[type="password"],
+        input[type="float"],
+        select {
             padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            width: 100%;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="float"]:focus,
+        select:focus {
+            border-color: #5cb85c;
+            box-shadow: 0 0 5px rgba(92, 184, 92, 0.5);
+        }
+        input[type="submit"] {
+            padding: 12px;
             font-size: 1em;
             border: none;
             border-radius: 4px;
             background-color: #5cb85c;
             color: white;
             cursor: pointer;
+            transition: background-color 0.3s ease;
         }
         input[type="submit"]:hover {
             background-color: #4cae4c;
         }
-        .head{
+        h1 {
             text-align: center;
-            
+            font-size: 2.2em;
+            color: #333;
+            margin-bottom: 20px;
         }
-        h1:hover{
-            color: green;
+        h1:hover {
+            color: #5cb85c;
+        }
+        .head {
+            margin-bottom: 30px;
+        }
+        .container select {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+        @media (max-width: 768px) {
+            .container {
+                width: 80%;
+            }
         }
     </style>
 </head>
@@ -53,46 +91,48 @@
     {% extends "base.html" %}
 
     {% block content %}
-    <br>
-    <div class="head"><h1>Create Asset Page</h1></div>
+    <div class="head">
+        <h1>Create Asset Page</h1>
+    </div>
     
     <div class="container">
         <form method="POST">
             <label for="name">Username</label>
             <input type="text" id="name" name="name" placeholder="Enter your username">
-            <br>
+            
             <label for="password">Password</label>
             <input type="password" name="password" placeholder="Enter the password">
-            <br>
+            
             <label for="ticker">Investment Name</label>
             <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
-            <br>
+            
             <label for="coins">Coins Staked</label>
-            <input type="float" step="0.01" id="coins" min=.1 name="coins" placeholder="Enter the number of staked coins">
-            <br>
+            <input type="float" step="0.01" id="coins" min="0.1" name="coins" placeholder="Enter the number of staked coins">
+            
             <label for="maturity">Maturity</label>
             <input type="float" step="0.01" id="maturity" name="maturity" placeholder="Enter the maturity (years)">
-            <br>
+            
             <label for="Target Price">Target Price</label>
             <input type="float" step="0.01" id="target_price" name="target_price" placeholder="Enter the target price">
-            <br>
-            <label for="sigma">Spread Coefficient (or, Softmax of Forward Rate)</label>
-            <input type="float" step="0.01" id="sigma" name="sigma" placeholder="Enter the spread coefficeint">
-            <br>
-            <label for="mu">Reversion Coefficient (or, Softmax of Growth Rate)</label>
-            <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficeint">
-            <br>
-            <label for="eta">Risk Neutral Measure (or, Softmax of Filtration)</label>
-            <input type="float" step="0.01" id="eta" name="eta" placeholder="Enter the risk neutral coefficeint">
-            <br>
+            
+            <label for="sigma">Spread Coefficient (or, Stochastic Forward Rate)</label>
+            <input type="float" step="0.01" id="sigma" name="sigma" placeholder="Enter the spread coefficient">
+            
+            <label for="mu">Reversion Coefficient (or, Stochastic Growth Rate)</label>
+            <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficient">
+            
+            <label for="eta">Risk Neutral Measure (or, Stochastic Filtration)</label>
+            <input type="float" step="0.01" id="eta" name="eta" placeholder="Enter the risk-neutral coefficient">
+            
             <label for="Quantity">Number Asset Shares</label>
-            <input type="float" name="qt" placeholder="Enter the number of tokens Staked">
-            <br>
-            <label for="option_type">Postion Type:</label><br>
+            <input type="float" name="qt" placeholder="Enter the number of tokens staked">
+            
+            <label for="option_type">Position Type:</label>
             <select id="option_type" name="option_type" class="input-field">
                 <option value="put">Put</option>
                 <option value="call">Call</option>
-            </select><br><br>
+            </select>
+            
             <input type="submit" value="Submit">
         </form>
     </div>

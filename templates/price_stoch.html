@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculate P₀(t, r, u, ρ, n)</title>
+    <title>Calculate P₀(t, r, u, ρ, n) with Simulation</title>
+
     <!-- Load MathJax for formula display -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Load Plotly.js for graphing -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
     <script>
         // Normal PDF (Gaussian distribution) approximation function
@@ -87,11 +90,52 @@
             // Display the result
             document.getElementById("result_P0").innerText = `P₀(${t}, ${r}, ${u}, ${rho}) = ${p0.toFixed(6)}`;
         }
+
+        // Function to simulate P₀(t, r, u, ρ, n) over time and plot the graph
+        function simulateP0() {
+            const start_t = parseFloat(document.getElementById("start_t").value);
+            const end_t = parseFloat(document.getElementById("end_t").value);
+            const step_t = parseFloat(document.getElementById("step_t").value);
+            const r = parseFloat(document.getElementById("r_sim").value);
+            const u = parseFloat(document.getElementById("u_sim").value);
+            const rho = parseFloat(document.getElementById("rho_sim").value);
+            const S0 = parseFloat(document.getElementById("S0_sim").value);
+            const K = parseFloat(document.getElementById("K_sim").value);
+            const dt = parseFloat(document.getElementById("dt_sim").value);
+
+            let tValues = [];
+            let P0Values = [];
+
+            for (let t = start_t; t <= end_t; t += step_t) {
+                const p0 = P0(t, r, u, rho, S0, K, dt);
+                tValues.push(t);
+                P0Values.push(p0);
+            }
+
+            // Plot the graph using Plotly.js
+            const trace = {
+                x: tValues,
+                y: P0Values,
+                mode: 'lines',
+                name: 'P₀(t, r, u, ρ)',
+                line: { color: '#1f77b4' }
+            };
+
+            const layout = {
+                title: 'Simulation of P₀(t, r, u, ρ, n)',
+                xaxis: { title: 't (Time)' },
+                yaxis: { title: 'P₀(t, r, u, ρ)' },
+                paper_bgcolor: '#f4f6f9',
+                plot_bgcolor: '#f4f6f9'
+            };
+
+            Plotly.newPlot('graph', [trace], layout);
+        }
     </script>
 </head>
 <body>
     <h4><a href="/stoch/tools">Back</a></h4>
-    <h1>Calculate P₀(t, r, u, ρ, n)</h1>
+    <h1>Calculate P₀(t, r, u, ρ, n) with Simulation</h1>
 
     <!-- Display the formula for P₀(t, r, u, ρ, n) using MathJax -->
     <div>
@@ -102,6 +146,25 @@
             \]
         </p>
     </div>
+
+    <h2>Explanation of Variables</h2>
+    <p>
+        In the context of this equation, the following variables are used:
+    </p>
+    <ul>
+        <li><strong>t</strong>: The time variable, typically measured in years. It represents the time horizon over which the calculation is made.</li>
+        <li><strong>r</strong>: The risk-free interest rate. This is the rate of return on an investment with no risk, typically a government bond rate.</li>
+        <li><strong>u</strong>: The drift rate, representing the expected rate of return of the underlying asset.</li>
+        <li><strong>ρ (rho)</strong>: The volatility parameter that represents the correlation between the underlying asset's returns and stochastic noise. Higher \( ρ \) means more randomness.</li>
+        <li><strong>S₀</strong>: The initial price of the underlying asset (e.g., a stock or commodity).</li>
+        <li><strong>K</strong>: The strike price of the option. This is the price at which the option can be exercised.</li>
+        <li><strong>dt</strong>: A small time increment for approximating the behavior of the stochastic process.</li>
+        <li><strong>B(t)</strong>: A Brownian motion (or stochastic process) term that models random fluctuations over time.</li>
+        <li><strong>F(t)</strong>: Represents the square of the function \( f(t) \), which is related to the accumulated noise in the system.</li>
+        <li><strong>S(t, r)</strong>: A function representing the interaction between time \( t \), interest rate \( r \), and the stochastic process affecting the system.</li>
+    </ul>
+
+    <h2>Calculate P₀(t, r, u, ρ, n)</h2>
 
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1"><br><br>
@@ -128,19 +191,88 @@
 
     <h3 id="result_P0">P₀(t, r, u, ρ, n) = </h3>
 
-    <!-- Add some margin for better presentation -->
+    <h2>Simulate P₀(t, r, u, ρ, n) and Graph</h2>
+
+    <label for="start_t">Start value for t: </label>
+    <input type="number" id="start_t" step="0.1" value="0"><br><br>
+
+    <label for="end_t">End value for t: </label>
+    <input type="number" id="end_t" step="0.1" value="5"><br><br>
+
+    <label for="step_t">Step size for t: </label>
+    <input type="number" id="step_t" step="0.1" value="0.1"><br><br>
+
+    <label for="r_sim">Enter value for r: </label>
+    <input type="number" id="r_sim" step="0.01" value="0.5"><br><br>
+
+    <label for="u_sim">Enter value for u: </label>
+    <input type="number" id="u_sim" step="0.01" value="0.1"><br><br>
+
+    <label for="rho_sim">Enter value for ρ (rho): </label>
+    <input type="number" id="rho_sim" step="0.01" value="0.2"><br><br>
+
+    <label for="S0_sim">Enter value for S₀ (Initial Stock Price): </label>
+    <input type="number" id="S0_sim" step="0.01" value="100"><br><br>
+
+    <label for="K_sim">Enter value for K (Strike Price): </label>
+    <input type="number" id="K_sim" step="0.01" value="100"><br><br>
+
+    <label for="dt_sim">Enter value for dt: </label>
+    <input type="number" id="dt_sim" step="0.01" value="1"><br><br>
+
+    <button onclick="simulateP0()">Simulate and Graph</button>
+
+    <h3>Graph of P₀(t, r, u, ρ, n):</h3>
+    <div id="graph" style="width:100%;height:500px;"></div>
+
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
 
-        h1, h3 {
+        h1, h2, h3 {
             margin-bottom: 10px;
         }
 
-        p {
-            font-size: 1.2em;
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: #3498db;
+        }
+
+        h4 a:hover {
+            color: #2980b9;
+        }
+
+        #graph {
+            margin-top: 20px;
         }
     </style>
 </body>

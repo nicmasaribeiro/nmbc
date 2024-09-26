@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculate S(t, r)</title>
+    <title>Calculate S(t, r) and Forward Rate</title>
     
     <!-- Include MathJax for rendering mathematical equations -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <script>
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
         // Define f(t) function
         function f(t) {
             return Math.log(t + 1); // Example function: log(t + 1)
@@ -28,43 +33,56 @@
             return Math.pow(gt, t) * dt + Math.exp(ft);
         }
 
-        // Function to calculate and display S(t, r)
+        // Function to compute the forward rate F(t, T)
+        // F(t, T) = (S(T, r) - S(t, r)) / (T - t)
+        function forwardRate(t, T, r, dt) {
+            const S_t = S(t, r, dt);
+            const S_T = S(T, r, dt);
+            return ((S_T - S_t) / (T - t))**normPdf(r,r,1/r); // Simple forward rate formula
+        }
+
+        // Function to calculate and display S(t, r) and forward rate
         function calculateS() {
             const t = parseFloat(document.getElementById("t").value);
             const r = parseFloat(document.getElementById("r").value);
             const dt = parseFloat(document.getElementById("dt").value);
+            const T = parseFloat(document.getElementById("T").value);
 
             // Validate inputs
-            if (isNaN(t) || isNaN(r) || isNaN(dt)) {
-                document.getElementById("result_S").innerText = "Please enter valid numbers for t, r, and dt.";
+            if (isNaN(t) || isNaN(r) || isNaN(dt) || isNaN(T)) {
+                document.getElementById("result_S").innerText = "Please enter valid numbers for t, r, T, and dt.";
                 return;
             }
 
             // Calculate S(t, r)
             const st = S(t, r, dt);
+            const forwardRateValue = forwardRate(t, T, r, dt);
 
-            // Display the result
+            // Display the results
             document.getElementById("result_S").innerText = `S(${t}, ${r}) = ${st.toFixed(6)}`;
+            document.getElementById("result_forward").innerText = `Forward Rate F(${t}, ${T}) = ${forwardRateValue.toFixed(6)}`;
         }
 
-        // Function to simulate S(t, r) over a range of t and r values
+        // Function to simulate S(t, r) and forward rate over a range of t and r values
         function simulateS() {
             const start_t = parseFloat(document.getElementById("start_t").value);
             const end_t = parseFloat(document.getElementById("end_t").value);
             const step_t = parseFloat(document.getElementById("step_t").value);
             const r = parseFloat(document.getElementById("r_sim").value);
             const dt = parseFloat(document.getElementById("dt_sim").value);
+            const T = parseFloat(document.getElementById("T_sim").value);
 
-            if (isNaN(start_t) || isNaN(end_t) || isNaN(step_t) || isNaN(r) || isNaN(dt)) {
+            if (isNaN(start_t) || isNaN(end_t) || isNaN(step_t) || isNaN(r) || isNaN(dt) || isNaN(T)) {
                 document.getElementById("simulationResult").innerText = "Please enter valid numbers for the simulation.";
                 return;
             }
 
-            let output = "<table border='1'><tr><th>t</th><th>S(t, r)</th></tr>";
+            let output = "<table border='1'><tr><th>t</th><th>S(t, r)</th><th>F(t, T)</th></tr>";
 
             for (let t = start_t; t <= end_t; t += step_t) {
                 const st = S(t, r, dt);
-                output += `<tr><td>${t.toFixed(2)}</td><td>${st.toFixed(6)}</td></tr>`;
+                const forwardRateValue = forwardRate(t, T, r, dt);
+                output += `<tr><td>${t.toFixed(2)}</td><td>${st.toFixed(6)}</td><td>${forwardRateValue.toFixed(6)}</td></tr>`;
             }
 
             output += "</table>";
@@ -74,7 +92,7 @@
 </head>
 <body>
     <h4><a href="/">Back</a></h4>   
-    <h1>Calculate S(t, r)</h1>
+    <h1>Calculate S(t, r) and Forward Rate</h1>
 
     <!-- Display the function using MathJax -->
     <p>Function: \( S(t, r) = g(t, r)^t \cdot d_t + e^{f(t)} \)</p>
@@ -89,15 +107,19 @@
         <li>\( f(t) \): A logarithmic growth function (in this example, \( \log(t + 1) \)) captures the slow, steady growth of a quantity over time. It is commonly used in models where growth slows down as time progresses.</li>
         <li>\( d_t \): A constant scaling factor (or time increment), which modifies the influence of the exponential term on \( S(t, r) \).</li>
         <li>\( e^{f(t)} \): Represents an exponential growth term, where \( f(t) \) governs how the function grows exponentially with time. This term often captures cumulative effects or multiplicative growth processes.</li>
+        <li>\( F(t, T) \): Represents the forward rate between times \( t \) and \( T \), often used in finance to calculate interest rates over future periods based on current and future prices.</li>
     </ul>
     <p>
-        The combination of these terms can represent real-world phenomena such as the balance between growth and decay processes over time. For instance, \( g(t, r) \) can represent the diminishing impact of an interest rate over time, while \( f(t) \) models slower, logarithmic growth. This function could be applied in finance, physics, or biology, where decay and growth are interlinked.
+        The combination of these terms can represent real-world phenomena such as the balance between growth and decay processes over time. For example, in finance, the forward rate \( F(t, T) \) models how rates evolve over time.
     </p>
 
-    <h2>Calculate S(t, r)</h2>
+    <h2>Calculate S(t, r) and Forward Rate</h2>
 
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1"><br><br>
+
+    <label for="T">Enter value for T (future time): </label>
+    <input type="number" id="T" step="0.01" value="2"><br><br>
 
     <label for="r">Enter value for r: </label>
     <input type="number" id="r" step="0.01" value="0.5"><br><br>
@@ -105,12 +127,13 @@
     <label for="dt">Enter value for dt (d_t): </label>
     <input type="number" id="dt" step="0.01" value="1"><br><br>
 
-    <button onclick="calculateS()">Calculate S(t, r)</button>
+    <button onclick="calculateS()">Calculate S(t, r) and Forward Rate</button>
 
     <h3 id="result_S">S(t, r) = </h3>
+    <h3 id="result_forward">Forward Rate F(t, T) = </h3>
 
     <!-- Simulation Section -->
-    <h2>Simulation of S(t, r) over a Range of t</h2>
+    <h2>Simulation of S(t, r) and Forward Rate over a Range of t</h2>
 
     <label for="start_t">Start value for t: </label>
     <input type="number" id="start_t" step="0.01" value="0.1"><br><br>
@@ -127,6 +150,9 @@
     <label for="dt_sim">Enter value for dt (d_t) (for simulation): </label>
     <input type="number" id="dt_sim" step="0.01" value="1"><br><br>
 
+    <label for="T_sim">Enter value for T (future time, for simulation): </label>
+    <input type="number" id="T_sim" step="0.01" value="2"><br><br>
+
     <button onclick="simulateS()">Run Simulation</button>
 
     <h3>Simulation Results:</h3>
@@ -137,6 +163,7 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #f4f6f9;
         }
 
         h1, h2, h3 {
@@ -147,14 +174,38 @@
             font-size: 1.2em;
         }
 
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
         table {
             border-collapse: collapse;
             margin-top: 10px;
+            width: 100%;
         }
 
         th, td {
-            padding: 5px 10px;
+            padding: 10px;
             text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
         }
     </style>
 </body>
