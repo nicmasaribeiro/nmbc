@@ -812,7 +812,7 @@ def buy_or_sell():
 		def sech(x):
 			return 1 / np.cosh(x)
 		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2) # 0 < t < 1.1
-		stoch = stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type)
+		stoch = abs(stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type))
 		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
 		print("token price",token_price,'TKP\t',stoch)
 		
@@ -1070,7 +1070,7 @@ def invest():
 				pending = PendingTransactionDatabase(
 												txid=os.urandom(10).hex(),
 												username=user,
-												from_address=user.personal_token,
+												from_address=user_name.personal_token,
 												to_address=inv.investment_name,
 												amount=total_value,
 												timestamp=dt.datetime.now(),
@@ -1309,6 +1309,30 @@ def risk_neutral_measure():
 		return render_template("risk-neutral-measure.html",risk_netural=risk_netural)
 	return render_template("risk-neutral-measure.html")
 
+@app.route('/track/investment', methods=['GET','POST'])
+def track_inv():
+	if request.method=="POST":
+		name = request.values.get('ticker').upper()
+		t = yf.Ticker(name.upper())
+		price = t.history()["Close"][-1]
+		invs = InvestmentDatabase.query.filter_by(investment_name=name).all()
+		ls = {'spread':[],"reversion":[],"risk_neutral":[],'timedelta':[],'target_price':[]}
+		for i in invs:
+			ls['spread'].append(i.spread)
+			ls['reversion'].append(i.reversion)
+			ls['risk_neutral'].append(i.risk_neutral)
+			ls['timedelta'].append(i.time_float)
+			ls['target_price'].append(i.target_price)
+		mu_spread = np.mean(ls["spread"])
+		mu_reversion = np.mean(ls["reversion"])
+		mu_risk_neutral = np.mean(ls["risk_neutral"])
+		s_spread = np.std(ls["spread"])
+		s_reversion = np.std(ls["reversion"])
+		s_risk_neutral = np.std(ls["risk_neutral"])
+		average_stoch_price = stoch_price(.01, np.mean(ls['timedelta']), mu_risk_neutral, mu_spread, mu_reversion, price, np.mean(ls['timedelta']))
+		return render_template("asset.html",invs=invs,name=name,mu_spread=mu_spread,mu_reversion=mu_reversion, mu_risk_neutral=mu_risk_neutral,s_spread=s_spread,s_reversion=s_reversion,s_risk_neutral=s_risk_neutral,price=average_stoch_price)
+	return render_template("track-investments.html")
+	
 @app.route('/submit/valuation', methods=['GET','POST'])
 @login_required
 def submit_valuation():
@@ -1365,15 +1389,7 @@ def track_valuation():
 @app.route("/ledger/valuation")
 def valuation_ledger():
 	vals = ValuationDatabase.query.all()
-	ls = [{'id':v.id,'owner':v.owner,
-		'target_company':v.target_company,
-		'forecast':v.forecast,
-		'wacc':v.wacc,
-		'roe':v.roe,
-		'rd':v.rd,
-		'price':v.price,
-		'receipt':v.receipt} for v in vals]
-	return jsonify(ls)
+	return render_template("valuation-ledger.html",invs=vals)
 
 @app.route("/validate/valuation",methods=["GET","POST"])
 def validate_val():
@@ -1490,6 +1506,72 @@ def opt_ledger():
 ##################################################
 # Quantitative Services #########################
 ##################################################
+
+@app.route("/forward-rate-empirical",methods=["GET",'POST'])
+def forward_rate_two():
+	from forward_rate import f
+	if request.method=="POST":
+		p = request.values.get('period')
+		i = request.values.get('interval')
+		ticker = request.values.get("ticker").upper()
+		t = yf.Ticker(ticker)
+		history = t.history(period=p,interval=i)
+		
+		close_prices = history["Close"].pct_change()[1:]
+		open_prices = history["Open"].pct_change()[1:]
+		
+		c = [(i-np.mean(close_prices))/np.std(close_prices) for i in close_prices]
+		o = [(i-np.mean(open_prices))/np.std(open_prices) for i in open_prices]
+		
+		ls = []
+		# Loop through open and close prices, calculating f(t, r) for each day
+		for open_price, close_price in zip(c, o):
+			result = f(close_price, open_price)
+			ls.append(result)
+		r = np.array(ls)
+		forward_rate = (r@r/np.linalg.norm(r))/100
+		print(forward_rate)
+		print('Coefficient\t',r)
+		
+		return render_template('forward-rate-two.html',forward=forward_rate)
+	return render_template('forward-rate-two.html')
+
+
+@app.route("/transform_coef",methods=["GET",'POST'])
+def transform_coef():
+	from f2 import f
+	if request.method=="POST":
+		p = request.values.get('period')
+		i = request.values.get('interval')
+		ticker = request.values.get("ticker").upper()
+		t = yf.Ticker(ticker)
+		history = t.history(period=p,interval=i)
+		
+		open = history["Open"]
+		ret2 = open.pct_change()[1:]# Percentage returns (ignoring first NaN)
+		ret2 = [(i-np.mean(ret2))/np.std(ret2) for i in ret2]
+		
+		spread = history["Close"] - history["Open"]
+		ret3 = spread.pct_change()[1:]# Percentage returns (ignoring first NaN)
+		ret3 = [(i-np.mean(ret3))/np.std(ret3) for i in ret3]
+		
+		prices = history["Close"]
+		ret = prices.pct_change()[1:]
+		ret = [(i-np.mean(ret))/np.std(ret) for i in ret]
+	
+		
+		r2 = np.array([f(i) for i in ret2])
+		r2 = np.sqrt(r2@r2)
+		
+		r3 = np.array([f(i) for i in ret3])
+		r3 = np.sqrt(r3@r3)
+		
+		r = np.array([f(i) for i in ret])
+		r = np.sqrt(r@r)
+		print('Coefficient\t',r)
+		return render_template('transform_coef.html',r=r.item(), r3=r3.item(), r2=r2.item())
+	return render_template('transform_coef.html')
+
 @app.route("/single-reversion-coef",methods=["GET",'POST'])
 def reversion():
 	if request.method=="POST":
@@ -2124,6 +2206,10 @@ def tree():
 def dash():
 	return render_template("dashboard.html")
 
+@app.route('/stoch/forward-rate', methods=['GET','POST'])
+def forward_rate():
+	return render_template("forward-rate.html")
+
 @app.route('/stoch/price', methods=['GET','POST'])
 def get_stoch_price():
 	return render_template("stoch.html")
@@ -2171,6 +2257,14 @@ def get_stoch_tools():
 @app.route('/stoch/price-expanded', methods=['GET','POST'])
 def get_stoch_p_exp():
 	return render_template("price_stoch.html")
+
+@app.route('/stoch/price-classic', methods=['GET','POST'])
+def stoch_price_classical():
+	return render_template("stoch-pricing-two.html")
+
+@app.route('/stoch/v(t)', methods=['GET','POST'])
+def volume_diff():
+	return render_template("v(t).html")
 
 @app.route('/option/probdist',methods=["GET","POST"])
 def prodist():
