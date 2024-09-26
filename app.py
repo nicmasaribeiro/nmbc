@@ -809,10 +809,13 @@ def buy_or_sell():
 		
 		price = history['Close'][-1]
 		option = black_scholes(price, target_price, maturity, .05, np.std(history['Close'].pct_change()[1:])*np.sqrt(525960),option_type)
+		
 		def sech(x):
 			return 1 / np.cosh(x)
-		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2) # 0 < t < 1.1
+		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2)
+		
 		stoch = abs(stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type))
+		
 		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
 		print("token price",token_price,'TKP\t',stoch)
 		
@@ -993,9 +996,11 @@ def search(receipt):
     asset = InvestmentDatabase.query.filter_by(receipt=receipt).first()
     return render_template('search.html',asset=asset)
 
-@app.route('/invest/asset', methods=['GET', 'POST'])
+@app.route('/invest/asset',methods=['GET','POST'])
+@login_required
 def invest():
-	if request.method == "POST":
+	update()
+	if request.method =="POST":
 		user = request.values.get('name')
 		receipt = request.values.get('address')
 		staked_coins = float(request.values.get('amount'))
@@ -1003,104 +1008,67 @@ def invest():
 		user_name = Users.query.filter_by(username=user).first()
 		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 		wal = Wallet.query.filter_by(address=user_name.username).first()
-		investment_owner = inv.owner
-		owner_wallet = Wallet.query.filter_by(address=investment_owner).first()
-		
-		if not user_name or not inv or not wal:
-			return "<h3>Invalid user or investment</h3>"
-		
-		# Validate password
-		if not password == wal.password:
-			return "<h3>Invalid password</h3>"
-		
-		if wal.coins >= staked_coins*inv.tokenized_price:
-			try:
-				total_value = staked_coins*inv.tokenized_price
+		owner_wallet = Wallet.query.filter_by(address=inv.owner).first()
+		if password == wal.password:
+			if wal.coins >= staked_coins:
 				house = BettingHouse.query.get_or_404(1)
-				house.coin_fee(0.1 * staked_coins)
-				owner_wallet.coins += 0.1 * staked_coins
-				new_value = 0.8 * staked_coins
-				wal.coins -= total_value
+				house.coin_fee(0.1*staked_coins)
+				owner_wallet.coins += 0.1*staked_coins
 				db.session.commit()
-				
+				new_value = 0.8*staked_coins
+				wal.coins -= staked_coins
+				inv.coins_value += new_value
+				db.session.commit()
 				new_transaction = TransactionDatabase(
-					username=user,
-					txid=inv.receipt,
-					from_address=user_name.personal_token,
-					to_address=inv.investment_name,
-					amount=new_value,
-					type='investment',
-					signature=os.urandom(10).hex()
-				)
+        								  username=user,
+                                          txid=inv.receipt,
+                                          from_address=user_name.personal_token,
+                                          to_address=inv.investment_name,
+                                          amount=new_value,
+										  type='investment',
+                                          signature=os.urandom(10).hex())
 				db.session.add(new_transaction)
+				db.session.commit()
 				inv.add_investor()
 				inv.append_investor_token(
-					name=user,
-					address=user_name.personal_token,
-					receipt=inv.receipt,
-					amount=staked_coins,
-					currency='coins'
-				)
-				
+        					  name=user, 
+                              address=user_name.personal_token, 
+                              receipt=inv.receipt,
+                              amount=staked_coins,
+                              currency='coins')
 				a_tk = AssetToken(
-					username=user,
-					token_name=inv.investment_name,
-					token_address=os.urandom(10).hex(),
-					user_address=user_name.personal_token,
-					transaction_receipt=inv.receipt,
-					quantity=staked_coins,
-					cash=coin.dollar_value * inv.tokenized_price,
-					coins=total_value
-				)
+        			 username=user,
+                     token_name=inv.investment_name,
+                     token_address=os.urandom(10).hex(),
+                     user_address=user_name.personal_token,
+                     transaction_receipt=inv.receipt,
+                     quantity = staked_coins,
+                     cash = coin.dollar_value*inv.tokenized_price,
+                     coins = inv.tokenized_price)
 				db.session.add(a_tk)
-				
-				track = TrackInvestors(
-					receipt=receipt,
-					tokenized_price=inv.tokenized_price,
-					owner=sha512(str(inv.owner).encode()).hexdigest(),
-					investment_name=inv.investment_name,
-					investor_name=sha512(str(user_name.username).encode()).hexdigest(),
-					investor_token=user_name.personal_token
-				)
-				db.session.add(track)
-				
-				# Commit all changes
 				db.session.commit()
-				
-				pending = PendingTransactionDatabase(
-												txid=os.urandom(10).hex(),
-												username=user,
-												from_address=user_name.personal_token,
-												to_address=inv.investment_name,
-												amount=total_value,
-												timestamp=dt.datetime.now(),
-												type='investment',
-												signature=inv.receipt)
-				db.session.add(pending)
+				track = TrackInvestors(
+        			 	   receipt=receipt,
+                           tokenized_price=inv.tokenized_price,
+                           owner = sha512(str(inv.owner).encode()).hexdigest(),
+                           investment_name=inv.investment_name,
+                           investor_name=sha512(str(user_name.username).encode()).hexdigest(),
+                           investor_token=user_name.personal_token)
+				db.session.add(track)
 				db.session.commit()
 				blockchain.add_transaction({
-					'index': len(blockchain.chain) + 1,
-					"previous_hash": str(blockchain.get_latest_block()).encode().hex(),
-					'timestamp': str(dt.date.today()),
-					'data': str({
-						'receipt': receipt,
-						'tokenized_price': inv.tokenized_price,
-						'owner': inv.owner,
-						'investment_name': inv.investment_name,
-						'investor_name': user_name.username,
-						'investor_token': user_name.personal_token
-					})
-				})
-				
-				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>
-							<p>You've successfully invested {total_value} in {inv.investment_name}</p>"""
-			
-			except Exception as e:
-				db.session.rollback()  # Rollback in case of error
-				return f"<h3>Error processing your investment: {str(e)}</h3>"
-
-		return "<h3>Insufficient coins in wallet</h3>"
-	
+        					    'index':len(blockchain.chain)+1,
+                                "previous_hash":str(blockchain.get_latest_block()).encode().hex(),
+                                'timestamp':str(dt.date.today()),
+                                'data':str({'receipt':receipt,
+                                            'tokenized_price':inv.tokenized_price,
+                                            'owner':inv.owner,
+                                            'investment_name':inv.investment_name,
+                                            'investor_name':user_name.username,
+                                            'investor_token':user_name.personal_token})})
+				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {staked_coins} in {inv.investment_name}"""
+			else:
+				return "<h3>Insufficient coins in wallet</h3>"
 	return render_template("invest-in-asset.html")
 
 
@@ -1309,6 +1277,35 @@ def risk_neutral_measure():
 		return render_template("risk-neutral-measure.html",risk_netural=risk_netural)
 	return render_template("risk-neutral-measure.html")
 
+@app.route('/valuation/statistics', methods=['GET','POST'])
+def valuation_stats():
+	if request.method=="POST":
+		name = request.values.get('ticker')
+		t = yf.Ticker(name.upper())
+		price = t.history()["Close"][-1]
+		invs = ValuationDatabase.query.filter_by(target_company=name).all()
+		ls = {'coe':[],"cod":[],"price":[],'wacc':[],'change':[]}
+		for i in invs:
+			ls['coe'].append(i.roe)
+			ls['cod'].append(i.rd)
+			ls['wacc'].append(i.wacc)
+			ls['price'].append(i.forecast)
+			ls['change'].append(i.change_value)
+		
+		mu_coe = np.mean(ls["coe"])
+		s_coe = np.std(ls["coe"])
+		mu_cod = np.mean(ls["cod"])
+		s_cod = np.std(ls["cod"])
+		mu_wacc = np.mean(ls["wacc"])
+		s_wacc = np.std(ls["wacc"])
+		mu_forecast = np.mean(ls["price"])
+		s_forecast = np.std(ls["price"])
+		mu_change = np.mean(ls["change"])
+		s_change = np.std(ls["change"])
+		
+		return render_template("valuation.html",name=name.upper(),invs=invs,mu_coe=mu_coe,s_coe=s_coe,mu_cod=mu_cod,s_cod=s_cod,mu_wacc=mu_wacc, s_wacc=s_wacc, mu_forecast=mu_forecast, s_forecast=s_forecast,mu_change=mu_change,s_change=s_change,price=price)
+	return render_template("val-stats.html")
+
 @app.route('/track/investment', methods=['GET','POST'])
 def track_inv():
 	if request.method=="POST":
@@ -1338,17 +1335,18 @@ def track_inv():
 def submit_valuation():
 	user = current_user
 	if request.method == 'POST':
-		company = request.values.get('ticker')
+		company = request.values.get('ticker').upper()
 		forecast = float(request.values.get('forecast'))
 		wacc = float(request.values.get('wacc'))
 		roe = float(request.values.get('roe'))
 		rd = float(request.values.get('rd'))
+		change=float(request.values.get("change"))
 		price = float(request.values.get("price"))
 		file = request.files['file']
 		name = request.values.get("file_name")
 		file_data = file.read()
 		valuation = ValuationDatabase(
-			owner=user.username,
+			owner=user.personal_token,
 			target_company=company,
 			forecast = forecast,
 			wacc=wacc,
@@ -1360,7 +1358,7 @@ def submit_valuation():
 			valuation_model=file_data)
 		db.session.add(valuation)
 		db.session.commit()
-		return """<h1><a href='/'>Back</a></h1><h2>Sucessfuly submit valuation</h2>"""
+		return """<h1><a href='/'>Back</a></h1><h2>Sucessfully submit valuation</h2>"""
 	return render_template("submit-val.html")
 
 @app.route('/track/valuation',methods=['GET','POST'])
@@ -1429,8 +1427,10 @@ def submit_optimization():
 		file = request.files['file']
 		name = request.values.get("file_name")
 		ticker = request.values.get("ticker")
+		price = request.values.get("price")
 		file_data = file.read()
 		optimization = Optimization(
+							   price=price,
 							   filename=name,
 							   target=ticker,
 							   created_at = dt.datetime.now(),
@@ -1443,16 +1443,23 @@ def submit_optimization():
 	return render_template("submit-optimization.html")
 
 @app.route("/track/opts",methods=['GET','POST'])
+@login_required
 def get_opts():
+	user = current_user
+	username = user.username
+	wal = Wallet.query.filter_by(address=username)
 	if request.method == "POST":
 		receipt = request.values.get('receipt')
 		opt = Optimization.query.filter_by(receipt=receipt).first()
-		name = opt.filename
-		data = opt.file_data
-		f = open('local/{name}','wb')
-		f.write(data)
-		f.flush()
-		return send_file('local/{name}', mimetype='text/py', download_name='optmization.py',as_attachment=True)
+		if opt.price <= wal.coins:
+			wal.coins-=opt.price
+			db.session.commit()
+			name = opt.filename
+			data = opt.file_data
+			f = open('local/{name}','wb')
+			f.write(data)
+			f.flush()
+			return send_file('local/{name}', mimetype='text/py', download_name='optmization.py',as_attachment=True)
 	return render_template("track-opt.html")
 
 @app.route("/mine/optimization", methods=['GET', 'POST'])
@@ -1507,6 +1514,22 @@ def opt_ledger():
 # Quantitative Services #########################
 ##################################################
 
+@app.route("/html-dcf",methods=["GET",'POST'])
+def html_dcf():
+	return render_template('dcf.html')
+
+@app.route("/equity-risk-premium",methods=["GET",'POST'])
+def IERP():
+	from ierp import calculate_implied_equity_risk_premium
+	if request.method=="POST":
+		div = float(request.values.get('div'))
+		market = float(request.values.get('market'))
+		growth = float(request.values.get('g'))
+		rf = float(request.values.get('rf'))
+		result = calculate_implied_equity_risk_premium(div,market,growth,rf)
+		return render_template('ierp.html',result=result)
+	return render_template('ierp.html')
+
 @app.route("/forward-rate-empirical",methods=["GET",'POST'])
 def forward_rate_two():
 	from forward_rate import f
@@ -1547,18 +1570,33 @@ def transform_coef():
 		t = yf.Ticker(ticker)
 		history = t.history(period=p,interval=i)
 		
+		
+		hig_low = history["High"] - history["Low"]
+		hl = hig_low.pct_change()[1:]# Percentage returns (ignoring first NaN)
+		hl = [(i-np.mean(hl))/np.std(hl) for i in hl]
+		
+		
+		volume = history["Volume"]
+		v1 = volume.pct_change()[1:]# Percentage returns (ignoring first NaN)
+		v1 = [(i-np.mean(v1))/np.std(v1) for i in v1]
+		
 		open = history["Open"]
 		ret2 = open.pct_change()[1:]# Percentage returns (ignoring first NaN)
 		ret2 = [(i-np.mean(ret2))/np.std(ret2) for i in ret2]
 		
 		spread = history["Close"] - history["Open"]
-		ret3 = spread.pct_change()[1:]# Percentage returns (ignoring first NaN)
+		ret3 = spread#.pct_change()[1:]# Percentage returns (ignoring first NaN)
 		ret3 = [(i-np.mean(ret3))/np.std(ret3) for i in ret3]
 		
 		prices = history["Close"]
 		ret = prices.pct_change()[1:]
 		ret = [(i-np.mean(ret))/np.std(ret) for i in ret]
 	
+		vol = np.array([f(i) for i in hl])
+		vol = np.sqrt(vol@vol)
+		
+		volm = np.array([f(i) for i in v1])
+		volm = np.sqrt(volm@volm)
 		
 		r2 = np.array([f(i) for i in ret2])
 		r2 = np.sqrt(r2@r2)
@@ -1569,7 +1607,7 @@ def transform_coef():
 		r = np.array([f(i) for i in ret])
 		r = np.sqrt(r@r)
 		print('Coefficient\t',r)
-		return render_template('transform_coef.html',r=r.item(), r3=r3.item(), r2=r2.item())
+		return render_template('transform_coef.html',r=r.item(), r3=r3.item(), r2=r2.item(),volume=volm,vol=vol)
 	return render_template('transform_coef.html')
 
 @app.route("/single-reversion-coef",methods=["GET",'POST'])
@@ -1713,7 +1751,9 @@ def basic_dcf():
 		html = df.to_html()
 		final = dcf.final(dcf.calculate_cashflow(rev))
 		fcff = (final - get_debt(ticker) + get_cash(ticker))/get_shares_two(ticker)
-		return f"<h1>{ticker}</h1>{html}<br><h3>Share Price </h3><h4>{fcff}</h4>"
+		tabel =f"""<h1>{ticker}</h1>{html}<br><h3>Share Price </h3><h4>{fcff}</h4>"""
+		
+		return render_template_string(tabel)
 	return render_template("basic-dcf.html")
 
 @app.route('/coef-calibration',methods=["GET","POST"])
@@ -2250,6 +2290,10 @@ def get_stoch_Str():
 def get_stoch_f3():
 	return render_template("f3.html")
 
+@app.route('/stoch/p4', methods=['GET','POST'])
+def get_stoch_p3():
+	return render_template("p4.html")
+
 @app.route('/stoch/tools', methods=['GET','POST'])
 def get_stoch_tools():
 	return render_template("stoch-tools.html")
@@ -2265,6 +2309,15 @@ def stoch_price_classical():
 @app.route('/stoch/v(t)', methods=['GET','POST'])
 def volume_diff():
 	return render_template("v(t).html")
+
+
+@app.route('/stoch/yc-stoch-filt', methods=['GET','POST'])
+def yc_stoch_filt():
+	return render_template("yc-stoch-filt.html")
+
+@app.route('/yc', methods=['GET','POST'])
+def yc():
+	return render_template("yc.html")
 
 @app.route('/option/probdist',methods=["GET","POST"])
 def prodist():
@@ -2344,5 +2397,5 @@ if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
 		PendingTransactionDatabase.genisis()
-#	start_background_task()
+	start_background_task()
 	app.run(host="0.0.0.0",port=8080)

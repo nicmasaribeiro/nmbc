@@ -399,6 +399,7 @@ class Optimization(db.Model):
     receipt = db.Column(db.String)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    price = db.Column(db.Float)
 
 
 class TrackInvestors(db.Model):
