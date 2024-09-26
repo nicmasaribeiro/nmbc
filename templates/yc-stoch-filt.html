@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yield Curve Prediction with Noise Differential Measure</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding-top: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+            text-align: left;
+            display: block;
+        }
+
+        input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            transition: border-color 0.2s ease-in-out;
+        }
+
+        input[type="number"]:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .noise-measure {
+            font-size: 16px;
+            color: #007BFF;
+            margin-top: 10px;
+        }
+
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Yield Curve Prediction with Noise Differential Measure</h1>
+
+        <label for="beta0">Enter value for β₀:</label>
+        <input type="number" id="beta0" step="0.01" value="0.02">
+
+        <label for="beta1">Enter value for β₁:</label>
+        <input type="number" id="beta1" step="0.01" value="0.01">
+
+        <label for="beta2">Enter value for β₂:</label>
+        <input type="number" id="beta2" step="0.01" value="0.01">
+
+        <label for="tau">Enter value for τ:</label>
+        <input type="number" id="tau" step="0.01" value="1.5">
+
+        <label for="stochasticNoise">Stochastic noise level (0 to 1):</label>
+        <input type="number" id="stochasticNoise" step="0.01" value="0.05">
+
+        <label for="lambda">Enter value for λ (Filtration parameter):</label>
+        <input type="number" id="lambda" step="0.01" value="0.5">
+
+        <button onclick="predictYieldCurve()">Predict Yield Curve</button>
+
+        <canvas id="yieldCurveChart" width="400" height="300"></canvas>
+
+        <div class="result" id="result"></div>
+        <div class="noise-measure" id="noiseMeasure"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Generate random Gaussian noise
+        function randomGaussian(mean = 0, stdev = 1) {
+            let u = 1 - Math.random();
+            let v = Math.random();
+            return mean + stdev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // Function B(t)
+        function B(t) {
+            return Math.exp(-t / 10);  // Example B(t), you can modify it according to the model
+        }
+
+        // Numerical integration using the Trapezoidal rule
+        function integrate(f, a, b, n = 1000) {
+            let h = (b - a) / n;
+            let sum = 0.5 * (f(a) + f(b));
+            for (let i = 1; i < n; i++) {
+                sum += f(a + i * h);
+            }
+            return sum * h;
+        }
+
+        // f1(t) calculation
+        function f1(t, lambda) {
+            const B_t = B(t);
+            const term1 = t ** 2 * B_t ** 2;
+
+            const integral_B_x = integrate(B, 0, t);
+            const term2 = -2 * t * B_t * integral_B_x;
+
+            const doubleIntegral = integrate((y) => integrate((x) => B(x) ** 2, 0, t), 0, t);
+            const term3 = doubleIntegral;
+
+            // Incorporating the filtration parameter (lambda)
+            return lambda * (term1 + term2 + term3);
+        }
+
+        // Nelson-Siegel model with stochastic interference, f1(t), and filtration
+        function yieldCurve(t, beta0, beta1, beta2, tau, stochasticNoise, lambda) {
+            // Stochastic components
+            const u_t_r = t * Math.log(1 + t); // Example for stochastic interference
+            const s_t = Math.log(1 + t);
+            const g_t_r = Math.abs(Math.log(t + 1)) * (1 - t / (t + 1)) + Math.log2(t + 1);
+
+            const stochasticFactor = stochasticNoise * randomGaussian(0, 1);
+            const f1_t = f1(t, lambda);  // Using filtration parameter (lambda)
+
+            return (
+                beta0 +
+                beta1 * ((1 - Math.exp(-t / tau)) / (t / tau)) +
+                beta2 * (((1 - Math.exp(-t / tau)) - (t / tau) * Math.exp(-t / tau)) / (t / tau)) +
+                stochasticFactor * (u_t_r + s_t + g_t_r) + 
+                f1_t // Add f1(t) to the yield curve calculation
+            );
+        }
+
+        // Noise differential measure calculation based on the filtration
+        function calculateNoiseDifferentialMeasure(stochasticNoise, lambda, maturities) {
+            let totalNoiseDiff = 0;
+            for (let i = 1; i < maturities.length; i++) {
+                const noisePrev = stochasticNoise * randomGaussian();
+                const noiseCurrent = stochasticNoise * randomGaussian();
+                const noiseDiff = lambda * Math.abs(noiseCurrent - noisePrev);
+                totalNoiseDiff += noiseDiff;
+            }
+            return totalNoiseDiff / maturities.length;  // Average noise differential measure
+        }
+
+        function predictYieldCurve() {
+            const beta0 = parseFloat(document.getElementById('beta0').value);
+            const beta1 = parseFloat(document.getElementById('beta1').value);
+            const beta2 = parseFloat(document.getElementById('beta2').value);
+            const tau = parseFloat(document.getElementById('tau').value);
+            const stochasticNoise = parseFloat(document.getElementById('stochasticNoise').value);
+            const lambda = parseFloat(document.getElementById('lambda').value); // Get lambda
+
+            const maturities = [];
+            const yields = [];
+            const maxMaturity = 30; // Maximum maturity in years
+
+            // Calculate yields for maturities from 1 to maxMaturity years
+            for (let t = 1; t <= maxMaturity; t++) {
+                maturities.push(t);
+                yields.push(yieldCurve(t, beta0, beta1, beta2, tau, stochasticNoise, lambda));
+            }
+
+            // Calculate noise differential measure
+            const noiseMeasure = calculateNoiseDifferentialMeasure(stochasticNoise, lambda, maturities);
+            document.getElementById('noiseMeasure').innerText = `Noise Differential Measure: ${noiseMeasure.toFixed(4)}`;
+
+            // Update the chart with the new yield curve data
+            updateYieldCurveChart(maturities, yields);
+        }
+
+        function updateYieldCurveChart(maturities, yields) {
+            const ctx = document.getElementById('yieldCurveChart').getContext('2d');
+
+            // If chart already exists, destroy it before creating a new one
+            if (window.myYieldCurveChart) {
+                window.myYieldCurveChart.destroy();
+            }
+
+            window.myYieldCurveChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: maturities,
+                    datasets: [{
+                        label: 'Yield (%)',
+                        data: yields,
+                        borderColor: '#007BFF',
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Maturity (Years)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Yield (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

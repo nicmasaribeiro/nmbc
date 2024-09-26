@@ -1,31 +1,102 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title>Submit Valuation</title>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
-	</head>
-	<body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Valuation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        input[type="text"], input[type="number"], input[type="file"] {
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        label[for="file-upload"] {
+            display: inline-block;
+            padding: 12px 20px;
+            background-color: #3498db;
+            color: white;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        label[for="file-upload"]:hover {
+            background-color: #2980b9;
+        }
+        input[type="submit"] {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        input[type="submit"]:hover {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
 
-{% extends "base.html" %}
-{% block content %}
-<h1>Submit Valuation</h1>
-	<div class="container">
-		<form action="/submit/valuation" method="POST" enctype="multipart/form-data">
-			<input type="text" name="ticker" placeholder="Company Ticker" required>
-			<input type="number" step="any" name="forecast" placeholder="Forecast" required>
-			<input type="number" step="any" name="wacc" placeholder="WACC" required>
-			<input type="number" step="any" name="roe" placeholder="ROE" required>
-			<input type="number" step="any" name="rd" placeholder="RD" required>
-			<input type="number" step="any" name="price" placeholder="Price you want to charge" required>
+    <h1>Submit Valuation</h1>
+    <div class="container">
+        <form action="/submit/valuation" method="POST" enctype="multipart/form-data">
+            <input type="text" name="ticker" placeholder="Company Ticker" required>
+            <input type="number" step="any" name="forecast" placeholder="Forecast" required>
+            <input type="number" step="any" name="change" placeholder="Forecast change in price" required>
+            <input type="number" step="any" name="wacc" placeholder="WACC" required>
+            <input type="number" step="any" name="roe" placeholder="Cost of Equity" required>
+            <input type="number" step="any" name="rd" placeholder="Cost of Debt" required>
+            <input type="number" step="any" name="price" placeholder="Price you want to charge" required>
+            
+            <label for="file-upload" class="custom-file-upload">
+                <i class="fas fa-cloud-upload-alt"></i> Choose File
+            </label>
+            <input type="file" id="file-upload" name="file" required>
+            
+            <input type="submit" value="Submit">
+        </form>
+    </div>
 
-			<input type="file" name="file" required>
-			<input type="submit" value="Submit">
-		</form>
-	</div>
-{% endblock %}
 
-	</body>
+</body>
 </html>
