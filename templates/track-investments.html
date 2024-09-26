@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Asset Statistics</title>
+</head>
+<body>
+  
+  {% extends "base.html" %}
+  {% block content %}
+    <h1>Track Asset Statistics</h1>
+  <form method="POST">
+        <label for="file">Enter Asset Ticker</label>
+        <input type="text" name="ticker" placeholder="asset ticker">
+        <button type="submit">Submit</button>
+  </form>
+  {% endblock %}
+  
+</body>
+</html>

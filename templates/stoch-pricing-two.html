@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <title>Calculate p(t,r)</title>
+
+    <script>
+        // Define B(t) modeled as a normal distribution (for example)
+        function B(t) {
+            const mean = 0;
+            const variance = 1 / t;
+            return normalPDF(mean, variance);
+        }
+
+        // Normal PDF function for B(t)
+        function normalPDF(mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((0 - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Numerical integration using trapezoidal rule
+        function integrate(f, a, b, n = 1000) {
+            const h = (b - a) / n;
+            let sum = 0.5 * (f(a) + f(b));
+
+            for (let i = 1; i < n; i++) {
+                sum += f(a + i * h);
+            }
+
+            return sum * h;
+        }
+
+        // f1(t) = t^2 B(t)^2 - 2t B(t) ∫ B(x) dx + ∫(∫ B(x)^2 dx) dy
+        function f1(t) {
+            const B_t = B(t);
+            
+            // First integral: ∫ B(x) dx from 0 to t
+            const integral_1 = integrate(B, 0, t);
+            
+            // Second integral: ∫ B(x)^2 dx from 0 to t
+            const integral_2 = integrate(x => B(x) ** 2, 0, t);
+            
+            // Outer integral: ∫(∫ B(x)^2 dx from 0 to t) dy from 0 to t
+            const outer_integral = integrate(() => integral_2, 0, t);
+            
+            // Calculate f1(t)
+            return t ** 2 * B_t ** 2 - 2 * t * B_t * integral_1 + outer_integral;
+        }
+
+        // u(t, r) = r * log(1 + t)
+        function u(t, r) {
+            return r * Math.log(1 + t);
+        }
+
+        // s(t) = log(1 + t)
+        function s(t) {
+            return Math.log(1 + t);
+        }
+
+        // g(t, r) = f1(t) * log(r)
+        function g(t, r) {
+            const f1_t = f1(t);
+            return f1_t * Math.log(r);
+        }
+
+        // v(t) = t * (t - t/k(t)) * W(t), assuming W(t) is Poisson distributed
+        function v(t) {
+            const k_t = 2;  // Placeholder for k(t)
+            return t * (t - t / k_t) * poissonPDF(t);
+        }
+
+        // Poisson PDF for v(t)
+        function poissonPDF(lambda) {
+            return Math.exp(-lambda) * Math.pow(lambda, lambda) / factorial(lambda);
+        }
+
+        // Factorial helper function for Poisson distribution
+        function factorial(n) {
+            return n <= 1 ? 1 : n * factorial(n - 1);
+        }
+
+        // p(t, r) calculation
+        function p(t, r, S0, dt) {
+            const u_val = u(t, r);
+            const s_val = s(t);
+            const B_val = B(t);
+            const g_val = g(t, r);
+            const v_val = v(t);
+
+            // Main equation for p(t, r)
+            return S0 * Math.exp(u_val * dt + s_val * B_val * g_val) + v_val;
+        }
+
+        // Function to calculate and display p(t,r)
+        function calculateP() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const S0 = parseFloat(document.getElementById("S0").value);
+            const dt = parseFloat(document.getElementById("dt").value);
+
+            // Validate input
+            if (isNaN(t) || isNaN(r) || isNaN(S0) || isNaN(dt)) {
+                document.getElementById("result_P").innerText = "Please enter valid numbers for all inputs.";
+                return;
+            }
+
+            // Calculate p(t, r)
+            const pt_r = p(t, r, S0, dt);
+
+            // Display the result
+            document.getElementById("result_P").innerText = `p(${t}, ${r}) = ${pt_r.toFixed(4)}`;
+        }
+    </script>
+
+    <style>
+        /* General Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2em;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            color: #34495e;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        /* Styling the container */
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        /* Styling the labels and inputs */
+        label {
+            font-size: 1.1em;
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        /* Styling the button */
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Result Display */
+        #result_P {
+            font-size: 1.4em;
+            color: #16a085;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* Equation Styling */
+        .equation {
+            text-align: center;
+            font-size: 1.3em;
+            margin: 20px 0;
+        }
+
+        /* Footer Style */
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+            background-color: #2c3e50;
+            color: #fff;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+<h4><a href="/stoch/tools">Back</a></h4>
+    <div class="container">
+        <h1>Calculate \( p(t,r) \)</h1>
+
+        <!-- Display the function using MathJax -->
+        <p class="equation">
+            \( p(t, r) = S_0 \cdot \exp \left( u(t, r) \cdot d_t + s(t) \cdot B(t) \cdot g(t, r) \right) + v(t) \)
+        </p>
+
+        <h2>Input Parameters</h2>
+
+        <label for="S0">Enter value for \( S_0 \): </label>
+        <input type="number" id="S0" step="0.01" value="1">
+
+        <label for="t">Enter value for \( t \): </label>
+        <input type="number" id="t" step="0.01" value="1">
+
+        <label for="r">Enter value for \( r \): </label>
+        <input type="number" id="r" step="0.01" value="1">
+
+        <label for="dt">Enter value for \( d_t \): </label>
+        <input type="number" id="dt" step="0.01" value="1">
+
+        <button onclick="calculateP()">Calculate \( p(t,r) \)</button>
+
+        <h3 id="result_P">p(t,r) = </h3>
+    </div>
+
+    <footer>
+        &copy; 2024 Trading Volume Analysis
+    </footer>
+
+</body>
+</html>

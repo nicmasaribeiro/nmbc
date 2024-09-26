@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate v(t)</title>
+
+    <!-- MathJax for rendering LaTeX-style equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Define k(t)
+        function k(t) {
+            // Placeholder function: Linear or cubic function for k(t)
+            return t**3-3*t**2*(1-t); // You can change this to fit your model
+        }
+
+        // B(x) as a Gaussian distribution with mean 0 and variance based on x = 1/t
+        function B(x) {
+            const mean = 0;
+            const variance = 1 / x;  // Using x = 1/t as the variance
+            return normalPDF(mean, variance);
+        }
+
+        // Normal PDF function for B(x)
+        function normalPDF(mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((0 - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // v(t) calculation: v(t) = t(t - t/k(t)) B(1/t)
+        function v(t) {
+            const k_val = k(t);
+            const B_val = B(1 / t);  // Using 1/t in the normal PDF
+            return t * (t - t / k_val) * B_val;
+        }
+
+        // Function to calculate and display v(t)
+        function calculateV() {
+            const t = parseFloat(document.getElementById("t").value);
+
+            // Validate input
+            if (isNaN(t) || t <= 0) {
+                document.getElementById("result_V").innerText = "Please enter a valid positive number for t.";
+                return;
+            }
+
+            // Calculate v(t)
+            const v_t = v(t);
+
+            // Display the result
+            document.getElementById("result_V").innerText = `v(${t}) = ${v_t.toFixed(4)}`;
+        }
+    </script>
+
+    <style>
+        /* General Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2em;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            color: #34495e;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        /* Styling the container */
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        /* Styling the labels and inputs */
+        label {
+            font-size: 1.1em;
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        /* Styling the button */
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Result Display */
+        #result_V {
+            font-size: 1.4em;
+            color: #16a085;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* Equation Styling */
+        .equation {
+            text-align: center;
+            font-size: 1.3em;
+            margin: 20px 0;
+        }
+
+        /* Footer Style */
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+            background-color: #2c3e50;
+            color: #fff;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+<h4><a href="/stoch/tools">Back</a></h4>
+    <div class="container">
+        <h1>Calculate \( v(t) \)</h1>
+
+        <h2>Function \( v(t) \)</h2>
+
+        <!-- Display the function using MathJax -->
+        <p class="equation">
+            \( v(t) = t \left( t - \frac{t}{k(t)} \right) \cdot B\left( \frac{1}{t} \right) \)
+        </p>
+
+        <h2>Input Parameter</h2>
+
+        <label for="t">Enter value for \( t \): </label>
+        <input type="number" id="t" step="0.01" value="1">
+
+        <button onclick="calculateV()">Calculate \( v(t) \)</button>
+
+        <h3 id="result_V">v(t) = </h3>
+    </div>
+
+    <footer>
+        &copy; 2024 Trading Volume Analysis
+    </footer>
+
+</body>
+</html>

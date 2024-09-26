@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Filtration Coefficient</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 40px auto;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        label {
+            color: #555;
+            font-weight: bold;
+            font-size: 1rem;
+            text-align: left;
+        }
+        input[type="text"] {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        input[type="submit"]:hover {
+            background-color: #218838;
+        }
+        .header {
+            text-align: center;
+            color: #444;
+            margin-bottom: 20px;
+        }
+        .header h2:hover {
+            color: #28a745;
+        }
+        .result-section {
+            margin-top: 30px;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .result-table th, .result-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .result-table th {
+            background-color: #28a745;
+            color: white;
+        }
+        .result-table td {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <div class="header">
+        
+        <h2>Filtration Coefficient Calculator</h2>
+    </div>
+    
+    <div class="container">
+        <form method="POST" action="/transform_coef">
+            <label for="ticker">Asset Ticker</label>
+            <input type="text" name="ticker" placeholder="Enter asset ticker, e.g. AAPL" required>
+            
+            <label for="period">Asset Period</label>
+            <input type="text" name="period" placeholder="Enter period, e.g. 1d, 1wk, 1mo" required>
+            
+            <label for="interval">Asset Interval</label>
+            <input type="text" name="interval" placeholder="Enter interval, e.g. 1m, 2m, 10m, 1h, 1d" required>
+            
+            <input type="submit" value="Calculate">
+        </form>
+    </div>
+    
+    <!-- Results Section -->
+    <div class="result-section">
+        <h2>Filtration Coefficients</h2>
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Coefficient</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Filtration Close Coefficient</td>
+                    <td>{{r}}</td>
+                </tr>
+                <tr>
+                    <td>Filtration Open Coefficient</td>
+                    <td>{{r2}}</td>
+                </tr>
+                <tr>
+                    <td>Filtration Spread Coefficient</td>
+                    <td>{{r3}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+</body>
+</html>
