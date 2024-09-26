@@ -1,26 +1,78 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title></title>
-	</head>
-	<body>
-		<!DOCTYPE html>
-		<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<title>logknot</title>
-			</head>
-			<body>
-				{% extends "base.html" %}
-				
-				{% block content %}
-				<h3><a href="/cov/prices">Covariance Prices</a></h3>
-				<h3><a href="/cov/returns">Covariance Returns</a></h3>
-				<h3><a href="/corr/returns">Correlation Return</a></h3>
-				<h3><a href="/corr/prices">Correlation Prices</a></h3>
-				{% endblock %}
-			</body>
-		</html>
-	</body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stats Tool</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 30px;
+        }
+        h3 {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        a {
+            text-decoration: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #3498db;
+            display: inline-block;
+            margin-bottom: 15px;
+            transition: background-color 0.3s ease;
+        }
+        a:hover {
+            background-color: #2980b9;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            h3 {
+                font-size: 18px;
+            }
+            a {
+                font-size: 14px;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stats Financial Tools</h1>
+    
+            <h3><a href="/cov/prices">Covariance Prices</a></h3>
+            <h3><a href="/cov/returns">Covariance Returns</a></h3>
+            <h3><a href="/corr/returns">Correlation Return</a></h3>
+            <h3><a href="/corr/prices">Correlation Prices</a></h3>
+    </div>
+</body>
 </html>

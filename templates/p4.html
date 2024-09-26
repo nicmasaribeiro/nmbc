@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>p3 Calculation</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+            text-align: left;
+            display: block;
+        }
+
+        input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            transition: border-color 0.2s ease-in-out;
+        }
+
+        input[type="number"]:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #333;
+            word-wrap: break-word;
+        }
+
+        .result span {
+            color: #007BFF;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>p3(t, r, S_0) Calculation</h1>
+
+        <label for="S0">Enter value for S_0:</label>
+        <input type="number" id="S0" step="0.01" value="100">
+
+        <label for="t">Enter value for t:</label>
+        <input type="number" id="t" step="0.01" value="1">
+        
+        <label for="r">Enter value for r:</label>
+        <input type="number" id="r" step="0.01" value="1">
+        
+        <button onclick="calculateP3()">Calculate p3</button>
+        
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        function B(s) {
+            if (s === 0) return 0;
+            return normPdf(s, 0, 1 / Math.max(s, 0.01));
+        }
+
+        function u(t, r) {
+            return r * Math.log(1 + t);
+        }
+
+        function s(t) {
+            return Math.log(1 + t);
+        }
+
+        function g(t, r) {
+            return Math.abs(Math.log(f(t)) * (1 - t / f(t))) + Math.log2(t);
+        }
+
+        function f(t) {
+            return t; // Define function f(t) here if needed
+        }
+
+        function k(t) {
+            return t ** 3 - 3 * t ** 2 * (1 - t);
+        }
+
+        function v1(t) {
+            return (Math.log(t) - Math.log(t / k(t))) * Math.log(1 + g(t));
+        }
+
+        const d_t = 0.002739726027;
+
+        // Numerical integration using Trapezoidal rule
+        function integrate(f, a, b, n) {
+            let h = (b - a) / n;
+            let sum = 0.5 * (f(a) + f(b));
+            for (let i = 1; i < n; i++) {
+                sum += f(a + i * h);
+            }
+            return sum * h;
+        }
+
+        // Function for the integral
+        function integrand(x, t, r) {
+            return x ** 2 * B(x) ** 2 * (Math.exp(u(t, r) * d_t + s(t) * B(t) * g(t, r)) + v1(t));
+        }
+
+        // Define p3(t, r, S_0) function
+        function p3(t, r, S_0) {
+            const integral = integrate((x) => integrand(x, t, r), 0, t, 1000);
+            return S_0 * (1 + integral);
+        }
+
+        // Function to calculate p3 and update the result
+        function calculateP3() {
+            const S_0 = parseFloat(document.getElementById('S0').value);
+            const t = parseFloat(document.getElementById('t').value);
+            const r = parseFloat(document.getElementById('r').value);
+            
+            const result = p3(t, r, S_0);
+            
+            document.getElementById('result').innerHTML = `p3(t=<span>${t}</span>, r=<span>${r}</span>, S_0=<span>${S_0}</span>) = <span>${result}</span>`;
+        }
+    </script>
+</body>
+</html>

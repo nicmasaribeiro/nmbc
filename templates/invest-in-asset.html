@@ -5,76 +5,109 @@
     <title>Invest in Asset</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7f6;
             margin: 0;
             padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
         .container {
-            width: 50%;
+            width: 100%;
+            max-width: 500px;
             margin: 50px auto;
-            padding: 20px;
+            padding: 30px;
             background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
         }
         form {
             display: flex;
             flex-direction: column;
         }
         label {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             font-weight: bold;
-            color: black;
+            color: #333;
         }
-        input[type="text"], input[type="number"], select {
-            margin-bottom: 15px;
-            padding: 10px;
-            font-size: 1em;
+        input[type="text"], input[type="password"], input[type="number"], input[type="float"], select {
+            margin-bottom: 20px;
+            padding: 12px;
+            font-size: 16px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
         }
         input[type="submit"] {
-            padding: 10px;
-            font-size: 1em;
+            padding: 12px;
+            font-size: 16px;
             border: none;
-            border-radius: 4px;
-            background-color: #5cb85c;
+            border-radius: 6px;
+            background-color: #3498db;
             color: white;
             cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
         }
         input[type="submit"]:hover {
-            background-color: #4cae4c;
+            background-color: #2980b9;
         }
-        .head{
+        hr {
+            border: none;
+            height: 1px;
+            background-color: #ddd;
+            margin: 20px 0;
+        }
+        .head {
             text-align: center;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            input[type="text"], input[type="password"], input[type="number"], input[type="float"], select {
+                font-size: 14px;
+                padding: 10px;
+            }
+            input[type="submit"] {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
     {% extends "base.html" %}
-
     {% block content %}
-    <br>
-    <div class="head">
-    <h1>
-        Invest in Asset
-    </h1>
-    </div>
     <div class="container">
-        <form method="POST">
+        <h1>Invest in Asset</h1>
+        <form method="POST" action="/invest/asset">
             <label for="name">Username</label>
-            <input type="text" id="name" name="name" placeholder="Enter your username">
-            
-            <label for="name">Password</label>
-            <input type="password" id="password" name="password" placeholder="Enter your password">
-            <br>
+            <input type="text" id="name" name="name" placeholder="Enter your username" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+
             <hr>
-            <label for="amount">Coins Staked</label>
-            <input type="float" step="0.01" id="amount" name="amount" placeholder="Enter the investment amount">
-            <br>
+
+            <label for="amount">Shares Asset Coins to Buy</label>
+            <input type="number" step="0.01" id="amount" name="amount" placeholder="Enter the investment amount" required>
+
             <hr>
+
             <label for="address">Receipt Address</label>
-            <input type="text" id="address" name="address" placeholder="Enter the receipt address">
+            <input type="text" id="address" name="address" placeholder="Enter the receipt address" required>
 
             <input type="submit" value="Submit">
         </form>
