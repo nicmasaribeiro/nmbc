@@ -88,9 +88,7 @@
     </style>
 </head>
 <body>
-    {% extends "base.html" %}
 
-    {% block content %}
     <div class="head">
         <h1>Create Asset Page</h1>
     </div>
@@ -121,7 +119,7 @@
             <label for="mu">Reversion Coefficient (or, Stochastic Growth Rate)</label>
             <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficient">
             
-            <label for="eta">Risk Neutral Measure (or, Stochastic Filtration)</label>
+            <label for="eta">Risk Neutral Measure (or, Stochastic Filtration of [1+(Reversion + Forward Rate)]</label>
             <input type="float" step="0.01" id="eta" name="eta" placeholder="Enter the risk-neutral coefficient">
             
             <label for="Quantity">Number Asset Shares</label>
@@ -136,6 +134,5 @@
             <input type="submit" value="Submit">
         </form>
     </div>
-    {% endblock %}
 </body>
 </html>

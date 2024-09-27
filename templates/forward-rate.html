@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+(<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -81,7 +81,7 @@
                 const sech_z = sech(z);
                 const inner_expr = innerIntegrals(t); // Compute the inner integral expression
                 
-                return W_z * Math.pow(r, 2) * sech_z * inner_expr;
+                return W_z * (1+Math.pow(r, 2)) * sech_z * inner_expr;
             };
 
             // Outer integral over z from 0 to t
@@ -174,7 +174,8 @@
 
 <body>
 
-    <h1>Calculate \( f(t,r) \)</h1>
+<h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate Forward Rate</h1>
 
     <!-- Display the function using MathJax -->
     <p class="equation">
