@@ -3,6 +3,8 @@
 from scipy.stats import norm
 import numpy as np
 from scipy.integrate import quad
+
+
 # Define the modified Brownian motion process B(s) as the PDF of a normal distribution with mean 0 and variance 1/t
 def B(s):
 	return norm.pdf(s, loc=0, scale=1/np.sqrt(s))

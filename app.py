@@ -39,6 +39,7 @@ from sklearn.linear_model import LinearRegression
 from get_fundamentals import *
 from ddm import *
 from algo import stoch_price
+from pricing_algo import derivative_price
 
 #https://chatgpt.com/share/66e9f5bc-bbf0-8003-9db5-4e86488eb93f
 
@@ -55,7 +56,6 @@ blockchain.create_genesis_block()
 global network
 network = Network()
 network.create_genesis_block()
-from pricing_algo import derivative_price
 
 
 def recalculate():
@@ -66,30 +66,39 @@ def recalculate():
 			prices_vector = t.history(period='5d',interval='1m')
 			price = t.history()['Close'][-1]
 			s = stoch_price(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
-#			print(s)
 			i.stoch_price = s
 			db.session.commit()
 		except:
 			pass
-		
+
+def change_value_update():
+	invests = InvestmentDatabase.query.all()
+	for i in invests:
+		t = yf.Ticker(i.investment_name.upper())
+		prices_vector = t.history(period='5d',interval='1m')
+		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+		change = np.log(price) - np.log(i.starting_price)
+		i.change_value = change
+		db.session.commit()
+	
 def update():
 	recalculate()
+	change_value_update()
 	invests = InvestmentDatabase.query.all()
 	try:
 		for i in invests:
 			t = yf.Ticker(i.investment_name.upper())
 			prices_vector = t.history(period='5d',interval='1m')
-			price = t.history(period='1wk',interval='1m')['Close'][-1]
+			price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+			i.market_price = price
+			db.session.commit()
 			current_time = datetime.utcnow()
 			time_difference = current_time - i.timestamp
 			i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
-			change = (price - i.starting_price)/i.starting_price
-			i.change_value = change
+			db.commit()
 			token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type) + derivative_price(prices_vector, i.risk_neutral, i.reversion, i.spread)
 			i.tokenized_price = token_price
 			i.coins = token_price
-			db.session.commit()
-			i.market_price = price
 			db.session.commit()
 	except:
 		pass
@@ -452,6 +461,7 @@ def create_transact():
 @app.route('/liquidate', methods=["POST","GET"])
 def delete_asset():
 	if request.method == 'POST':
+		
 		address = request.values.get('address')
 		user = request.values.get('user')
 		password = request.values.get('password')
@@ -460,6 +470,8 @@ def delete_asset():
 		transaction = TransactionDatabase.query.filter_by(username=user).first()
 		asset = InvestmentDatabase.query.filter_by(receipt=address).first()
 		if asset.investors == 1 and password == asset.password and user == asset.owner:
+			wal.coins += asset.coins_value
+			db.session.commit()
 			db.session.delete(asset)
 			db.session.commit()
 			return "<h1>Asset Closed</h1>"
@@ -594,14 +606,16 @@ def get_user_wallet():
 		'starting_price': [], 
 		'market_price': [], 
 		'coins_value': [], 
-		'change_value': []
+		'change_value': [],
+		'tokenized_price':[],
+		'stochastic_price':[],
 	}
 	
+	total_investments = 0
 	profit_loss = 0
 	for asset in assets:
 		invs = InvestmentDatabase.query.filter_by(receipt=asset.transaction_receipt).first()
 		if invs:
-			update()
 			df['inv_name'].append(invs.investment_name)
 			df['quantity'].append(asset.quantity)
 			df['marketcap'].append(invs.market_cap)
@@ -609,7 +623,10 @@ def get_user_wallet():
 			df['market_price'].append(invs.market_price)
 			df['coins_value'].append(invs.coins_value)
 			df['change_value'].append(invs.change_value)
+			df['tokenized_price'].append(invs.tokenized_price)
+			df['stochastic_price'].append(invs.stoch_price)
 			profit_loss+=invs.change_value
+			total_investments+=invs.tokenized_price*asset.quantity
     
     # Convert the dictionary to a pandas DataFrame
 	dataframe = pd.DataFrame(df)
@@ -620,6 +637,8 @@ def get_user_wallet():
 		# Convert DataFrame to HTML table with styles
 	html = dataframe.to_html(index=False)
 	html_table_with_styles = f"""
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 		<style>
 			table {{
 				width: 100%;
@@ -639,8 +658,20 @@ def get_user_wallet():
 		</style>
 		<h1><a href="/">Back</a></h1>
 		{html}
-		<h2>Profit-Loss</h2>
-		<h3>{profit_loss}</h3>
+		<table>
+				<thead>
+					<tr>
+						<th>Profit Loss (%)</th>
+						<th>Total Investments</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>{profit_loss}</td>
+						<td>{total_investments}</td>
+					</tr>
+				</tbody>
+			</table>
 	"""
 	
 	# Render the HTML table as a response
@@ -749,9 +780,9 @@ def mine():
 			stake = coin.stake_coins(approved_values,amount_values)
 			coin_db.staked_coins+=stake
 			db.session.commit()
-			blockchain.market_cap += stake # + staked_proccess
-			staked_coins.append(stake) #+ 
-			staked_coins.append(coin_db.new_coins)# .market_cap # Add the stake value to the total
+			blockchain.market_cap += stake 
+			staked_coins.append(stake)
+			staked_coins.append(coin_db.new_coins)
 			blockchain.mine_pending_transactions(1)
 			value = sum(staked_coins)/len(staked_coins)
 			for i in pending_transactions:
@@ -760,10 +791,16 @@ def mine():
 			staked_coins = []
 		miner.miner_wallet+=value
 		db.session.commit()
+		packet = {
+			'index': len(blockchain.chain) + 1,
+			'previous_hash': sha256(str(blockchain.get_latest_block()).encode()).hexdigest(),
+			'datetime': str(dt.datetime.now()),
+			'transaction': 'mining_complete' ,
+		}
+		encoded_packet = str(packet).encode().hex()
+		blockchain.add_block(encoded_packet)
 		return f"<h1><a href='/'> Home </a></h1><h3>Success</h3>You've mined {value} coins"
 	return render_template('mine.html')
-
-
 
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
@@ -817,7 +854,6 @@ def buy_or_sell():
 		stoch = abs(stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type))
 		
 		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
-		print("token price",token_price,'TKP\t',stoch)
 		
 		
 		wal = Wallet.query.filter_by(address=user).first()
@@ -864,7 +900,7 @@ def buy_or_sell():
 				timestamp = dt.datetime.utcnow(),
 				time_float=maturity,
 				stoch_price=stoch,
-				coins_value=token_price,
+				coins_value=coins,
 				tokenized_price=token_price,
 				investors=1,
 				receipt=receipt
@@ -1011,12 +1047,13 @@ def invest():
 		owner_wallet = Wallet.query.filter_by(address=inv.owner).first()
 		if password == wal.password:
 			if wal.coins >= staked_coins:
+				total_value = inv.tokenized_price*staked_coins
 				house = BettingHouse.query.get_or_404(1)
-				house.coin_fee(0.1*staked_coins)
-				owner_wallet.coins += 0.1*staked_coins
+				house.coin_fee(0.1*total_value)
+				owner_wallet.coins += 0.1*total_value
 				db.session.commit()
-				new_value = 0.8*staked_coins
-				wal.coins -= staked_coins
+				new_value = 0.8*total_value
+				wal.coins -= total_value
 				inv.coins_value += new_value
 				db.session.commit()
 				new_transaction = TransactionDatabase(
@@ -1066,7 +1103,7 @@ def invest():
                                             'investment_name':inv.investment_name,
                                             'investor_name':user_name.username,
                                             'investor_token':user_name.personal_token})})
-				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {staked_coins} in {inv.investment_name}"""
+				return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {new_value} in {inv.investment_name}"""
 			else:
 				return "<h3>Insufficient coins in wallet</h3>"
 	return render_template("invest-in-asset.html")
@@ -1422,24 +1459,38 @@ def general_valuation():
 	return render_template('general-optimization.html')
 
 @app.route('/submit/optimization', methods=['GET','POST'])
+@login_required
 def submit_optimization():
+	user = current_user
 	if request.method == 'POST':
+		receipt = os.urandom(10).hex()
 		file = request.files['file']
 		name = request.values.get("file_name")
 		ticker = request.values.get("ticker")
 		price = request.values.get("price")
 		file_data = file.read()
+		pending = PendingTransactionDatabase(
+			txid=os.urandom(10).hex(),
+			username = user.username,
+			from_address = user.personal_token,
+			to_address = "Valuation Chain",
+			amount = price,
+			timestamp = dt.date.today(),
+			type = 'info-exchange',
+			signature = receipt
+		)
+		db.session.add(pending)
+		db.session.commit()
 		optimization = Optimization(
 							   price=price,
 							   filename=name,
 							   target=ticker,
 							   created_at = dt.datetime.now(),
 							   file_data=file_data,
-							   receipt=os.urandom(10).hex())
+							   receipt=receipt)
 		db.session.add(optimization)
 		db.session.commit()
-		flash('File successfully uploaded and saved as binary in the database.')
-		return redirect('/')
+		return "<h1><a href='/'> Back </a></h1> <h3>File successfully uploaded and saved as binary in the database.</h3>" 
 	return render_template("submit-optimization.html")
 
 @app.route("/track/opts",methods=['GET','POST'])
@@ -1463,8 +1514,13 @@ def get_opts():
 	return render_template("track-opt.html")
 
 @app.route("/mine/optimization", methods=['GET', 'POST'])
+@login_required
 def mine_optimization():
+	user = current_user
+	wal = Wallet.query.filter_by(address=user.username).first()
 	if request.method == "POST":
+		wal.coins += 50
+		db.session.commit()
 		receipt = request.values.get("receipt")
 		ticker = request.values.get("ticker")
 		score = float(request.values.get("score"))
@@ -1486,6 +1542,14 @@ def mine_optimization():
 							created_at=dt.datetime.now())
 		db.session.add(token)
 		db.session.commit()
+		packet = {
+			'index': len(blockchain.chain) + 1,
+			'previous_hash': sha256(str(blockchain.get_latest_block()).encode()).hexdigest(),
+			'datetime': str(dt.datetime.now()),
+			'transaction': optmimization.receipt,
+		}
+		encoded_packet = str(packet).encode().hex()
+		blockchain.add_block(packet)
 		return """<h1><a href='/'>Home</a></h1><h2>Success</h2>"""
 	return render_template("mine-optimization.html")
 
@@ -1493,8 +1557,7 @@ def mine_optimization():
 @app.route('/ledger/optimizations-tokens')
 def optimizatoin_token_ledger():
 	opts = OptimizationToken.query.all()
-	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename,'target_company':o.target,'output':str(o.output_data)} for o in opts]
-	return jsonify(ls)
+	return render_template("opt-token-ledger.html",invs=opts)
 
 @app.route('/process/optimization', methods=['GET', 'POST'])
 def process_optimization():
@@ -1506,8 +1569,7 @@ def process_optimization():
 @app.route('/ledger/optimizations')
 def opt_ledger():
 	opts = Optimization.query.all()
-	ls = [{'id':o.id,'receipt':o.receipt,'filename':o.filename,'target_company':o.target} for o in opts]
-	return jsonify(ls)
+	return render_template("opt-ledger.html",invs=opts)
 
 
 ##################################################
@@ -1614,6 +1676,9 @@ def transform_coef():
 def reversion():
 	if request.method=="POST":
 		ticker = request.values.get("tickers")
+		period = request.values.get("period")
+		interval = request.values.get("interval")
+		
 		t = yf.Ticker(ticker)
 		history = t.history(period='max',interval='1d')
 		prices = history["Close"]
@@ -2162,6 +2227,7 @@ def graph_forecast_1d():
 		return html
 	return render_template('graph-forecast.html')
 
+
 @app.route('/1y/forecast', methods=['GET', 'POST'])
 def graph_forecast_1y():
 	if request.method == 'POST':
@@ -2296,7 +2362,7 @@ def get_stoch_p3():
 
 @app.route('/stoch/tools', methods=['GET','POST'])
 def get_stoch_tools():
-	return render_template("stoch-tools.html")
+	return render_template("tools.html")
 
 @app.route('/stoch/price-expanded', methods=['GET','POST'])
 def get_stoch_p_exp():
@@ -2398,4 +2464,4 @@ if __name__ == '__main__':
 		db.create_all()
 		PendingTransactionDatabase.genisis()
 	start_background_task()
-	app.run(host="0.0.0.0",port=8080)
+	app.run(host="0.0.0.0",port=1000)

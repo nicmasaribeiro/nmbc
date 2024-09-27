@@ -484,7 +484,6 @@ class Network:
         new_bal = float(bal) - float(value)
         sender_wallet.balance = new_bal
         db.session.commit()
-#   blockchain.pending_transactions.append({'sender':sender_wallet.address,'recv':recv_wallet.address,'amount':value})
     
     def process_transaction(self, sender_wallet, recv_wallet, value, index, coin, blockchain):
         pending = blockchain.pending_transactions
