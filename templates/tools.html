@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Stochastic Tools</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2.2em;
+        }
+
+        h4 {
+            align-self: flex-start;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: white;
+            font-size: 16px;
+        }
+
+        h3 {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #555;
+            font-weight: normal;
+            font-size: 1.5em;
+        }
+
+        a {
+            text-decoration: none;
+            color: #ffffff;
+            font-size: 16px;
+            padding: 12px 20px;
+            background-color: #007bff;
+            border-radius: 4px;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        a:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-link {
+            background-color: #28a745;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+        }
+
+        .btn-link:hover {
+            background-color: #218838;
+        }
+
+        /* Specific button styling */
+        a.f2 {
+            background-color: #ffc107;
+        }
+
+        a.f2:hover {
+            background-color: #e0a800;
+        }
+
+        /* Container for links */
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 1200px;
+            margin-bottom: 40px;
+            border-radius: 8px;
+            background-color: #ffffff;
+            padding: 20px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .link-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            a {
+                font-size: 14px;
+                padding: 10px 15px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            h3 {
+                font-size: 1.3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h4><a href="/">Back</a></h4>
+    <h1>Stochastic Tools Dashboard</h1>
+
+    <div class="links-container">
+        <h3>Pricing Algorithms</h3>
+        <div class="link-group">
+            <a href="/stoch/price-classic"><i class="fas fa-sign-in-alt"></i> P1(•) – Classical Stochastic Pricing Algorithm</a>
+            <a href="/stoch/price-expanded" class="btn-link"><i class="fas fa-superscript"></i> P2(•) – Expanded Stochastic Option Price</a>
+            <a href="/stoch/p4" class="btn-link"><i class="fas fa-superscript"></i> P3(•) – Expanded Stochastic Stock Price</a>
+            <a href="/stoch/p(t,r)" class="btn-link"><i class="fas fa-chart-line"></i> P4(•) – Stochastic Option Price</a>
+            <a href="/stoch/value" class="btn-link"><i class="fas fa-chart-bar"></i> P5(•) – Reverse Pricing Algorithm</a>
+        </div>
+    </div>
+
+    <div class="links-container">
+        <h3>Additional Stochastic Tools</h3>
+        <div class="link-group">
+            <a href="/stoch/fs"><i class="fas fa-sign-in-alt"></i> F(s) – Filtration Algorithm</a>
+            <a href="/stoch/g(t,r)"><i class="fas fa-user-plus"></i> G(t,r) – Stochastic Growth</a>
+            <a href="/stoch/forward-rate"><i class="fas fa-user-plus"></i> F(t,r) – Stochastic Forward Rate</a>
+            <a href="/stoch/g&f&s" class="btn-link"><i class="fas fa-chart-line"></i> Softmax • Filtration • Growth • Forward Rate</a>
+            <a href="/stoch/Ft" class="btn-link"><i class="fas fa-sitemap"></i> F(t) – Adaptive Filtration Mass Function</a>
+            <a href="/stoch/C(s)" class="btn-link"><i class="fas fa-calculator"></i> C(s) – Stochastic Volume Differential Measure</a>
+            <a href="/stoch/v(t)" class="btn-link"><i class="fas fa-calculator"></i> V(t) – Pricing Volume Differential Measure</a>
+            <a href="/stoch/S(t,r)" class="btn-link"><i class="fas fa-superscript"></i> S(t,r) – Stochastic Forward Rate</a>
+            <a href="/stoch/f3" class="btn-link"><i class="fas fa-superscript"></i> f(s,u) – Filtration Over Double Interaction</a>
+            
+        </div>
+    </div>
+
+</body>
+</html>

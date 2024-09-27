@@ -2,7 +2,9 @@
 <html>
 	<head>
 		<meta charset="UTF-8">
-		<title>Calibration</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+		<title>Reversion Coefficient</title>
 	</head>
 	<body>
 		<style>
@@ -34,11 +36,15 @@
 				cursor: pointer;
 			}
 		</style>
-		<h1><a href="/">Back</a></h1>
-
+		<h4><a href="/">Back</a></h4>
+		<h1>Reversion Coefficient</h1>
 		<form class="form" method="POST">
 			<label> Enter Ticker </label>
 			<input type="text" name="tickers" placeholder="enter stock ticker">
+			<label for="period">Asset Period</label>
+			<input type="text" name="period" placeholder="Enter period, e.g. 1d, 1wk, 1mo, 1y, 2y, max" required>
+			<label for="interval">Asset Interval</label>
+			<input type="text" name="interval" placeholder="Enter interval, e.g. 1m, 2m, 10m, 1h, 1d, 1wk" required>
 			<input type="submit">
 		</form>
 		<h3>The daily reversion coefficient is </h3><h4>{{reversion}}</h4>
