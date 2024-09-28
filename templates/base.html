@@ -311,7 +311,9 @@
     <div class="col-md-6">
       <button class="btn btn-info btn-lg w-100" onclick="GetBlock()">Financial Tools Dashboard</button>
     </div>
-    <div class="col-md-6 offset-md-6">
+    <div class="col-md-6">
+      <button class="btn btn-info btn-lg w-100" style="background-color: yellow;color: gray;" onclick="activeAssets()">Active Assets</button>
+    </div>
     </div>
   </div>
 </div>
@@ -404,7 +406,9 @@
 //  const index = prompt("block", "id/index");
     window.location.href = '/dash'
   };
-  
+  const activeAssets = () =>{
+    window.location.href = '/active/assets'
+  }
   const chatSearch = () => {
     window.location.href = '/chat';    
   };
