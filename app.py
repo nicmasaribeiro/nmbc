@@ -108,7 +108,6 @@ def background_task():
 	while True:
 		update()	# Do some work here, like checking a database or updating something
 		print('Investment Database Updated')
-		time.sleep(5)  # Wait 10 seconds before running again
 		
 		# Start the background task in a separate thread
 def start_background_task():
@@ -843,7 +842,6 @@ def buy_or_sell():
 		if history.empty:
 			return "<h3>Invalid ticker symbol</h3>"
 		
-		
 		price = history['Close'][-1]
 		option = black_scholes(price, target_price, maturity, .05, np.std(history['Close'].pct_change()[1:])*np.sqrt(525960),option_type)
 		
@@ -1202,6 +1200,11 @@ def my_assets():
 		 	'cash':asset.cash} for asset in asset_tokens]
 		return jsonify(ls)
 	return render_template("myassets.html")
+
+@app.route("/active/assets")
+def asset_options():
+	options = InvestmentDatabase.query.all()
+	return render_template("asset-options.html",invs=options)
 
 @app.route('/html/my/assets',methods=['GET','POST'])
 def html_my_assets():
@@ -1868,7 +1871,30 @@ def single_risk_neutral():
 		return render_template("stock-risk-neutral.html",risk_neutral=risk_neutral)
 	return render_template("stock-risk-neutral.html")
 			
-			
+@app.route('/mu-sigma', methods=["GET","POST"])
+def mu_sigma():
+	if request.method=="POST":
+		ticker = request.values.get("ticker").upper()
+		period = request.values.get("period")
+		interval = request.values.get("interval")
+		t = yf.Ticker(ticker)
+		h = t.history(period=period,interval=interval)#["Close"]
+		df = h["Close"] 
+		ret = df.pct_change()[1:]
+		mu = ret.rolling(3).mean()
+		sig = ret.rolling(3).std()
+		X = np.vstack((mu[3:],sig[3:])).T
+		y = np.matrix(ret[2:-1]).T
+		lr  = LinearRegression(fit_intercept=True)
+		fit = lr.fit(X, np.asarray(y))
+		score = fit.score(X, np.asarray(y))
+		x = fit.coef_
+		exp_mu = x[0][0]
+		exp_sig = x[0][1]
+		pred = x@np.matrix([mu[-1],sig[-1]]).T
+		price = df[-1]*(1+pred.item())
+		return render_template("mu-sigma.html",rate=pred.item()*100,score=score,price=price)
+	return render_template("mu-sigma.html")		
 			
 @app.route('/single-stock-calibration',methods=["GET","POST"])
 def single_calibration():
@@ -1955,82 +1981,6 @@ def get_fundamentals():
 			return jsonify({"error": str(e)}), 500
 	return render_template("fundamentals.html")
 
-@app.route('/generate/fcfe',methods=["GET","POST"])
-def fcfe():
-	return 0
-
-@app.route('/generate_dcf', methods=['GET','POST'])
-def generate_dcf():
-	try:
-		if request.method =='POST':
-			# Fetch input data from the request
-			data = request.get_json()
-			
-			# Extract values from the input JSON
-			years = data.get('years', ['2024E', '2025E', '2026E', '2027E', '2028E', '2029E', '2030E'])
-			revenue = data.get('revenue', [0] * len(years))
-			revenue_growth = data.get('revenue_growth', [0] * len(years))
-			ebitda = data.get('ebitda', [0] * len(years))
-			ebitda_margin = data.get('ebitda_margin', [0] * len(years))
-			depreciation = data.get('depreciation', [0] * len(years))
-			ebit = data.get('ebit', [0] * len(years))
-			taxes = data.get('taxes', [0] * len(years))
-			nopat = data.get('nopat', [0] * len(years))
-			capex = data.get('capex', [0] * len(years))
-			change_in_nwc = data.get('change_in_nwc', [0] * len(years))
-			free_cash_flow = data.get('free_cash_flow', [0] * len(years))
-			discount_factor = data.get('discount_factor', [0] * len(years))
-			present_value_fcf = data.get('present_value_fcf', [0] * len(years))
-			
-			# Create the DCF dataframe
-			dcf_data = {
-				'Year': years,
-				'Revenue': revenue,
-				'Revenue Growth %': revenue_growth,
-				'EBITDA': ebitda,
-				'EBITDA Margin %': ebitda_margin,
-				'Depreciation & Amortization': depreciation,
-				'EBIT': ebit,
-				'Taxes': taxes,
-				'Net Operating Profit After Tax (NOPAT)': nopat,
-				'Capital Expenditure': capex,
-				'Change in Net Working Capital': change_in_nwc,
-				'Free Cash Flow': free_cash_flow,
-				'Discount Factor': discount_factor,
-				'Present Value of FCF': present_value_fcf,
-			}
-			df_dcf = pd.DataFrame(dcf_data)
-			
-			# Terminal Value section
-			terminal_value = data.get('terminal_value', 0)
-			perpetual_growth_rate = data.get('perpetual_growth_rate', 0)
-			terminal_value_discounted = data.get('terminal_value_discounted', 0)
-			
-			terminal_data = {
-				'Terminal Value': [terminal_value],
-				'Perpetual Growth Rate %': [perpetual_growth_rate],
-				'Terminal Value (Discounted)': [terminal_value_discounted]
-			}
-			df_terminal = pd.DataFrame(terminal_data)
-			
-			# Save DCF data to a CSV
-			dcf_file_path = "generated_dcf.csv"
-			df_dcf.to_csv(dcf_file_path, index=False)
-			
-			terminal_value_file_path = "generated_terminal_value.csv"
-			df_terminal.to_csv(terminal_value_file_path, index=False)
-			
-			# Combine both files into one or send them separately as needed
-			return jsonify({
-				"message": "DCF Template Generated",
-				"dcf_file": dcf_file_path,
-				"terminal_value_file": terminal_value_file_path
-			})
-		
-	except Exception as e:
-			return jsonify({"error": str(e)}), 400
-	return render_template("dcf-input.html")
-	
 @app.route('/wacc',methods=['GET','POST'])
 def wacc():
 	from wacc import Rates
@@ -2464,4 +2414,4 @@ if __name__ == '__main__':
 		db.create_all()
 		PendingTransactionDatabase.genisis()
 	start_background_task()
-	app.run(host="0.0.0.0",port=1000)
+	app.run(host="0.0.0.0",port=2000)
