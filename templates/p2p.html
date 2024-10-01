@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Node Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>P2P Node Interface</h1>
+        <div class="form-group">
+            <h2>Start Node</h2>
+            <input type="text" id="host" placeholder="Host (e.g., 127.0.0.1)" />
+            <input type="number" id="port" placeholder="Port (e.g., 4040)" />
+            <button onclick="startNode()">Start Node</button>
+            <p id="startNodeMessage"></p>
+        </div>
+
+        <div class="form-group">
+            <h2>Connect to Peer</h2>
+            <input type="text" id="peerHost" placeholder="Peer Host (e.g., 127.0.0.1)" />
+            <input type="number" id="peerPort" placeholder="Peer Port (e.g., 8081)" />
+            <button onclick="connectPeer()">Connect to Peer</button>
+            <p id="connectMessage"></p>
+        </div>
+
+        <div class="form-group">
+            <h2>Send Message</h2>
+            <input type="text" id="message" placeholder="Message" />
+            <button onclick="sendMessage()">Send Message</button>
+            <p id="sendMessageMessage"></p>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

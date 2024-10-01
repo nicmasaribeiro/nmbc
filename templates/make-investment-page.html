@@ -23,10 +23,29 @@
             flex-direction: column;
         }
         label {
+            position: relative;
             padding-bottom: 5px;
             margin-top: 15px;
             font-weight: bold;
             color: #333;
+            cursor: pointer;
+        }
+        .info-popup {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 200px;
+            padding: 10px;
+            margin-top: 5px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        label:hover .info-popup {
+            display: block;
         }
         input[type="text"],
         input[type="password"],
@@ -74,12 +93,6 @@
         .head {
             margin-bottom: 30px;
         }
-        .container select {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fff;
-        }
         @media (max-width: 768px) {
             .container {
                 width: 80%;
@@ -95,37 +108,59 @@
     
     <div class="container">
         <form method="POST">
-            <label for="name">Username</label>
+            <label for="name">Username
+                <div class="info-popup">Enter your unique username.</div>
+            </label>
             <input type="text" id="name" name="name" placeholder="Enter your username">
             
-            <label for="password">Password</label>
+            <label for="password">Password
+                <div class="info-popup">Enter a secure password for your account.</div>
+            </label>
             <input type="password" name="password" placeholder="Enter the password">
             
-            <label for="ticker">Investment Name</label>
+            <label for="ticker">Investment Name
+                <div class="info-popup">Provide the name of the investment asset.</div>
+            </label>
             <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
             
-            <label for="coins">Coins Staked</label>
+            <label for="coins">Coins Staked
+                <div class="info-popup">Specify the number of coins you have staked.</div>
+            </label>
             <input type="float" step="0.01" id="coins" min="0.1" name="coins" placeholder="Enter the number of staked coins">
             
-            <label for="maturity">Maturity</label>
+            <label for="maturity">Maturity
+                <div class="info-popup">Enter the maturity period in years.</div>
+            </label>
             <input type="float" step="0.01" id="maturity" name="maturity" placeholder="Enter the maturity (years)">
             
-            <label for="Target Price">Target Price</label>
+            <label for="target_price">Target Price
+                <div class="info-popup">Provide the expected target price of the asset.</div>
+            </label>
             <input type="float" step="0.01" id="target_price" name="target_price" placeholder="Enter the target price">
             
-            <label for="sigma">Spread Coefficient (or, Stochastic Forward Rate)</label>
+            <label for="sigma">Spread Coefficient (or, Stochastic Forward Rate)
+                <div class="info-popup">Enter the spread coefficient, representing stochastic forward rates.</div>
+            </label>
             <input type="float" step="0.01" id="sigma" name="sigma" placeholder="Enter the spread coefficient">
             
-            <label for="mu">Reversion Coefficient (or, Stochastic Growth Rate)</label>
+            <label for="mu">Reversion Coefficient (or, Stochastic Growth Rate)
+                <div class="info-popup">Specify the reversion coefficient, indicating stochastic growth rates.</div>
+            </label>
             <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficient">
             
-            <label for="eta">Risk Neutral Measure (or, Stochastic Filtration of [1+(Reversion + Forward Rate)]</label>
+            <label for="eta">Risk Neutral Measure (or, Stochastic Filtration)
+                <div class="info-popup">Enter the risk-neutral coefficient or stochastic filtration value of [1+(Reversion + Forward Rate)]) .</div>
+            </label>
             <input type="float" step="0.01" id="eta" name="eta" placeholder="Enter the risk-neutral coefficient">
             
-            <label for="Quantity">Number Asset Shares</label>
+            <label for="qt">Number Asset Shares
+                <div class="info-popup">Enter the total number of asset shares being staked.</div>
+            </label>
             <input type="float" name="qt" placeholder="Enter the number of tokens staked">
             
-            <label for="option_type">Position Type:</label>
+            <label for="option_type">Position Type
+                <div class="info-popup">Select whether the position type is Put or Call.</div>
+            </label>
             <select id="option_type" name="option_type" class="input-field">
                 <option value="put">Put</option>
                 <option value="call">Call</option>
