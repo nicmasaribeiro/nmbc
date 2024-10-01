@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Ledger</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #444;
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        .asset-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        ul {
+            list-style-type: none;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        ul:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        li {
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+            position: relative;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        li strong {
+            color: #333;
+            display: inline-block;
+            width: 150px;
+            cursor: pointer;
+        }
+        .info-popup {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 200px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        li:hover .info-popup {
+            display: block;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            ul {
+                padding: 15px;
+            }
+            li strong {
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Assets Ledger</h2>
+    <div class="asset-container">
+        {% for i in invs %}
+        <ul>
+            <li>
+                <strong>Investment Name:</strong> {{i.investment_name}}
+                <div class="info-popup">This is the name of the investment.</div>
+            </li>
+            <li>
+                <strong>Time Float:</strong> {{i.time_float}}
+                <div class="info-popup">The time float indicates the time frame for this investment.</div>
+            </li>
+            <li>
+                <strong>Market Price:</strong> {{i.market_price}}
+                <div class="info-popup">The current market price of the asset.</div>
+            </li>
+            <li>
+                <strong>Receipt:</strong> {{i.receipt}}
+                <div class="info-popup">Details about the receipt related to this investment.</div>
+            </li>
+            <li>
+                <strong>Tokenized Price:</strong> {{i.tokenized_price}}
+                <div class="info-popup">The value when the investment is tokenized.</div>
+            </li>
+            <li>
+                <strong>Stochastic Price:</strong> {{i.stoch_price}}
+                <div class="info-popup">A price estimate using stochastic methods.</div>
+            </li>
+        </ul>
+        {% endfor %}
+    </div>
+</body>
+</html>
