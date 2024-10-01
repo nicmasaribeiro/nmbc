@@ -41,7 +41,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 bcrypt = Bcrypt(app)
 login_manager.login_view = 'login'
-engine = create_engine('sqlite:///commands.db')
+#engine = create_engine('sqlite:///commands.db')
+engine = create_engine("""postgresql://nmc:nmc@nmc@us-east-1.d9921bc0-8d4a-4fe9-89ff-faeb65e19681.aws.yugabyte.cloud:5433/ 
+    yugabyte?ssl=true&sslmode=verify-full&sslrootcert=<ROOT_CERT_PATH>""")
+
 Session = sessionmaker(bind=engine)()
 
 class Wallet(db.Model):
