@@ -1,3 +1,4 @@
+flask_caching
 scipy
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
