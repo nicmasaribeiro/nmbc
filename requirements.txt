@@ -1,3 +1,5 @@
+rq
+redis
 flask_caching
 scipy
 bcrypt==4.2.0
