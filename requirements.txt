@@ -1,5 +1,6 @@
 openai
 psycopg2
+scikit-learn
 rq
 redis
 flask_caching
