@@ -4,6 +4,13 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from datetime import datetime
 import time
 import enum
+from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+from flask_caching import Cache
+from redis import Redis
+from rq import Queue
+import time
+import os
 from flask_bcrypt import Bcrypt
 from cryptography.hazmat.primitives.asymmetric import rsa 
 from classes import PrivateWallet, Balance
@@ -33,9 +40,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blockchain.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.urandom(24).hex()
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
+app.config['CACHE_TYPE'] = 'RedisCache'
+app.config['CACHE_REDIS_HOST'] = 'localhost'
+app.config['CACHE_REDIS_PORT'] = 6379
+app.config['CACHE_REDIS_DB'] = 0
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
+cache = Cache(app)
+redis_conn = Redis(host='localhost', port=6379, db=0)
+task_queue = Queue('flask_tasks', connection=redis_conn)
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)

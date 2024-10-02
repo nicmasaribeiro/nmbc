@@ -1,6 +1,13 @@
 from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file,render_template_string,flash
 from flask import Blueprint
 import os
+from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+from flask_caching import Cache
+from redis import Redis
+from rq import Queue
+import time
+import os
 import csv
 import random
 import subprocess as sp
@@ -41,8 +48,9 @@ from ddm import *
 from algo import stoch_price
 from pricing_algo import derivative_price
 from p2p import P2PNode
-
-#https://chatgpt.com/share/66e9f5bc-bbf0-8003-9db5-4e86488eb93f
+import fastapi
+#import twilio
+from p2p import P2PNode
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
@@ -57,6 +65,8 @@ blockchain.create_genesis_block()
 global network
 network = Network()
 network.create_genesis_block()
+p2p_node = P2PNode('0.0.0.0',4040)
+p2p_node.start_server()
 
 
 def recalculate():
@@ -116,7 +126,26 @@ def start_background_task():
 	thread.daemon = True  # Ensures the thread exits when the main program does
 	thread.start()
 
-		
+def task():
+	p2p_node.run_server()
+	return 0
+
+def start_task():
+	thread = threading.Thread(target=background_task)
+	thread.daemon = True  # Ensures the thread exits when the main program does
+	thread.start()
+
+
+@app.route("/broadcast/<message>")
+def broadcast(message):
+	p2p_node.send_message(b"{message}")
+	return "Sent"
+
+@app.route("/connect")
+def connect():
+	p2p_node.connect_to_peer('0.0.0.0',4040)
+	return "connected"
+
 @login_manager.user_loader
 def load_user(user_id):
 	update()
@@ -237,6 +266,11 @@ def success():
 def cancel():
 	return '<h1>Payment Cancelled</h1><a href="/">Home</a>'
 
+@app.route('/peer/chat')
+def chat_html():
+	return render_template("chatjs.html")
+
+
 @app.route('/sell/cash', methods=['GET', 'POST'])
 @login_required
 def sell_cash():
@@ -300,6 +334,7 @@ def create_wallet():
 	return render_template("signup-wallet.html")
 
 @app.route('/login', methods=['POST','GET'])
+@cache.cached(timeout=200)  # Cache for 60 seconds
 def login():
 	if request.method == "POST":
 		username = request.values.get("username")
@@ -2411,62 +2446,28 @@ def stats_binom():
 		return html_table_with_styles
 	return render_template('bin_stats.html')
 
-node = None
+# Route to show friend requests and allow users to accept or reject them
+# Route to show the friend request page
+@app.route("/friend/request", methods=['GET','POST'])
+def get_friend_request():
+	if request.method=="POST":
+		user = current_user
+		friend = request.values.get("friend")
+		u = Users.query.filter_by(username=friend).first()
+		personal_token = request.values.get("personal_token")
+		if u.personal_token == personal_token:
+			s = SocialNetwork(user.username,u.username)
+		else:
+			return "not authorized"
+	return render_template("friend_request.html")
+		
 
-@app.route('/exchange', methods=['GET','POST'])
-def exchange():
-	return render_template("p2p.html")
-
-@app.route('/start', methods=['POST'])
-def start_node():
-	global node
-	data = request.json
-	host = data.get('host', '127.0.0.1')
-	port = data.get('port', 4040)
-	if node is None:
-		node = P2PNode(host, port)
-		node.start()
-		return jsonify({'message': f'Started node on {host}:{port}'})
-	return jsonify({'message': 'Node already running'})
-
-@app.route('/connect', methods=['POST'])
-def connect_peer():
-	global node
-	if node is None:
-		return jsonify({'error': 'Node not started'}), 400
-	
-	data = request.json
-	peer_host = data.get('peer_host')
-	peer_port = data.get('peer_port')
-	
-	if not peer_host or not peer_port:
-		return jsonify({'error': 'peer_host and peer_port are required parameters'}), 400
-	
-	try:
-		peer_port = int(peer_port)
-	except ValueError:
-		return jsonify({'error': 'peer_port must be a valid integer'}), 400
-	
-	node.connect_to_peer(peer_host, peer_port)
-	return jsonify({'message': f'Connected to peer {peer_host}:{peer_port}'})
-
-@app.route('/send', methods=['POST'])
-def send_message():
-	global node
-	if node is None:
-		return jsonify({'error': 'Node not started'}), 400
-	
-	data = request.json
-	message = data.get('message')
-	if not message:
-		return jsonify({'error': 'Message is required'}), 400
-	
-	node.send_message(message)
-	return jsonify({'message': f'Message sent: {message}'})
-
+import os
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
 		PendingTransactionDatabase.genisis()
-	start_background_task()
-	app.run(host="0.0.0.0",port=random.random())
+	start_task()
+	port = int(os.environ.get("POST",6000))
+	# start_background_task()
+	app.run(host="0.0.0.0",port=6000)
