@@ -1,4 +1,4 @@
-Open
+openai
 psycopg2
 rq
 redis
