@@ -2,6 +2,7 @@ openai
 psycopg2
 scikit-learn
 rq
+fastapi
 redis
 flask_caching
 scipy
