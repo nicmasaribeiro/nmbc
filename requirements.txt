@@ -1,4 +1,3 @@
-cdp-sdk
 plotly
 websocket
 fastapi
