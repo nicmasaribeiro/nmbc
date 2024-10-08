@@ -4,13 +4,6 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from datetime import datetime
 import time
 import enum
-from flask import Flask, jsonify, request
-from flask_sqlalchemy import SQLAlchemy
-from flask_caching import Cache
-from redis import Redis
-from rq import Queue
-import time
-import os
 from flask_bcrypt import Bcrypt
 from cryptography.hazmat.primitives.asymmetric import rsa 
 from classes import PrivateWallet, Balance
@@ -40,16 +33,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blockchain.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.urandom(24).hex()
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
-app.config['CACHE_TYPE'] = 'RedisCache'
-app.config['CACHE_REDIS_HOST'] = 'localhost'
-app.config['CACHE_REDIS_PORT'] = 6379
-app.config['CACHE_REDIS_DB'] = 0
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
-cache = Cache(app)
-redis_conn = Redis(host='localhost', port=6379, db=0)
-task_queue = Queue('flask_tasks', connection=redis_conn)
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -61,7 +47,7 @@ engine = create_engine("""postgresql://nmc:nmc@nmc@us-east-1.d9921bc0-8d4a-4fe9-
 
 Session = sessionmaker(bind=engine)()
 
-class Wallet(db.Model):
+class WalletDB(db.Model):
     __tablename__ = 'wallets'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -70,6 +56,7 @@ class Wallet(db.Model):
     password = db.Column(db.String(1024))
     coins = db.Column(db.Float, default=1000)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    coinbase_wallet = db.Column(db.String)
     token = db.Column(db.String(3072))
 
     def set_transaction(sender_wallet, recv_wallet, value):
@@ -137,7 +124,7 @@ class Users(UserMixin, db.Model):
     personal_token = db.Column(db.String(3072))
     private_token = db.Column(db.String(3072))
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=True)
-    wallet = db.relationship('Wallet', backref='user', uselist=False)
+    wallet = db.relationship('WalletDB', backref='user', uselist=False)
 
 class TransactionType(enum.Enum):
     send = "send"
@@ -160,9 +147,18 @@ class TransactionDatabase(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     type = db.Column(db.Enum(TransactionType), nullable=False)
     signature = db.Column(db.String(1024))
-    from_wallet = db.relationship('Wallet', foreign_keys=[from_address])
-    to_wallet = db.relationship('Wallet', foreign_keys=[to_address])
+    from_wallet = db.relationship('WalletDB', foreign_keys=[from_address])
+    to_wallet = db.relationship('WalletDB', foreign_keys=[to_address])
+
+
+class Blog(db.Model):
+    __tablename__ = 'blog'
     
+    id = db.Column(db.Integer,unique=True ,primary_key=True)
+    title = db.Column(db.String)
+    content = db.Column(db.String)
+    f = db.Column(db.LargeBinary)
+
 class Peer(db.Model):
     __tablename__ = 'peers'
     
@@ -207,8 +203,8 @@ class Chain(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     type = db.Column(db.Enum(TransactionType), nullable=False)
     signature = db.Column(db.String(1024))
-    from_wallet = db.relationship('Wallet', foreign_keys=[from_address])
-    to_wallet = db.relationship('Wallet', foreign_keys=[to_address])
+    from_wallet = db.relationship('WalletDB', foreign_keys=[from_address])
+    to_wallet = db.relationship('WalletDB', foreign_keys=[to_address])
     
 class PendingTransactionDatabase(db.Model):
     __tablename__ = 'pending_transactions'
@@ -222,8 +218,8 @@ class PendingTransactionDatabase(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     type = db.Column(db.Enum(TransactionType), nullable=False)
     signature = db.Column(db.String(1024))
-    from_wallet = db.relationship('Wallet', foreign_keys=[from_address])
-    to_wallet = db.relationship('Wallet', foreign_keys=[to_address])
+    from_wallet = db.relationship('WalletDB', foreign_keys=[from_address])
+    to_wallet = db.relationship('WalletDB', foreign_keys=[to_address])
 
     def genisis():
         genisis = PendingTransactionDatabase(

@@ -5,85 +5,89 @@ class P2PNode:
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.peers = []
+        self.peers = []  # List of connected peers
 
-    def start_server(self):
-        server_thread = threading.Thread(target=self.run_server)
+    def start(self):
+        # Start server thread to listen for incoming connections
+        server_thread = threading.Thread(target=self.listen_for_peers)
         server_thread.start()
 
-    def run_server(self):
+    def listen_for_peers(self):
+        # Create a socket for listening for incoming peer connections
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.host, self.port))
         server_socket.listen(5)
-        print(f"Server started at {self.host}:{self.port}")
+        print(f"Listening for connections on {self.host}:{self.port}...")
 
         while True:
-            client_socket, addr = server_socket.accept()
-            print(f"Connection from {addr}")
-            client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
-            client_thread.start()
+            client_socket, client_address = server_socket.accept()
+            print(f"Connected to {client_address}")
+            self.peers.append(client_socket)
 
-    def handle_client(self, client_socket):
-        while True:
-            try:
-                message = client_socket.recv(1024).decode()
-                if message:
-                    print(f"Received: {message}")
-                    self.broadcast(message)
-                else:
+            # Start a new thread to handle the connection
+            threading.Thread(target=self.handle_peer_connection, args=(client_socket,)).start()
+
+    def handle_peer_connection(self, client_socket):
+        try:
+            while True:
+                # Receive message from the peer
+                message = client_socket.recv(1024).decode('utf-8')
+                if not message:
                     break
-            except:
-                break
-        client_socket.close()
+                print(f"Received: {message}")
+
+                # Broadcast the message to all other peers
+                self.broadcast_message(message, client_socket)
+        except ConnectionResetError:
+            print("Connection closed by peer.")
+        finally:
+            client_socket.close()
+            self.peers.remove(client_socket)
+
+    def broadcast_message(self, message, exclude_socket=None):
+        # Broadcast a message to all connected peers, except the sender
+        for peer in self.peers:
+            if peer != exclude_socket:
+                try:
+                    peer.sendall(message.encode('utf-8'))
+                except BrokenPipeError:
+                    print("Failed to send message. Removing peer.")
+                    self.peers.remove(peer)
 
     def connect_to_peer(self, peer_host, peer_port):
+        # Connect to a known peer
         try:
             peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             peer_socket.connect((peer_host, peer_port))
             self.peers.append(peer_socket)
-            listen_thread = threading.Thread(target=self.listen_to_peer, args=(peer_socket,))
-            listen_thread.start()
-        except ConnectionRefusedError:
-            print(f"Could not connect to peer at {peer_host}:{peer_port}. Connection refused.")
 
-    def listen_to_peer(self, peer_socket):
-        while True:
-            try:
-                message = peer_socket.recv(1024).decode()
-                if message:
-                    print(f"Received from peer: {message}")
-                else:
-                    break
-            except:
-                break
-        peer_socket.close()
+            # Start a thread to handle incoming messages from this peer
+            threading.Thread(target=self.handle_peer_connection, args=(peer_socket,)).start()
 
-    def broadcast(self, message):
-        for peer_socket in self.peers:
-            try:
-                peer_socket.sendall(message.encode())
-            except:
-                self.peers.remove(peer_socket)
+            print(f"Connected to peer {peer_host}:{peer_port}")
+
+            # Send a welcome message (optional)
+            peer_socket.sendall("Hello from new peer!".encode('utf-8'))
+        except (socket.error, ConnectionRefusedError) as e:
+            print(f"Failed to connect to {peer_host}:{peer_port}: {e}")
 
     def send_message(self, message):
-        self.broadcast(message)
+        # Send a message to all connected peers
+        print(f"Sending: {message}")
+        self.broadcast_message(message)
 
-# if __name__ == "__main__":
-    # # Starting the node server
-    # host = "127.0.0.1"  # Use '127.0.0.1' for localhost testing or a specific IP address
-    # port = 12345
-    # node = P2PNode(host, port)
-    
-    # # Start the server thread
-    # node.start_server()
 
-    # # Connect to a peer
-    # # Note: You should have another peer running on the specified host and port
-    # peer_host = "127.0.0.1"
-    # peer_port = 12345  # Ensure that a peer is actually running at this address and port
-    # node.connect_to_peer(peer_host, peer_port)
-
-    # # Sending messages
+#if __name__ == "__main__":
+#   # Example usage of P2PNode
+#   host = '127.0.0.1'  # Localhost
+#   port = 4040         # Port to listen on
+#
+#   node = P2PNode(host, port)
+#   node.start()
+#
+#   # Connect to another peer (optional)
+#   # node.connect_to_peer('127.0.0.1', 8081)
+#
+#   # Send messages manually (for testing purposes)
 #   while True:
-#       message = input("Enter message to broadcast: ")
-#       node.send_message(message)
+#       msg = input("Enter")
