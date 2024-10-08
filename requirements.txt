@@ -1,3 +1,5 @@
+cdp-sdk
+plotly
 websocket
 fastapi
 web3
