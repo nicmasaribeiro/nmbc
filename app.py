@@ -15,7 +15,7 @@ import yfinance
 import pandas as pd
 import numpy as np
 from bokeh.plotting import figure, output_file, save
-from bokeh.embed import file_html
+from bokeh.embed import file_html, components
 from bokeh.resources import CDN
 from geom_forecast import GeometricBrownianMotion
 import matplotlib.pyplot as plt
@@ -54,6 +54,9 @@ import socket
 import websocket as ws
 import asyncio
 import threading
+import plotly.express as px
+import plotly
+from stoch_greeks import calculate_greeks
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
@@ -73,6 +76,89 @@ PORT = random.randint(5000,6000)
 p2p = P2PNode('0.0.0.0',PORT)
 
 
+@app.route('/validate/greeks', methods=['GET','POST'])
+def calc_greeks():
+	ls = []
+	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [], "price": []}
+	invests = InvestmentDatabase.query.all()
+	for i in invests:
+		t = yf.Ticker(i.investment_name.upper())
+		prices_vector = t.history(period='5d',interval='1m')
+		price = t.history()['Close'].iloc[-1]
+		greeks = calculate_greeks(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
+		# print(greeks)
+		df["name"].append(i.investment_name)
+		df["delta"].append(greeks['Delta'])
+		df["gamma"].append(greeks['Gamma'])
+		df["theta"].append(greeks["Theta"])
+		df["vega"].append(greeks["Vega"])
+		df["rho"].append(greeks["Rho"])
+		df["price"].append(greeks["Price"])
+	html = pd.DataFrame(df).to_html(index=False)
+	string =f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stochastic Greeks</title>
+    <style>
+        /* General page styles */
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }}
+
+        h1 a {{
+            text-decoration: none;
+            color: #3498db;
+            font-size: 24px;
+        }}
+
+        h1 a:hover {{
+            text-decoration: underline;
+        }}
+
+        /* Table styles */
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }}
+
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }}
+
+        th {{
+            background-color: #2c3e50;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }}
+
+        tr:hover {{
+            background-color: #f1f1f1;
+        }}
+
+        tr:nth-child(even) {{
+            background-color: #f9f9f9;
+        }}
+    </style>
+</head>
+<body>
+    <h1><a href="/">Back</a></h1>
+    
+    <!-- Insert dynamic HTML content here -->
+    {html} 
+</body>
+</html>"""
+	return render_template_string(string, html=html)
 
 def recalculate():
 	invests = InvestmentDatabase.query.all()
@@ -143,60 +229,6 @@ def start_blockchain_broadcast():
 def task():
 	p2p.connect_to_peer('0.0.0.0',PORT)
 	return "Success"
-
-# @app.route("/broadcast")
-# def broad():
-# 	return Response(node_bc.register_node(f"0.0.0.0:{PORT}"))
-
-# @app.route("/capture")
-# def capture():
-# 	if request.method == "POST":
-# 		t = Transaction(
-# 			v = request.values.get("value"),
-# 		_from = request.values.get("from"),
-# 		_to = request.values.get("to"),
-# 		signature = os.urandom(10).hex())
-# 		node_bc.broadcast_transaction(t)
-# 		node_bc.add_block(node_bc.get_last_block().proof)
-# 	return f"Success"
-
-# @app.route("/resolve")
-# def resolve_conflicts():
-# 	node_bc.resolve_conflicts()
-# 	return "Success"
-
-# @app.route("/active/nodes")
-# def nodes():
-# 	ls = p2p.peers
-# 	return f"Success {ls}"
-
-
-# @app.route("/slash")
-# def slash():
-# 	HOST = "192.168.1.237"  # The server's hostname or IP address
-# 	PORT = 8000  # The port used by the server
-# 	url = 'ws://'+ '0.0.0.0' +':'+ str(PORT)
-# 	async def run():
-# 		web = ws.WebSocket()
-# 		await web.connect(url)
-# 		await web.recv(1024)
-# 		await web.send("Hello")
-# 		return web.close()
-# 	run()
-# 	return "ASYNC"
-
-# 	async def start():
-# 		loop = asyncio.get_event_loop()
-# 		while True:
-# 	#       loop.create_server(('0.0.0.0',PORT))
-# 			name = s.getsockname()
-# 	#       await s.send(f"{name}".encode())
-# 			i = input("==>\t")
-# 			await s.sendall(i.encode())
-# 			data = s.recv(1024)
-# 			print(f"Received {data!r}")
-# 			return f"Received {data!r}"
-
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -451,6 +483,7 @@ def user_cred():
 		password = request.values.get("password")
 		return redirect(f'/users/{user}/{password}')
 	return render_template('user-cred.html')
+
 
 @app.route('/valcred', methods=["GET","POST"])
 def val_cred():
@@ -1241,6 +1274,37 @@ def price():
 		return f"{price}"
 	return render_template("options-pricing.html")
 
+
+@app.route('/greeks',methods=['GET','POST'])
+def greeks():
+	from greeks import black_scholes_greeks
+	if request.method =="POST":
+		S = float(request.form['S'])
+		K = float(request.form['K'])
+		T = float(request.form['T'])
+		r = float(request.form['r'])
+		sigma = float(request.form['sigma'])
+		option_type = request.form['option_type']
+		greeks = black_scholes_greeks(S, K, T, r, sigma)
+		return jsonify(greeks)
+	return render_template("options-pricing.html")
+
+@app.route('/stoch/greeks',methods=['GET','POST'])
+def stoch_greeks():
+	from stoch_greeks import calculate_greeks
+	if request.method =="POST":
+		s0 = float(request.form['S'])
+		dt = float(request.form['dt'])
+		k = float(request.form['K'])
+		t = float(request.form['T'])
+		r = float(request.form['r'])
+		sigma = float(request.form['sigma'])
+		mu = float(request.form['mu'])
+		option_type = request.form['option_type']
+		greeks = calculate_greeks(dt, t, r, sigma, mu, s0, k, option_type='call')
+		return jsonify(greeks)
+	return render_template("stoch-greeks.html")
+
 @app.route('/buy/coins',methods=['GET','POST'])
 def buy_coins():
 	if request.method =="POST":
@@ -1489,6 +1553,7 @@ def blog_view():
     return render_template("blog-view.html", blogs=blogs)
 
 @app.route("/write/blog")
+@login_required
 def write_blog():
 	return render_template("blog.html")
 
@@ -2547,12 +2612,19 @@ def stats_binom():
 		"""
 		return html_table_with_styles
 	return render_template('bin_stats.html')
-
+@app.route('/plotly/<ticker>')
+def plot_ly(ticker):
+	t = yf.Ticker(ticker.upper())
+	history=t.history(period="5y")["Close"]
+    # Example plot
+	fig = px.scatter(history.values,title=f"{ticker}")
+	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+	return render_template('plot-ly.html', graph_json=graph_json)
 			
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
-		# PendingTransactionDatabase.genisis()
+		PendingTransactionDatabase.genisis()
 	start_blockchain_broadcast()
 	start_background_task()
-	app.run(host="0.0.0.0",port=1000)
+	app.run(host="0.0.0.0",port=8080)
