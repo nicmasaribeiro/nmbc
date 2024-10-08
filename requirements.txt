@@ -1,7 +1,5 @@
 cdp-sdk
 quart
-pywallet
-ensurepip
 flask-restx
 psycopg2
 scipy
