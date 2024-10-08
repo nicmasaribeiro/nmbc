@@ -1,3 +1,4 @@
+websocket
 fastapi
 web3
 quart
