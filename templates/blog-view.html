@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Posts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .post {
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .post-title {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+
+        .post-content {
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .post-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Blog Posts</h1>
+
+    
+
+    <h4><a href="/write/blog">Create Blog</a></h4>   
+    
+    {% for b in blogs %}
+        <div class="post">
+            <h2 class="post-title">{{ b.title }}</h2>
+            {% if b.image %}
+            <img src="{{ post.image }}" alt="Image for {{ post.title }}" class="post-image">
+            {% endif %}
+            <p class="post-content">{{ b.content }}</p>
+            <h5>{{b.id}}</h5>
+        </div>
+    {% endfor %}
+</body>
+
+</html>
