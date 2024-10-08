@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plotly Scatter Plot</title>
+    <!-- Include Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Plotly Scatter Plot</h1>
+    
+    <!-- Container for the Plotly graph -->
+    <div id="plotly-graph"></div>
+
+    <script type="text/javascript">
+        // Parse the JSON data passed from Flask
+        var graphData = {{ graph_json | safe }};
+
+        // Render the Plotly chart
+        Plotly.newPlot('plotly-graph', graphData.data, graphData.layout);
+    </script>
+</body>
+</html>
