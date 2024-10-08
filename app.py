@@ -54,11 +54,7 @@ import socket
 import websocket as ws
 import asyncio
 import threading
-from cdp import *
 
-api_key = "organizations/5eb0bfbc-3029-4b75-aac6-39ba188d3ac5/apiKeys/ee424a62-beb9-4673-9ef6-7abf2af0d612"
-api_secret = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIIrFOL9aVS7DRHGkY8/vyuDIDdW8JBeNf6oraa5c7riOoAoGCCqGSM49\nAwEHoUQDQgAEL5Vod5wi+tHXRmn7aiwwnd12d8brinhlrQsk1nJmeQEC8JpFqAJ+\nTmPiJ3r00ZG3UFuJbGsip9Yia1F+4nAiEQ==\n-----END EC PRIVATE KEY-----\n"
-Cdp.configure(api_key, api_secret)
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
@@ -387,9 +383,7 @@ def create_wallet():
 		passwords = [user.username for user in users]
 		if username in ls:
 			if password in passwords:
-				cb_wallet = Wallet.create()
-				cb_data = cb_wallet.export_data()
-				data = str(cb_data.to_dict())
+				data = os.urandom(10).hex()
 				new_wallet = WalletDB(address=username,token=username,password=password,coinbase_wallet=data)
 				db.session.add(new_wallet)
 				db.session.commit()
@@ -457,20 +451,6 @@ def user_cred():
 		password = request.values.get("password")
 		return redirect(f'/users/{user}/{password}')
 	return render_template('user-cred.html')
-
-@app.route('/coinbase/<user>', methods=['GET'])
-def coinbase(user):
-	wallet = WalletDB.query.filter_by(address=user).first()
-	coinbase = str(wallet.coinbase_wallet)
-	json_string = coinbase.replace("'", '"')
-	data = json.loads(json_string)
-	wallet_id = data['wallet_id']
-	fetched_wallet = Wallet.fetch(wallet_id)
-	faucet_transaction = fetched_wallet.faucet()
-	if faucet_transaction is None:
-		return "Failed to fetch coinbase"
-	print(f"Faucet transaction successfully completed: {faucet_transaction}")
-	return f"Successfully fetched coinbase {faucet_transaction.transaction_hash}"
 
 @app.route('/valcred', methods=["GET","POST"])
 def val_cred():
