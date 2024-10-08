@@ -164,31 +164,7 @@
 
     <div class="container">
         <h4><a href="/stoch/tools">Back</a></h4>
-        <h1>Evaluate V(t, r, u, ρ, α, K, S)</h1>
         
-        <p class="formula">
-            \[
-            V(t, r, u, \rho, \alpha, K, S) = \frac{\alpha - e^r \cdot F(t) \cdot \left(1 - \frac{F(t)}{K}\right) - e^{\left(u - \frac{\rho^2}{2}\right)t + \rho B(t)} + F(t) \cdot K^{-rt}}{F(t) \cdot S(t, r)}
-            \]
-        </p>
-
-        <h2>Explanation of the Equation</h2>
-        <p>
-            The equation \( V(t, r, u, \rho, \alpha, K, S) \) models a complex financial process, potentially representing the valuation of an asset or financial product over time \( t \), with influences from multiple parameters. Here's an overview of each component:
-        </p>
-        <ul>
-            <li>\( F(t) \): A discount factor that decreases over time, simulating the decaying value of money or an asset over time.</li>
-            <li>\( r \): A rate, often representing an interest rate or growth rate.</li>
-            <li>\( u \) and \( \rho \): Parameters that represent other market factors, such as volatility or drift. These may vary based on the specific asset or market being modeled.</li>
-            <li>\( B(t) \): A Brownian motion term representing randomness or uncertainty in the market.</li>
-            <li>\( \alpha \): A constant parameter, representing the initial value or some fixed contribution.</li>
-            <li>\( K \): A constant that acts as a threshold or boundary condition in the model.</li>
-            <li>\( S(t, r) \): A function that represents systemic factors, such as market trends or external conditions affecting the asset.</li>
-        </ul>
-        <p>
-            The equation balances deterministic terms (such as \( e^r \cdot F(t) \)) with stochastic terms involving Brownian motion, capturing both predictable market behaviors and random fluctuations.
-        </p>
-
         <h2>Calculate V(t, r, u, ρ, α, K)</h2>
 
         <label for="t">t (time):</label>
