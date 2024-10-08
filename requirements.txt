@@ -1,4 +1,3 @@
-cdp-sdk
 quart
 flask-restx
 psycopg2
