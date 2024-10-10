@@ -7,40 +7,76 @@
     <title>Blog Posts</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f8f9fa;
+            background-color: #f0f2f5;
         }
 
         h1 {
             text-align: center;
             color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
         }
 
         .post {
             background-color: #fff;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .post:hover {
+            transform: scale(1.02);
         }
 
         .post-title {
             color: #007bff;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
         }
 
         .post-content {
-            color: #555;
-            margin-bottom: 15px;
+            color: #666;
+            line-height: 1.6;
+            font-size: 1.1em;
+            margin-bottom: 20px;
         }
 
         .post-image {
             max-width: 100%;
             height: auto;
-            margin-bottom: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .actions a,
+        .actions button {
+            text-decoration: none;
+            color: #fff;
+            background-color: #007bff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .actions a:hover,
+        .actions button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
@@ -48,20 +84,29 @@
 <body>
     <h1>Blog Posts</h1>
 
-    
+    <div class="actions">
+        <a href="/write/blog">Create Post</a>
+        <button onclick="search()">Search Threads</button>
+    </div>
 
-    <h4><a href="/write/blog">Create Blog</a></h4>   
-    
     {% for b in blogs %}
-        <div class="post">
-            <h2 class="post-title">{{ b.title }}</h2>
-            {% if b.image %}
-            <img src="{{ post.image }}" alt="Image for {{ post.title }}" class="post-image">
-            {% endif %}
-            <p class="post-content">{{ b.content }}</p>
-            <h5>{{b.id}}</h5>
-        </div>
+    <div class="post">
+        <h2 class="post-title">{{ b.title }}</h2>
+        {% if b.image %}
+        <img src="{{ b.f }}" alt="Image for {{ b.title }}" class="post-image">
+        {% endif %}
+        <p class="post-content">{{ b.content }}</p>
+        <h5>{{ b.id }}</h5>
+    </div>
     {% endfor %}
 </body>
 
+<script>
+    function search() {
+        var thread = prompt("Enter thread keyword:");
+        if (thread) {
+            window.location = '/blog/' + encodeURIComponent(thread);
+        }
+    }
+</script>
 </html>
