@@ -137,35 +137,6 @@
     <h4><a href="/stoch/tools">Back</a></h4>
     <h1>Calculate P₀(t, r, u, ρ, n) with Simulation</h1>
 
-    <!-- Display the formula for P₀(t, r, u, ρ, n) using MathJax -->
-    <div>
-        <h3>The formula for \( P₀(t, r, u, \rho, n) \) is:</h3>
-        <p>
-            \[
-            P₀(t, r, u, \rho, n) = F(t) \left(S(t, r) S_0 - K e^{-rt}\right) + \exp(r) F(t) \left(1 - \frac{F(t)}{K}\right) + \exp\left(\left(u - \frac{\rho^2}{2}\right)t + \rho B(t)\right) d_t
-            \]
-        </p>
-    </div>
-
-    <h2>Explanation of Variables</h2>
-    <p>
-        In the context of this equation, the following variables are used:
-    </p>
-    <ul>
-        <li><strong>t</strong>: The time variable, typically measured in years. It represents the time horizon over which the calculation is made.</li>
-        <li><strong>r</strong>: The risk-free interest rate. This is the rate of return on an investment with no risk, typically a government bond rate.</li>
-        <li><strong>u</strong>: The drift rate, representing the expected rate of return of the underlying asset.</li>
-        <li><strong>ρ (rho)</strong>: The volatility parameter that represents the correlation between the underlying asset's returns and stochastic noise. Higher \( ρ \) means more randomness.</li>
-        <li><strong>S₀</strong>: The initial price of the underlying asset (e.g., a stock or commodity).</li>
-        <li><strong>K</strong>: The strike price of the option. This is the price at which the option can be exercised.</li>
-        <li><strong>dt</strong>: A small time increment for approximating the behavior of the stochastic process.</li>
-        <li><strong>B(t)</strong>: A Brownian motion (or stochastic process) term that models random fluctuations over time.</li>
-        <li><strong>F(t)</strong>: Represents the square of the function \( f(t) \), which is related to the accumulated noise in the system.</li>
-        <li><strong>S(t, r)</strong>: A function representing the interaction between time \( t \), interest rate \( r \), and the stochastic process affecting the system.</li>
-    </ul>
-
-    <h2>Calculate P₀(t, r, u, ρ, n)</h2>
-
     <label for="t">Enter value for t: </label>
     <input type="number" id="t" step="0.01" value="1"><br><br>
 

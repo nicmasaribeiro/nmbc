@@ -170,13 +170,13 @@
         <label for="t">t (time):</label>
         <input type="number" id="t" value="1"><br><br>
         
-        <label for="r">r (rate):</label>
+        <label for="r">r (forward rate):</label>
         <input type="number" id="r" value="0.05"><br><br>
         
-        <label for="u">u (parameter u):</label>
+        <label for="u">u (dirft):</label>
         <input type="number" id="u" value="0.1"><br><br>
         
-        <label for="rho">ρ (rho):</label>
+        <label for="rho">ρ (volatility):</label>
         <input type="number" id="rho" value="0.2"><br><br>
         
         <label for="alpha">α (alpha):</label>
@@ -188,36 +188,5 @@
         <button onclick="calculateV()">Calculate V</button>
         
         <div id="result"></div>
-
-        <h2>Simulation of V(t, r) over a range</h2>
-        
-        <label for="start_t">Start value for t:</label>
-        <input type="number" id="start_t" step="0.1" value="0.1"><br><br>
-        
-        <label for="end_t">End value for t:</label>
-        <input type="number" id="end_t" step="0.1" value="5"><br><br>
-        
-        <label for="step_t">Step size for t:</label>
-        <input type="number" id="step_t" step="0.1" value="0.1"><br><br>
-        
-        <label for="r_sim">r (rate for simulation):</label>
-        <input type="number" id="r_sim" value="0.05"><br><br>
-
-        <label for="u_sim">u (parameter u for simulation):</label>
-        <input type="number" id="u_sim" value="0.1"><br><br>
-
-        <label for="rho_sim">ρ (rho for simulation):</label>
-        <input type="number" id="rho_sim" value="0.2"><br><br>
-
-        <label for="alpha_sim">α (alpha for simulation):</label>
-        <input type="number" id="alpha_sim" value="1"><br><br>
-
-        <label for="K_sim">K (constant K for simulation):</label>
-        <input type="number" id="K_sim" value="100"><br><br>
-
-        <button onclick="simulateV()">Run Simulation</button>
-
-        <div id="simulationResult"></div>
-    </div>
 </body>
 </html>
