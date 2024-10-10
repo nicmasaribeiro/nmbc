@@ -1,3 +1,4 @@
+Flask-Caching
 plotly
 websocket
 fastapi
