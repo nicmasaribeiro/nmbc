@@ -158,6 +158,7 @@ class Blog(db.Model):
     title = db.Column(db.String)
     content = db.Column(db.String)
     f = db.Column(db.LargeBinary)
+    thread = db.Column(db.String)
 
 class Peer(db.Model):
     __tablename__ = 'peers'

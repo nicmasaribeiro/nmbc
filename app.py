@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file,render_template_string,flash
 from flask import Blueprint
+from flask_caching import Cache
 import asyncio
 import socket
 import os
@@ -58,6 +59,11 @@ import plotly.express as px
 import plotly
 from stoch_greeks import calculate_greeks
 
+
+app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
+cache = Cache(app)
+
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
@@ -76,17 +82,16 @@ PORT = random.randint(5000,6000)
 p2p = P2PNode('0.0.0.0',PORT)
 
 
-@app.route('/validate/greeks', methods=['GET','POST'])
+@app.route('/stoch/greeks', methods=['GET','POST'])
+@cache.cached(300)  # Cache this route for 5 minutes
 def calc_greeks():
 	ls = []
-	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [], "price": []}
+	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [], "price": [],'receipt': []}
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
 		t = yf.Ticker(i.investment_name.upper())
-		prices_vector = t.history(period='5d',interval='1m')
-		price = t.history()['Close'].iloc[-1]
+		price = t.history(period='1d')['Close'].iloc[-1]
 		greeks = calculate_greeks(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
-		# print(greeks)
 		df["name"].append(i.investment_name)
 		df["delta"].append(greeks['Delta'])
 		df["gamma"].append(greeks['Gamma'])
@@ -94,70 +99,156 @@ def calc_greeks():
 		df["vega"].append(greeks["Vega"])
 		df["rho"].append(greeks["Rho"])
 		df["price"].append(greeks["Price"])
+		df["receipt"].append(i.receipt)
+
 	html = pd.DataFrame(df).to_html(index=False)
 	string =f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stochastic Greeks</title>
-    <style>
-        /* General page styles */
-        body {{
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }}
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Stochastic Greeks</title>
+			<style>
+				/* General page styles */
+				body {{
+					font-family: Arial, sans-serif;
+					margin: 20px;
+					background-color: #f4f4f9;
+					color: #333;
+				}}
 
-        h1 a {{
-            text-decoration: none;
-            color: #3498db;
-            font-size: 24px;
-        }}
+				h1 a {{
+					text-decoration: none;
+					color: #3498db;
+					font-size: 24px;
+				}}
 
-        h1 a:hover {{
-            text-decoration: underline;
-        }}
+				h1 a:hover {{
+					text-decoration: underline;
+				}}
 
-        /* Table styles */
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background-color: #fff;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }}
+				/* Table styles */
+				table {{
+					width: 100%;
+					border-collapse: collapse;
+					margin-top: 20px;
+					background-color: #fff;
+					box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+				}}
 
-        th, td {{
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }}
+				th, td {{
+					border: 1px solid #ddd;
+					padding: 12px;
+					text-align: left;
+				}}
 
-        th {{
-            background-color: #2c3e50;
-            color: white;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }}
+				th {{
+					background-color: #2c3e50;
+					color: white;
+					text-transform: uppercase;
+					letter-spacing: 0.05em;
+				}}
 
-        tr:hover {{
-            background-color: #f1f1f1;
-        }}
+				tr:hover {{
+					background-color: #f1f1f1;
+				}}
 
-        tr:nth-child(even) {{
-            background-color: #f9f9f9;
-        }}
-    </style>
-</head>
-<body>
-    <h1><a href="/">Back</a></h1>
-    
-    <!-- Insert dynamic HTML content here -->
-    {html} 
-</body>
-</html>"""
+				tr:nth-child(even) {{
+					background-color: #f9f9f9;
+				}}
+			</style>
+		</head>
+		<body>
+			<h1><a href="/">Back</a></h1>
+			
+			<!-- Insert dynamic HTML content here -->
+			{html} 
+		</body>
+		</html>"""
+	return render_template_string(string, html=html)
+
+@app.route('/option/greeks', methods=['GET','POST'])
+def calc_option_greeks():
+	from greeks import black_scholes_greeks
+	ls = []
+	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [],"receipt":[]}
+	invests = InvestmentDatabase.query.all()
+	for i in invests:
+		t = yf.Ticker(i.investment_name.upper())
+		price = t.history(period='1d')['Close'].iloc[-1]
+		greeks = black_scholes_greeks(price, i.target_price, i.time_float, i.risk_neutral, i.spread)
+		df["name"].append(i.investment_name)
+		df["delta"].append(greeks['Delta'])
+		df["gamma"].append(greeks['Gamma'])
+		df["theta"].append(greeks["Theta"])
+		df["vega"].append(greeks["Vega"])
+		df["rho"].append(greeks["Rho"])
+		df["receipt"].append(i.receipt)
+		
+	html = pd.DataFrame(df).to_html()
+	string =f"""<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Stochastic Greeks</title>
+			<style>
+				/* General page styles */
+				body {{
+					font-family: Arial, sans-serif;
+					margin: 20px;
+					background-color: #f4f4f9;
+					color: #333;
+				}}
+
+				h1 a {{
+					text-decoration: none;
+					color: #3498db;
+					font-size: 24px;
+				}}
+
+				h1 a:hover {{
+					text-decoration: underline;
+				}}
+
+				/* Table styles */
+				table {{
+					width: 100%;
+					border-collapse: collapse;
+					margin-top: 20px;
+					background-color: #fff;
+					box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+				}}
+
+				th, td {{
+					border: 1px solid #ddd;
+					padding: 12px;
+					text-align: left;
+				}}
+
+				th {{
+					background-color: #2c3e50;
+					color: white;
+					text-transform: uppercase;
+					letter-spacing: 0.05em;
+				}}
+
+				tr:hover {{
+					background-color: #f1f1f1;
+				}}
+
+				tr:nth-child(even) {{
+					background-color: #f9f9f9;
+				}}
+			</style>
+		</head>
+		<body>
+			<h1><a href="/">Back</a></h1>
+			
+			<!-- Insert dynamic HTML content here -->
+			{html} 
+		</body>
+		</html>"""
 	return render_template_string(string, html=html)
 
 def recalculate():
@@ -205,25 +296,6 @@ def update():
 	except:
 		pass
 	return 0
-
-
-def background_task():
-	while True:
-		update()	# Do some work here, like checking a database or updating something
-		
-		# Start the background task in a separate thread
-def start_background_task():
-	thread = threading.Thread(target=background_task)
-	thread.daemon = True  # Ensures the thread exits when the main program does
-	thread.start()
-
-def blockchain_broadcast():
-	p2p.start_server()
-
-def start_blockchain_broadcast():
-	thread = threading.Thread(target=blockchain_broadcast)
-	thread.daemon = True  # Ensures the thread exits when the main program does
-	thread.start()
 
 @app.route('/task')
 def task():
@@ -484,7 +556,6 @@ def user_cred():
 		return redirect(f'/users/{user}/{password}')
 	return render_template('user-cred.html')
 
-
 @app.route('/valcred', methods=["GET","POST"])
 def val_cred():
 	if request.method == "POST":
@@ -583,13 +654,11 @@ def create_transact():
 			coin_db = CoinDB.query.get_or_404(1)
 			# coin_db.gas(blockchain,6)
 			return  """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
-		
 	return render_template("trans.html")
 
 @app.route('/liquidate', methods=["POST","GET"])
 def delete_asset():
 	if request.method == 'POST':
-		
 		address = request.values.get('address')
 		user = request.values.get('user')
 		password = request.values.get('password')
@@ -606,8 +675,6 @@ def delete_asset():
 		else:
 			return "<h1>Can't close position</h1>"
 	return render_template("close_asset.html")
-
-
 
 @app.route('/get/tokens', methods=["POST","GET"])
 def get_asset_token():
@@ -666,7 +733,6 @@ def make_block():
 	t = blockchain.staked_coins.append(staked_coins)
 	return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>{str(new_block).encode().decode()}"""
 
-@login_required
 @app.route('/cmc',methods=['GET'])
 def cmc():
 	user = current_user
@@ -1274,7 +1340,6 @@ def price():
 		return f"{price}"
 	return render_template("options-pricing.html")
 
-
 @app.route('/greeks',methods=['GET','POST'])
 def greeks():
 	from greeks import black_scholes_greeks
@@ -1327,40 +1392,6 @@ def buy_coins():
 				db.session.commit()
 		return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 	return render_template("buycash.html")
-
-@app.route("/left/handshake")
-def l_handshake():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    try:
-        # Bind before listen
-        s.bind(("0.0.0.0", 4001))
-        s.listen()
-
-        # Accept the connection
-        conn, addr = s.accept()
-        with conn:
-            key = conn.recv(1024).decode("utf8")
-            return f"Received key: {key}"
-    except Exception as e:
-        return f"Error occurred: {str(e)}"
-    finally:
-        s.close()
-
-@app.route("/right/handshake")
-def r_handshake():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    try:
-        # Connect to the server
-        s.connect(("127.0.0.1", 4001))  # use "127.0.0.1" instead of "0.0.0.0"
-        key = os.urandom(10).hex()
-        s.send(key.encode("utf8"))
-        return f"Sent key: {key}"
-    except Exception as e:
-        return f"Error occurred: {str(e)}"
-    finally:
-        s.close()
 
 @app.route('/sell/coins',methods=['GET','POST'])
 def sell_coins():
@@ -1552,6 +1583,11 @@ def blog_view():
     blogs = Blog.query.all()
     return render_template("blog-view.html", blogs=blogs)
 
+@app.route("/blog/<thread>")
+def blog_thread(thread):
+    blogs = Blog.query.filter_by(thread=thread.lower()).all()
+    return render_template("blog-view.html", blogs=blogs)
+
 @app.route("/write/blog")
 @login_required
 def write_blog():
@@ -1568,9 +1604,10 @@ def delete_blog(id):
 def submit_blog():
 	title = request.values.get('title')
 	content = request.values.get('content')
+	blog_thread = request.values.get('thread').lower()
 	file = request.files['file']
 	data = file.read()
-	blog = Blog(title=title,content=content,f=data)
+	blog = Blog(title=title,content=content,f=data,thread=blog_thread)
 	db.session.add(blog)
 	db.session.commit()
 	return render_template("blog.html")
@@ -2097,7 +2134,7 @@ def mu_sigma():
 		exp_sig = x[0][1]
 		pred = x@np.matrix([mu[-1],sig[-1]]).T
 		price = df[-1]*(1+pred.item())
-		return render_template("mu-sigma.html",rate=pred.item()*100,score=score,price=price)
+		return render_template("mu-sigma.html",rate=pred.item()*100,score=score,price=price,mu=exp_mu.item(), sigma=exp_sig.item())
 	return render_template("mu-sigma.html")		
 			
 @app.route('/single-stock-calibration',methods=["GET","POST"])
@@ -2625,6 +2662,4 @@ if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
 		PendingTransactionDatabase.genisis()
-	start_blockchain_broadcast()
-	start_background_task()
 	app.run(host="0.0.0.0",port=8080)
