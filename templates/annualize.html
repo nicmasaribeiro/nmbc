@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Asset</title>
+    <title>Annualize Rate</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -103,71 +103,39 @@
 <body>
 
     <div class="head">
-        <h1>Create Asset Page</h1>
+        <h1>Annualize Rate Page</h1>
     </div>
     
     <div class="container">
         <form method="POST">
-            <label for="name">Username
-                <div class="info-popup">Enter your unique username.</div>
-            </label>
-            <input type="text" id="name" name="name" placeholder="Enter your username">
             
-            <label for="password">Password
-                <div class="info-popup">Enter a secure password for your account.</div>
+            <label for="rate">Target Rate (%)
+                <div class="info-popup">Enter the rate you want to annualize.</div>
             </label>
-            <input type="password" name="password" placeholder="Enter the password">
+            <input type="float" step="0.01" id="rate" name="rate" placeholder="e.g., 1,2,5">
             
-            <label for="ticker">Investment Name
-                <div class="info-popup">Provide the name of the investment asset.</div>
+            <label for="n"> Target Interval (in periods)
+                <div class="info-popup">Enter the interval of the rate.</div>
             </label>
-            <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
+            <input type="float" name="n" placeholder="e.g., 12,52,256">
             
-            <label for="coins">Coins Staked
-                <div class="info-popup">Specify the number of coins you have staked.</div>
+            <label for="forward"> Target Forward Period (in years)
+                <div class="info-popup">Enter the target forward period of the rate.</div>
             </label>
-            <input type="float" step="0.01" id="coins" min="0.1" name="coins" placeholder="Enter the number of staked coins">
+            <input type="float" name="forward" placeholder="e.g., 1,2,3">
             
-            <label for="maturity">Maturity
-                <div class="info-popup">Enter the maturity period in years.</div>
+            <label for="option_type">Period Type
+                <div class="info-popup">Select whether the rate type is for single or multi period discounting.</div>
             </label>
-            <input type="float" step="0.01" id="maturity" name="maturity" placeholder="Enter the maturity (years)">
-            
-            <label for="target_price">Target Price
-                <div class="info-popup">Provide the expected target price of the asset.</div>
-            </label>
-            <input type="float" step="0.01" id="target_price" name="target_price" placeholder="Enter the target price">
-            
-            <label for="sigma">Forward Rate
-                <div class="info-popup">Enter the forward rate</div>
-            </label>
-            <input type="float" step="0.01" id="sigma" name="sigma" placeholder="Enter the spread coefficient">
-            
-            <label for="mu">Reversion Coefficient (or, Dividend Spread)
-                <div class="info-popup">Specify the reversion coefficient, or the dividend spread.</div>
-            </label>
-            <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficient">
-            
-            <label for="eta">Risk Neutral Measure (or, Stochastic Filtration)
-                <div class="info-popup">Enter the risk-neutral coefficient or stochastic filtration value.</div>
-            </label>
-            <input type="float" step="0.01" id="eta" name="eta" value="0.5">
-            
-            <label for="qt">Number Asset Shares
-                <div class="info-popup">Enter the total number of asset shares being staked.</div>
-            </label>
-            <input type="float" name="qt" placeholder="Enter the number of tokens staked">
-            
-            <label for="option_type">Position Type
-                <div class="info-popup">Select whether the position type is Put or Call.</div>
-            </label>
-            <select id="option_type" name="option_type" class="input-field">
-                <option value="put">Put</option>
-                <option value="call">Call</option>
+            <select id="period_type" name="period_type" class="input-field">
+                <option value="single">Single-Period</option>
+                <option value="multi">Multi-Period</option>
             </select>
-            
             <input type="submit" value="Submit">
         </form>
+    </div>
+    <div style="align-content: center;">
+        <h1>Rate:</h1> <h1>{{result}}</h1>
     </div>
 </body>
 </html>

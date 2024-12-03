@@ -7,17 +7,19 @@
     <title>Financial Dashboard</title>
     <style>
         /* Body and general layout */
+        <style>
+        /* Body and general layout */
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #e5e9f0;
             margin: 0;
-            padding: 0;
+            padding-top: 100px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
         }
-
+        
         .container {
             width: 90%;
             max-width: 1200px;
@@ -27,14 +29,18 @@
             background-color: #fff;
             border-radius: 20px;
         }
-
+        
+        a{
+            font-family: sans-serif;
+        }
+        
         h1 {
             font-size: 2.5rem;
             color: #333;
             margin-bottom: 40px;
             font-weight: 700;
         }
-
+        
         /* Dashboard grid styling */
         .dashboard {
             display: grid;
@@ -42,7 +48,7 @@
             gap: 25px;
             padding: 0 20px;
         }
-
+        
         /* General button styling */
         .dashboard a {
             position: relative;
@@ -62,7 +68,12 @@
             text-align: center;
             overflow: hidden;
         }
-
+        
+        .dashboard a:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+        }
+        
         .dashboard a::before {
             content: "";
             position: absolute;
@@ -74,27 +85,22 @@
             transform: skewX(-25deg);
             transition: 0.6s;
         }
-
+        
         .dashboard a:hover::before {
             left: 100%;
         }
-
-        .dashboard a:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
-        }
-
+        
         .dashboard a i {
             font-size: 2rem;
             margin-bottom: 15px;
             color: #e0e0e0;
             transition: color 0.4s;
         }
-
+        
         .dashboard a:hover i {
             color: #fff;
         }
-
+        
         /* Tooltip styling */
         .tooltip {
             visibility: hidden;
@@ -113,12 +119,12 @@
             transition: opacity 0.4s;
             pointer-events: none;
         }
-
+        
         .dashboard a:hover .tooltip {
             visibility: visible;
-            opacity: 10;
+            opacity: 1;
         }
-
+        
         /* Tooltip arrow */
         .tooltip::after {
             content: "";
@@ -130,30 +136,55 @@
             border-style: solid;
             border-color: #333 transparent transparent transparent;
         }
-
+        
+        /* Search bar styling */
+        #search-bar {
+            width: 80%;
+            max-width: 600px;
+            margin: 20px auto 40px;
+            padding: 15px 20px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        #search-bar:focus {
+            border-color: #007bff;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+        }
+        
         /* Responsive design */
         @media (max-width: 768px) {
             .dashboard {
                 grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
                 gap: 15px;
             }
-
+            
             h1 {
                 font-size: 2rem;
             }
-
+            
             .dashboard a {
                 font-size: 1rem;
                 padding: 20px;
             }
-
+            
             .dashboard a i {
                 font-size: 1.6rem;
+            }
+            
+            #search-bar {
+                width: 90%;
+                padding: 10px 15px;
+                font-size: 0.9rem;
             }
         }
     </style>
     <!-- FontAwesome for icons -->
-    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -242,6 +273,25 @@
                 <span class="tooltip">Calculate empirical forward rates for stocks.</span>
             </a>
             
+            <a href="/annualize">
+                <i class="fas fa-superscript"></i> Annualize Rates
+                <span class="tooltip">Calculate annualize rates for stocks.</span>
+            </a>
+            <a href="/ddm-spread">
+                <i class="fas fa-superscript"></i> DDM Spread Coefficient
+                <span class="tooltip">Calculate DDM Spread Coefficient.</span>
+            </a>
+            
+            <a href="/ddm">
+                <i class="fas fa-superscript"></i> DDM Valuation
+                <span class="tooltip">Calculate DDM Valuation.</span>
+            </a>
+            
+            <a href="/multicurve">
+                <i class="fas fa-superscript"></i> Multi-Period Rate to Intermediate Forward Rate
+                <span class="tooltip">Multi-Period Rate to Intermediate Forward Rate.</span>
+            </a>
+            
             <a href="/greeks">
                 <i class="fas fa-superscript"></i> Option Greek Calculation
                 <span class="tooltip">Calculate Greeks of a given option contract.</span>
@@ -250,6 +300,21 @@
             <a href="/stoch/greeks">
                 <i class="fas fa-superscript"></i> Stochastic Greeks
                 <span class="tooltip">Calculate Greeks of Stochastic Algorithm</span>
+            </a>
+            
+            <a href="/wacc">
+                <i class="fas fa-superscript"></i> Calculate Rates
+                <span class="tooltip">Calculate Rates of Company</span>
+            </a>
+            
+            <a href="/value-algo">
+                <i class="fas fa-superscript"></i> Option Reverse Value Algorithm
+                <span class="tooltip">Calculate value of the option.</span>
+            </a>
+            
+            <a href="/fundamentals">
+                <i class="fas fa-superscript"></i> Valuation Fundamentals
+                <span class="tooltip">Calculate Target Company Valuation Fundamentals</span>
             </a>
             
             <a href="/transform_coef">
@@ -262,6 +327,21 @@
             </a>
         </div>
     </div>
+<br>
+<div>
+    <input type="text" id="search-bar" placeholder="Search tools..." onkeyup="filterDashboard()" />
+</div>
+
+    <script>
+        function filterDashboard() {
+            const input = document.getElementById('search-bar').value.toLowerCase();
+            const tools = document.querySelectorAll('.dashboard a');
+            tools.forEach(tool => {
+                const text = tool.textContent || tool.innerText;
+                tool.style.display = text.toLowerCase().includes(input) ? '' : 'none';
+            });
+        }
+    </script>
 
 </body>
 

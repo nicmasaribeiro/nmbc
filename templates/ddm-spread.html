@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dividend Discount Model</title>
+    <title>Dividend Spread Model</title>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -69,15 +69,18 @@
 
 <body>
     <div class="form-container">
-        <h1>Dividend Discount Model</h1>
-        <form class="form" method="POST" action="/ddm">
+        <h1>Dividend Spread Model</h1>
+        <form class="form" method="POST" action="/ddm-spread">
             <input type="text" name="ticker" placeholder="Enter ticker" required aria-label="Stock ticker">
             <input type="number" step="any" name="rf" placeholder="Risk-free rate" required aria-label="Risk-free rate">
             <input type="number" step="any" name="erp" placeholder="Equity risk premium" required aria-label="Equity risk premium">
             <input type="number" step="any" name="cs" placeholder="Credit spread" required aria-label="Credit spread">
+            <input type="number" step="any" name="price" placeholder="Market Price" required aria-label="Market Price">
             <input type="submit" value="Calculate">
         </form>
     </div>
+        <h1> {{name}} Dividend Spread</h1>
+        <h1>{{spread}}%</h1>
 </body>
 
 </html>
