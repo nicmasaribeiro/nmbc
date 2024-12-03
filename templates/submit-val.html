@@ -9,94 +9,110 @@
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #f4f7f6;
+            background-color: #eef2f3;
             margin: 0;
             padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
         }
         .container {
             background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            max-width: 450px;
             width: 100%;
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
+            color: #34495e;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
         }
         form {
             display: flex;
             flex-direction: column;
+            gap: 15px;
         }
-        input[type="text"], input[type="number"], input[type="file"] {
-            padding: 12px;
-            margin-bottom: 20px;
+        input[type="text"], input[type="number"] {
+            padding: 14px;
             border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 16px;
-            width: 100%;
-            box-sizing: border-box;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: #3498db;
         }
         input[type="file"] {
             display: none;
         }
         label[for="file-upload"] {
             display: inline-block;
-            padding: 12px 20px;
+            padding: 14px 20px;
             background-color: #3498db;
-            color: white;
+            color: #fff;
             text-align: center;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
             cursor: pointer;
-            margin-bottom: 20px;
-            font-size: 16px;
+            transition: background-color 0.3s;
         }
         label[for="file-upload"]:hover {
-            background-color: #2980b9;
+            background-color: #1e7fb6;
         }
         input[type="submit"] {
-            background-color: #27ae60;
-            color: white;
+            background-color: #2ecc71;
+            color: #fff;
             border: none;
-            padding: 15px;
+            padding: 14px;
             font-size: 16px;
-            border-radius: 4px;
+            font-weight: bold;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s, transform 0.2s;
         }
         input[type="submit"]:hover {
-            background-color: #2ecc71;
+            background-color: #27ae60;
+            transform: translateY(-2px);
+        }
+        input[type="submit"]:active {
+            transform: translateY(0);
         }
     </style>
 </head>
 <body>
-
-    <h1>Submit Valuation</h1>
     <div class="container">
+        <h1>Submit Valuation</h1>
         <form action="/submit/valuation" method="POST" enctype="multipart/form-data">
             <input type="text" name="ticker" placeholder="Company Ticker" required>
             <input type="number" step="any" name="forecast" placeholder="Forecast" required>
-            <input type="number" step="any" name="change" placeholder="Forecast change in price" required>
+            <input type="number" step="any" name="change" placeholder="Forecast Change in Price" required>
             <input type="number" step="any" name="wacc" placeholder="WACC" required>
             <input type="number" step="any" name="roe" placeholder="Cost of Equity" required>
             <input type="number" step="any" name="rd" placeholder="Cost of Debt" required>
-            <input type="number" step="any" name="price" placeholder="Price you want to charge" required>
-            
-            <label for="file-upload" class="custom-file-upload">
+            <input type="number" step="any" name="price" placeholder="Price You Want to Charge" required>
+            <label for="file-upload">
                 <i class="fas fa-cloud-upload-alt"></i> Choose File
             </label>
             <input type="file" id="file-upload" name="file" required>
-            
             <input type="submit" value="Submit">
         </form>
     </div>
-
-
 </body>
 </html>

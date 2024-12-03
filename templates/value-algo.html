@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V_m Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0;
+            color: #333;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        form label {
+            font-size: 14px;
+            color: #555;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        form input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 8px 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        form button {
+            width: 100%;
+            padding: 10px 15px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        form button:hover {
+            background-color: #0056b3;
+        }
+
+        #result {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        @media (max-width: 600px) {
+            form {
+                padding: 15px;
+            }
+        }
+    </style>
+    <script>
+        function calculateResult() {
+            const t = parseFloat(document.getElementById("t").value);
+            const alpha = parseFloat(document.getElementById("alpha").value);
+            const r_0 = parseFloat(document.getElementById("r_0").value);
+            const K = parseFloat(document.getElementById("K").value);
+            const u = parseFloat(document.getElementById("u").value);
+            const v = parseFloat(document.getElementById("v").value);
+            const d = parseFloat(document.getElementById("d").value);
+            const s = parseFloat(document.getElementById("s").value);
+            const rate_shorter = parseFloat(document.getElementById("rate_shorter").value);
+            const rate_longer = parseFloat(document.getElementById("rate_longer").value);
+            const T1 = parseFloat(document.getElementById("T1").value);
+            const T2 = parseFloat(document.getElementById("T2").value);
+            const ke = parseFloat(document.getElementById("ke").value);
+            const div_growth = parseFloat(document.getElementById("div_growth").value);
+
+            const forward_rate = Math.pow((1 + rate_longer) / (1 + rate_shorter), 1 / (T2 - T1)) - 1;
+
+            const numerator = alpha + Math.exp(r_0) * d * (1 - d / K) + Math.exp((u - Math.pow(v, 2) / 2) * t + v * d) + d * K * Math.exp(-r_0 * t);
+            const denominator = Math.pow((1 + d + s), t);
+
+            const V_m = numerator / denominator;
+            const result = V_m / ((1 + forward_rate) * (1 + div_growth) / ke);
+
+            document.getElementById("result").innerText = `Result: ${result.toFixed(4)}`;
+        }
+    </script>
+</head>
+<body>
+    <h1>V_m Calculator</h1>
+    <form onsubmit="event.preventDefault(); calculateResult();">
+        <label for="t">Maturity:</label>
+        <input type="number" id="t" value="1" step="any"><br>
+
+        <label for="alpha">Valuation:</label>
+        <input type="number" id="alpha" value="264.97" step="any"><br>
+
+        <label for="r_0">Neutral Rate:</label>
+        <input type="number" id="r_0" value="0.045" step="any"><br>
+
+        <label for="K">Strike Price:</label>
+        <input type="number" id="K" value="250" step="any"><br>
+
+        <label for="u">Reversion Rate:</label>
+        <input type="number" id="u" value="1.19" step="any"><br>
+
+        <label for="v">Variance/Spread:</label>
+        <input type="number" id="v" value="0.2804" step="any"><br>
+
+        <label for="d">Dividend Yield:</label>
+        <input type="number" id="d" value="0.05" step="any"><br>
+
+        <label for="s">Dividend Spread:</label>
+        <input type="number" id="s" value="-0.2" step="any"><br>
+
+        <label for="Short Rate">Short Rate:</label>
+        <input type="number" id="rate_shorter" value="0.05" step="any"><br>
+
+        <label for="Long Rate">Long Rate:</label>
+        <input type="number" id="rate_longer" value="0.046" step="any"><br>
+
+        <label for="Short Rate Time">Short Rate Time:</label>
+        <input type="number" id="T1" value="0" step="any"><br>
+
+        <label for="T2">Long Rate Time:</label>
+        <input type="number" id="T2" value="1" step="any"><br>
+
+        <label for="ke">Cost of Equity:</label>
+        <input type="number" id="ke" value="0.096" step="any"><br>
+
+        <label for="div_growth">Dividend Growth:</label>
+        <input type="number" id="div_growth" value="0.09395493638413399" step="any"><br>
+
+        <button type="submit">Calculate</button>
+    </form>
+
+    <p id="result">Result: </p>
+</body>
+</html>
