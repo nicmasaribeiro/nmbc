@@ -366,7 +366,7 @@ class ValuationDatabase(db.Model):
     roe  = db.Column(db.Float(), default=0.0)
     rd = db.Column(db.Float(), default=0.0)
     change_value = db.Column(db.Float(), default=0.0)
-    price = db.Column(db.Float,default=1)
+    price = db.Column(db.Float(),default=1)
     receipt = db.Column(db.String(),unique=True)
     valuation_model = db.Column(db.LargeBinary()) # tokenized_value
 

@@ -257,9 +257,10 @@ def recalculate():
 		try:
 			t = yf.Ticker(i.investment_name.upper())
 			prices_vector = t.history(period='5d',interval='1m')
-			price = t.history()['Close'][-1]
-			s = stoch_price(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
+			price = t.history()['Close'].iloc[-1]
+			s = stoch_price(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
 			i.stoch_price = s
+			# i.tokenized_price
 			db.session.commit()
 		except:
 			pass
@@ -285,13 +286,13 @@ def update():
 			price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
 			i.market_price = price
 			db.session.commit()
-			current_time = datetime.utcnow()
-			time_difference = current_time - i.timestamp
-			i.time_float -= time_difference.total_seconds() / (365.25 * 24 * 3600)
-			db.commit()
-			token_price = black_scholes(price, i.target_price, i.time_float, .05, np.std(t.history(period='1d',interval='1m')['Close'])*np.sqrt(525960),i.investment_type) + derivative_price(prices_vector, i.risk_neutral, i.reversion, i.spread)
-			i.tokenized_price = token_price
-			i.coins = token_price
+			current_time = datetime.now()
+			time_difference =  i.timestamp - current_time
+			i.time_float += time_difference.total_seconds() / (365.25 * 24 * 36_000_000)
+			i.timestamp = current_time
+			db.session.commit()			
+			i.tokenized_price = black_scholes(price,i.target_price,i.time_float,.05, np.std(prices_vector['Close'].pct_change()[1:])*np.sqrt(525960),i.investment_type)
+			i.coins = i.tokenized_price * (1+i.spread)**(i.time_float)
 			db.session.commit()
 	except:
 		pass
@@ -803,6 +804,7 @@ def get_user_wallet():
 		'change_value': [],
 		'tokenized_price':[],
 		'stochastic_price':[],
+		'receipt':[],
 	}
 	
 	total_investments = 0
@@ -819,6 +821,7 @@ def get_user_wallet():
 			df['change_value'].append(invs.change_value)
 			df['tokenized_price'].append(invs.tokenized_price)
 			df['stochastic_price'].append(invs.stoch_price)
+			df['receipt'].append(invs.receipt)
 			profit_loss+=invs.change_value
 			total_investments+=invs.tokenized_price*asset.quantity
     
@@ -831,6 +834,7 @@ def get_user_wallet():
 		# Convert DataFrame to HTML table with styles
 	html = dataframe.to_html(index=False)
 	html_table_with_styles = f"""
+	<title>Holdings</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 		<style>
@@ -1023,11 +1027,11 @@ def buy_or_sell():
 		option_type = request.values.get("option_type").lower()
 		user_db = Users.query.filter_by(username=user).first()
 		
-		if coins < .1:
-			return "<h3>Invalid Leverage Value</h3>"
+		# if coins < .1:
+		# 	return "<h3>Invalid Leverage Value</h3>"
 		
-		if risk_neutral > 1.1 or risk_neutral < 0 :
-			return "Wrong Neutral Measure"
+		# if risk_neutral > 1.1 or risk_neutral < 0 :
+		# 	return "Wrong Neutral Measure"
 		
 		if not user_db:
 			return "<h3>User not found</h3>"
@@ -1045,9 +1049,8 @@ def buy_or_sell():
 			return 1 / np.cosh(x)
 		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2)
 		
-		stoch = abs(stoch_price(.1, maturity*12, risk_neutral, spread, reversion, price, target_price,option_type))
-		
-		token_price = max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
+		stoch = stoch_price(0.003968253968, maturity, risk_neutral, spread, reversion, price, target_price, option_type)
+		token_price = option #max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
 		
 		
 		wal = WalletDB.query.filter_by(address=user).first()
@@ -1646,7 +1649,7 @@ def submit_valuation():
 		wacc = float(request.values.get('wacc'))
 		roe = float(request.values.get('roe'))
 		rd = float(request.values.get('rd'))
-		change=float(request.values.get("change"))
+		change = float(request.values.get("change"))
 		price = float(request.values.get("price"))
 		file = request.files['file']
 		name = request.values.get("file_name")
@@ -1659,7 +1662,7 @@ def submit_valuation():
 			price=price,
 			roe=roe,
 			rd=rd,
-			change_value=0,
+			change_value=change,
 			receipt=os.urandom(10).hex(),
 			valuation_model=file_data)
 		db.session.add(valuation)
@@ -1924,7 +1927,7 @@ def reversion():
 		interval = request.values.get("interval")
 		
 		t = yf.Ticker(ticker)
-		history = t.history(period='max',interval='1d')
+		history = t.history(period=period,interval=interval)
 		prices = history["Close"]
 		log_returns = np.log(prices / prices.shift(1)).dropna()
 		lagged_returns = log_returns.shift(1).dropna()
@@ -1933,9 +1936,9 @@ def reversion():
 		X = lagged_returns.values.reshape(-1, 1)  # Reshape for sklearn
 		y = log_returns.values
 		lr = LinearRegression()
-		fit = lr.fit(X, y[1:])
+		fit = lr.fit(X, y[:-1])
 		beta = fit.coef_
-		reversion_coefficient = -np.log(1 - beta)
+		reversion_coefficient = -np.log(1 - beta)/100
 		
 		return render_template('single-reversion.html',reversion=reversion_coefficient.item())
 	return render_template('single-reversion.html')
@@ -1944,7 +1947,7 @@ def reversion():
 def ddm():
 	from wacc import Rates
 	if request.method =='POST':
-		ticker = request.values.get('ticker')
+		ticker = request.values.get('ticker').upper()
 		rf = float(request.values.get('rf'))
 		erp = float(request.values.get('erp'))
 		cs = float(request.values.get('cs'))
@@ -1959,8 +1962,68 @@ def ddm():
 		costOfCapital = rate.wacc(rd,ke)
 		current_price = get_price(ticker) 
 		div_growth = implied_div_growth_rate(ke, get_dps(ticker), current_price)
-		ddm = (get_dps(ticker)*(1+div_growth))/(ke - div_growth)		
-		return f"<h1>{ddm}</h1><h1>{div_growth}</h1>"
+		ddm = (get_dps(ticker)*(1+div_growth))/(ke - div_growth)
+		string = f'''<!DOCTYPE html>
+					<html lang="en">
+
+					<head>
+						<meta charset="UTF-8">
+						<meta name="viewport" content="width=device-width, initial-scale=1.0">
+						<title>Financial Metrics</title>
+						<style>
+							body {{
+								font-family: 'Roboto', sans-serif;
+								margin: 0;
+								padding: 20px;
+								background-color: #f4f4f9;
+								color: #333;
+								text-align: center;
+							}}
+
+							.metric-container {{
+								display: flex;
+								flex-direction: column;
+								align-items: center;
+								gap: 20px;
+							}}
+
+							h1 {{
+								font-size: 2.5rem;
+								font-weight: bold;
+								margin: 0;
+								padding: 10px 20px;
+								background: #007bff;
+								color: #fff;
+								border-radius: 8px;
+								box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+							}}
+
+							.metric-title {{
+								font-size: 1.5rem;
+								color: #007bff;
+								margin-top: 20px;
+								font-weight: 600;
+							}}
+						</style>
+					</head>
+
+					<body>
+					<h1> {ticker}</h1>
+						<div class="metric-container">
+							<div>
+								<span class="metric-title">Discounted Dividend Model (DDM):</span>
+								<h1 id="ddm">{ddm}</h1>
+							</div>
+							<div>
+								<span class="metric-title">Dividend Growth Rate:</span>
+								<h1 id="div-growth">{div_growth}</h1>
+							</div>
+						</div>
+					</body>
+
+					</html>
+					'''
+		return render_template_string(string)#f"<h1>{ddm}</h1><h1>{div_growth}</h1>"
 	return render_template("ddm.html")
 
 @app.route('/api/stocks/<symbol>', methods=['GET','POST'])
@@ -2657,7 +2720,83 @@ def plot_ly(ticker):
 	fig = px.scatter(history.values,title=f"{ticker}")
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 	return render_template('plot-ly.html', graph_json=graph_json)
-			
+
+@app.route('/annualize',methods=['GET','POST'])
+def annualize():
+	if request.method == 'POST':
+		rate = float(request.values.get('rate'))
+		n = float(request.values.get('n'))
+		forward = float(request.values.get('forward'))
+		annualize = (1+rate/n)**n - 1
+		period_type = request.values.get("period_type").lower()
+		if period_type == 'single':
+			result = (1+annualize)**forward - 1
+		elif period_type == 'multi':
+		# Calculate the forward rate
+			rate_shorter = rate / (1 + annualize)
+			rate_longer = rate * (1 + annualize)
+			T1 = 1 / n
+			T2 = T1 + (forward - rate) / rate_longer
+			forward_rate = ((1 + rate_longer) ** T2 / (1 + rate_shorter) ** T1) ** (1 / (T2 - T1)) - 1
+			result = forward_rate
+		return render_template('annualize.html',result=result)
+	return render_template('annualize.html')
+
+@app.route('/multicurve',methods=['GET', 'POST'])
+def multi_annualize():
+	if request.method == 'POST':
+		rate_shorter = float(request.values.get('shortr'))  # 3% annualized rate for 1 year
+		rate_longer = float(request.values.get('longr'))   # 4% annualized rate for 2 years
+		T1 = float(request.values.get('shortt'))  # Time for the shorter rate
+		T2 = float(request.values.get('longt'))  # Time for the longer rate
+		# Calculate forward rate
+		forward_rate = ((1 + rate_longer) ** T2 / (1 + rate_shorter) ** T1) ** (1 / (T2 - T1)) - 1
+		print(f"Implied Forward Rate between {T1} and {T2} years: {forward_rate:.2%}")
+		return render_template("multicurve.html",rate=forward_rate*100)
+	return render_template("multicurve.html")
+
+
+@app.route('/ddm-spread',methods=["GET","POST"])
+def ddm_spread():
+	from wacc import Rates
+	try:
+		if request.method =='POST':
+			ticker = request.values.get('ticker').upper()
+			rf = float(request.values.get('rf'))
+			erp = float(request.values.get('erp'))
+			cs = float(request.values.get('cs'))
+			price = float(request.values.get('price'))
+			interest_coverage = get_interestCoverage(ticker)
+			taxes = get_taxes(ticker)
+			reg = get_beta(ticker)
+			rd = get_costDebt(ticker)
+			debt   = get_debt(ticker)
+			equity = get_equity(ticker)
+			rate = Rates(debt, equity, taxes)
+			ke = rate.re(reg, rf, erp, cs)
+			costOfCapital = rate.wacc(rd,ke)
+			current_price = get_price(ticker) 
+			div_growth = implied_div_growth_rate(ke, get_dps(ticker), current_price)
+			dps = get_dps(ticker)
+			spread = 0
+			for i in range(1000):
+				result = (dps*(1+div_growth))/(ke - div_growth + spread)
+				if result > price:
+					spread = spread - .001
+				elif result < price:
+					spread = spread + .001
+				elif (result-price < 1e-6):
+					spread = spread
+					break
+			return render_template("ddm-spread.html",spread=spread*100,name=ticker)
+	except IndexError:
+		return "INVALID COMPANY STOCK"
+	return render_template("ddm-spread.html")
+
+@app.route("/value-algo")
+def add_value_algo():
+	return render_template("value-algo.html")
+
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
