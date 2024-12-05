@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Value from Put Option</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        input {
+            width: calc(100% - 24px);
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 16px;
+            text-align: left;
+            color: #333;
+        }
+        .result span {
+            font-weight: bold;
+            color: #007BFF;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Value from Put Option</h1>
+        <input type="number" id="dt" placeholder="Time Step (dt)" value="1">
+        <input type="number" id="t" placeholder="Time to Maturity (t)" >
+        <input type="number" id="r" placeholder="Risk-Free Rate (r)" value="0.05">
+        <input type="number" id="sigma" placeholder="Volatility (σ)">
+        <input type="number" id="mu" placeholder="Drift (μ)">
+        <input type="number" id="K" placeholder="Strike Price (K)">
+        <input type="number" id="putPrice" placeholder="Put Option Price">
+        <button onclick="calculateStockValueFromPut()">Calculate Stock Value</button>
+        <div class="result" id="result"></div>
+        <a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="./downloads/page.html"><div class="download">Download</div></a>
+
+    </div>
+
+    <script>
+        function B(s) {
+            if (s <= 0) return 0;
+            const variance = 1 / s;
+            const pdf = Math.exp(-0.5 * Math.pow(s / variance, 2)) / (Math.sqrt(2 * Math.PI) * Math.sqrt(variance));
+            return pdf;
+        }
+
+        function f(s, scale = 10.0) {
+            const firstTerm = scale * Math.pow(s, 2) * Math.pow(B(s), 2);
+            let secondTerm = 0;
+            let thirdTerm = 0;
+
+            // Numerically compute integrals
+            const n = 1000; // Number of steps for numerical integration
+            const step = s / n;
+
+            for (let i = 0; i < n; i++) {
+                const x = i * step;
+                secondTerm += B(x) * step;
+            }
+            secondTerm = scale * -2 * s * B(s) * secondTerm;
+
+            for (let i = 0; i < n; i++) {
+                const x = i * step;
+                thirdTerm += Math.pow(B(x), 2) * step;
+            }
+
+            return firstTerm + secondTerm + thirdTerm;
+        }
+
+        function g(t, r) {
+            return (1 - Math.abs(r)) * Math.exp(r * f(t, 10));
+        }
+
+        function F(t) {
+            const n = 1000;
+            const step = t / n;
+            let integral = 0;
+
+            for (let i = 0; i < n; i++) {
+                const s = i * step;
+                integral += Math.pow(f(s, 10), 2) * step;
+            }
+
+            const scaledResult = Math.max(integral, 0.1);
+            return Math.pow(scaledResult, 1 / t);
+        }
+
+        function S(t, r, dt) {
+            return Math.pow(g(t, r), t) * dt + Math.exp(f(t, 10));
+        }
+
+        function calculateStockValueFromPut() {
+            const dt = parseFloat(document.getElementById('dt').value);
+            const t = parseFloat(document.getElementById('t').value);
+            const r = parseFloat(document.getElementById('r').value);
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const mu = parseFloat(document.getElementById('mu').value);
+            const K = parseFloat(document.getElementById('K').value);
+            const putPrice = parseFloat(document.getElementById('putPrice').value);
+
+            const F_t = F(t);
+            const S_tr = S(t, r, dt);
+            const W_t = Math.random(); // Simulate random Brownian motion
+            const thirdTerm = Math.exp((mu - Math.pow(sigma, 2) / 2) * t + sigma * W_t);
+            const secondTerm = Math.exp(r) * F_t * (1 - F_t / K);
+
+            let stockValue;
+            try {
+                stockValue = (F_t * K - putPrice + secondTerm + thirdTerm) / (F_t * S_tr);
+                stockValue = stockValue;
+            } catch (e) {
+                stockValue = 0;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <p><span>F(t):</span> ${F_t.toFixed(5)} (Scaling factor derived from f(s) integrals)</p>
+                <p><span>S(t, r, dt):</span> ${S_tr.toFixed(5)} (Stock price adjustment based on stochastic factors)</p>
+                <p><span>W(t):</span> ${W_t.toFixed(5)} (Simulated Brownian motion)</p>
+                <p><span>Third Term (Volatility Adjustment):</span> ${thirdTerm.toFixed(5)}</p>
+                <p><span>Second Term (Time Value Adjustment):</span> ${secondTerm.toFixed(5)}</p>
+                <p><span>Derived Stock Value:</span> ${stockValue.toFixed(5)}</p>
+            `;
+        }
+    </script>
+</body>
+</html>

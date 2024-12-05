@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>p3 Calculation</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -22,7 +25,7 @@
             border-radius: 10px;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 500px;
+            max-width: 600px;
             text-align: center;
         }
 
@@ -30,6 +33,11 @@
             font-size: 24px;
             margin-bottom: 20px;
             color: #333;
+        }
+
+        .math-equations {
+            text-align: left;
+            margin-bottom: 20px;
         }
 
         label {
@@ -85,7 +93,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>p3(t, r, S_0) Calculation</h1>
+        <h1>P3 (t, r, S_0) Calculation</h1>
+        <div class="math-equations">
+            <p>Below is the equation for \( p_3 \):</p>
+            <p>
+                \[
+                p_3(t, r, S_0) = S_0 \left(1 + \int_0^t x^2 B(x)^2 \left(e^{u(t, r) \cdot d_t + s(t) \cdot B(t) \cdot g(t, r)} + v_1(t)\right) \, dx \right)
+                \]
+            </p>
+        </div>
 
         <label for="S0">Enter value for S_0:</label>
         <input type="number" id="S0" step="0.01" value="100">
@@ -93,7 +109,7 @@
         <label for="t">Enter value for t:</label>
         <input type="number" id="t" step="0.01" value="1">
         
-        <label for="r">Enter value for r:</label>
+        <label for="r">Enter value for rate:</label>
         <input type="number" id="r" step="0.01" value="1">
         
         <button onclick="calculateP3()">Calculate p3</button>

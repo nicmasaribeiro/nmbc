@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Function Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-top: 15px;
+        }
+        input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div >
+    <h1>Financial Function Calculator</h1>
+    <form id="calculatorForm">
+        <label for="t">t (Current Time):</label>
+        <input type="number" id="t" step="0.01">
+
+        <label for="s">s (Intermediate Time):</label>
+        <input type="number" id="s" step="0.01">
+
+        <label for="T">T (Final Time):</label>
+        <input type="number" id="T" step="0.01">
+
+        <label for="C0">C0 (Initial Constant):</label>
+        <input type="number" id="C0" step="0.01">
+
+        <label for="K">K (Constant):</label>
+        <input type="number" id="K" step="0.01">
+
+        <label for="u">u (Drift):</label>
+        <input type="number" id="u" step="0.01">
+
+        <label for="v">v (Volatility):</label>
+        <input type="number" id="v" step="0.01">
+
+        <label for="rho">rho (Correlation Coefficient):</label>
+        <input type="number" id="rho" step="0.01">
+
+        <label for="r0">r0 (Initial Interest Rate):</label>
+        <input type="number" id="r0" step="0.01">
+
+        <label for="c">c (Scaling Constant):</label>
+        <input type="number" id="c" step="0.01">
+
+        <label for="alpha">alpha (Scaling for n1):</label>
+        <input type="number" id="alpha" step="0.01">
+
+        <label for="d">d (Displacement for n1):</label>
+        <input type="number" id="d" step="0.01">
+
+        <label for="s0">s0 (Base Value for n1):</label>
+        <input type="number" id="s0" step="0.01">
+
+        <button type="button" onclick="calculate()">Calculate</button>
+    </form>
+    
+    
+        <h1 style="font-size: 50px;" class="result" id="result"></h1>
+    </div>
+
+    <script>
+        // Hyperbolic secant function
+        function sech(x) {
+            return 1 / Math.cosh(x);
+        }
+
+        // n1 function
+        function n1(x, alpha, r0, d, s0) {
+            return alpha * sech(r0 * x - d) + s0;
+        }
+
+        // B0 function
+        function B0(t, s, T, r0, c) {
+            if (c === 0) {
+                throw new Error("Scaling constant 'c' cannot be zero.");
+            }
+            if (s <= t || T <= t) {
+                throw new Error("Invalid inputs: Ensure s > t and T > t.");
+            }
+            const numerator = r0 * Math.exp(((T - t) * r0) / c);
+            const denominator = (s - t) * (T - t);
+            return numerator / denominator;
+        }
+
+        // V3 function
+        function V3(t, s, T, C0, B0_func, K, u, v, rho, n1_func, r0, c, alpha, d, s0) {
+            const B0_val = B0_func(t, s, T, r0, c);
+            const exponent = (u - (v ** 2) / 2 + rho * n1_func(t, alpha, r0, d, s0)) * (T - t);
+            const exp_term = Math.exp(exponent);
+            const numerator = C0 + B0_val * (1 - B0_val / K) + exp_term + B0_val * K * Math.exp(-r0 * t);
+            const denominator = Math.pow(1 + B0_val + s, ((s - t) * (T - s)) / (T - t));
+            return numerator / denominator;
+        }
+
+        function calculate() {
+            try {
+                // Retrieve inputs
+                const t = parseFloat(document.getElementById("t").value);
+                const s = parseFloat(document.getElementById("s").value);
+                const T = parseFloat(document.getElementById("T").value);
+                const C0 = parseFloat(document.getElementById("C0").value);
+                const K = parseFloat(document.getElementById("K").value);
+                const u = parseFloat(document.getElementById("u").value);
+                const v = parseFloat(document.getElementById("v").value);
+                const rho = parseFloat(document.getElementById("rho").value);
+                const r0 = parseFloat(document.getElementById("r0").value);
+                const c = parseFloat(document.getElementById("c").value);
+                const alpha = parseFloat(document.getElementById("alpha").value);
+                const d = parseFloat(document.getElementById("d").value);
+                const s0 = parseFloat(document.getElementById("s0").value);
+
+                // Compute V3
+                const result = V3(t, s, T, C0, B0, K, u, v, rho, n1, r0, c, alpha, d, s0);
+
+                // Display the result
+                document.getElementById("result").innerHTML = `V3(t, s, T): ${result.toFixed(4)}`;
+            } catch (error) {
+                document.getElementById("result").innerHTML = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

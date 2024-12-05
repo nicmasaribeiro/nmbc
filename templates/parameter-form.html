@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Inputs Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        form {
+            width: 100%;
+            max-width: 700px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-top: 20px;
+        }
+        input[type="text"],
+        input[type="numeric"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        input[type="text"]:focus,
+        input[type="numeric"]:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 30px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        button:active {
+            background-color: #004090;
+        }
+    </style>
+</head>
+<body>
+    <form action="/paramatize" method="POST">
+        <h1>Financial Inputs Form</h1>
+        <label for="receipt">Receipt:</label>
+        <input type="text" id="receipt" name="receipt">
+
+        <label for="mu">Mu:</label>
+        <input type="numeric" id="mu" name="mu">
+
+        <label for="sigma">Sigma:</label>
+        <input type="numeric" id="sigma" name="sigma">
+
+        <label for="reversion">Reversion:</label>
+        <input type="numeric" id="reversion" name="reversion">
+
+        <label for="spread">Spread:</label>
+        <input type="numeric" id="spread" name="spread">
+
+        <label for="forward">Forward:</label>
+        <input type="numeric" id="forward" name="forward">
+
+        <label for="risk_neutral">Risk Neutral:</label>
+        <input type="numeric" id="risk_neutral" name="risk_neutral">
+
+        <label for="filtration">Filtration:</label>
+        <input type="numeric" id="filtration" name="filtration">
+
+        <label for="time_numeric">Time Numeric:</label>
+        <input type="numeric" id="time_numeric" name="time_numeric">
+
+        <label for="target_price">Target Price:</label>
+        <input type="numeric" id="target_price" name="target_price">
+
+        <label for="delta">Delta:</label>
+        <input type="numeric" id="delta" name="delta">
+
+        <label for="rho">Rho:</label>
+        <input type="numeric" id="rho" name="rho">
+
+        <label for="theta">Theta:</label>
+        <input type="numeric" id="theta" name="theta">
+
+        <label for="vega">Vega:</label>
+        <input type="numeric" id="vega" name="vega">
+
+        <label for="dividend_yield">Dividend Yield:</label>
+        <input type="numeric" id="dividend_yield" name="dividend_yield">
+
+        <label for="coe">Cost of Equity (COE):</label>
+        <input type="numeric" id="coe" name="coe">
+
+        <label for="cod">Cost of Debt (COD):</label>
+        <input type="numeric" id="cod" name="cod">
+
+        <label for="wacc">Weighted Average Cost of Capital (WACC):</label>
+        <input type="numeric" id="wacc" name="wacc">
+
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>
