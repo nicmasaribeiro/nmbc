@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Equation Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        h1 {
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        form {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input {
+            width: calc(100% - 10px);
+            padding: 8px 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .results p {
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+
+        .results span {
+            font-weight: bold;
+            color: #007BFF;
+        }
+    </style>
+    <script>
+        // Define B0 function
+        function B0(t, s, T, r0, c0) {
+            return (r0 * Math.exp(((T - t) * r0) / c0)) / ((s - t) * (T - t));
+        }
+
+        // Define V function
+        function V(t, s, T, K, r0, c0) {
+            const B0Value = B0(t, s, T, r0, c0);
+            const term1 = B0Value * (1 - B0Value / K);
+            const term2 = B0Value * K * Math.exp(-r0 * t);
+            return term1 + term2;
+        }
+
+        // Numerical derivative function
+        function derivative(func, x, dx = 1e-5, n = 1) {
+            if (n === 1) {
+                return (func(x + dx) - func(x - dx)) / (2 * dx);
+            } else if (n === 2) {
+                return (func(x + dx) - 2 * func(x) + func(x - dx)) / (dx * dx);
+            }
+        }
+
+        // Define Rt
+        function Rt(t, s, T, K, r0, c0) {
+            const V_t = (t) => V(t, s, T, K, r0, c0);
+            const V_s = (s) => V(t, s, T, K, r0, c0);
+            const V_T = (T) => V(t, s, T, K, r0, c0);
+
+            const r_dVdt = derivative(V_t, t, 1e-5, 1);
+            const r_dVdt2 = derivative(V_t, t, 1e-5, 2);
+            const r_dVds = derivative(V_s, s, 1e-5, 1);
+            const r_dVds2 = derivative(V_s, s, 1e-5, 2);
+            const r_dVdT = derivative(V_T, T, 1e-5, 1);
+            const r_dVdT2 = derivative(V_T, T, 1e-5, 2);
+
+            return {
+                r_dVdt,
+                r_dVdt2,
+                r_dVds,
+                r_dVds2,
+                r_dVdT,
+                r_dVdT2,
+                Rt: ((1 + r_dVdt) ** r_dVdt2) * ((1 + r_dVds) ** r_dVds2) * ((1 + r_dVdT) ** r_dVdT2),
+            };
+        }
+
+        // Calculate Pt
+        function calculatePt(t, s, T, K, r0, c0) {
+            const V_value = V(t, s, T, K, r0, c0);
+            const Rt_values = Rt(t, s, T, K, r0, c0);
+            return { Pt: V_value / Rt_values.Rt, ...Rt_values };
+        }
+
+        // Event handler for calculations
+        function calculate() {
+            // Get inputs
+            const t = parseFloat(document.getElementById("t").value);
+            const s = parseFloat(document.getElementById("s").value);
+            const T = parseFloat(document.getElementById("T").value);
+            const r0 = parseFloat(document.getElementById("r0").value);
+            const c0 = parseFloat(document.getElementById("c0").value);
+            const K = parseFloat(document.getElementById("K").value);
+
+            // Perform calculations
+            const B0Value = B0(t, s, T, r0, c0);
+            const VValue = V(t, s, T, K, r0, c0);
+            const results = calculatePt(t, s, T, K, r0, c0);
+
+            // Update results
+            document.getElementById("B0Result").textContent = B0Value.toFixed(5);
+            document.getElementById("VResult").textContent = VValue.toFixed(5);
+            document.getElementById("dVdtResult").textContent = results.r_dVdt.toFixed(5);
+            document.getElementById("dVdt2Result").textContent = results.r_dVdt2.toFixed(5);
+            document.getElementById("dVdsResult").textContent = results.r_dVds.toFixed(5);
+            document.getElementById("dVds2Result").textContent = results.r_dVds2.toFixed(5);
+            document.getElementById("dVdTResult").textContent = results.r_dVdT.toFixed(5);
+            document.getElementById("dVdT2Result").textContent = results.r_dVdT2.toFixed(5);
+            document.getElementById("RtResult").textContent = results.Rt.toFixed(5);
+            document.getElementById("PtResult").textContent = results.Pt.toFixed(5);
+        }
+    </script>
+</head>
+<body>
+    <h1>Curvature of Rates</h1>
+    <form onsubmit="event.preventDefault(); calculate();">
+        <label>t: <input type="number" id="t" value="0" step="0.01"></label>
+        <label>s: <input type="number" id="s" value="2" step="0.01"></label>
+        <label>T: <input type="number" id="T" value="5" step="0.01"></label>
+        <label>r<sub>0</sub>: <input type="number" id="r0" value="0.06" step="0.001"></label>
+        <label>c<sub>0</sub>: <input type="number" id="c0" value="0.25" step="0.01"></label>
+        <label>K: <input type="number" id="K" value="10" step="0.01"></label>
+        <button type="submit">Calculate</button>
+    </form>
+
+    <div class="results">
+        <p>B<sub>0</sub>: <span id="B0Result">--</span></p>
+        <p>V: <span id="VResult">--</span></p>
+        <p>dV/dt: <span id="dVdtResult">--</span></p>
+        <p>d²V/dt²: <span id="dVdt2Result">--</span></p>
+        <p>dV/ds: <span id="dVdsResult">--</span></p>
+        <p>d²V/ds²: <span id="dVds2Result">--</span></p>
+        <p>dV/dT: <span id="dVdTResult">--</span></p>
+        <p>d²V/dT²: <span id="dVdT2Result">--</span></p>
+        <p>R<sub>t</sub>: <span id="RtResult">--</span></p>
+        <p>P<sub>t</sub>: <span id="PtResult">--</span></p>
+    </div>
+</body>
+</html>

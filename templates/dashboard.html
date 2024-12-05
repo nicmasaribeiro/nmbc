@@ -312,14 +312,42 @@
                 <span class="tooltip">Calculate value of the option.</span>
             </a>
             
+            <a href="/stock-from-call">
+                <i class="fas fa-superscript"></i> Stock from Call Algorithm
+                <span class="tooltip">Algorithm to Calculate Stock from Call.</span>
+            </a>
+            
+            <a href="/stock-from-put">
+                <i class="fas fa-superscript"></i> Stock from Put Algorithm
+                <span class="tooltip">Algorithm to Calculate Stock from Put.</span>
+            </a>
+            
+            <a href="/filtration">
+                <i class="fas fa-superscript"></i> Stock Filtration Algorithm
+                <span class="tooltip">Algorithm to Calculate Stock-Index Filtration.</span>
+            </a>
+            
             <a href="/fundamentals">
                 <i class="fas fa-superscript"></i> Valuation Fundamentals
                 <span class="tooltip">Calculate Target Company Valuation Fundamentals</span>
             </a>
             
-            <a href="/transform_coef">
-                <i class="fas fa-superscript"></i> Filtration Coefficients
-                <span class="tooltip">Calculate filtration coefficients for financial modeling.</span>
+                <button onclick="search();">token parameters</button>
+            <script>
+                function search(){
+                    var p = prompt();
+                    window.location='/token-parameters/'+ p;
+                }
+            </script>
+            
+            <a href="/drift&vol">
+                <i class="fas fa-superscript"></i> Drift & Volatility Coefficiemts
+                <span class="tooltip">Calculate Target Company Valuation Fundamentals</span>
+            </a>
+            
+        <a href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html">
+                <i class="fas fa-superscript"></i> Interest Coverage and Default Spread
+                <span class="tooltip">Interest Coverage Ratios and Default Spread</span>
             </a>
             <a href="/stoch/tools">
                 <i class="fas fa-superscript"></i> Stochastic Tools
