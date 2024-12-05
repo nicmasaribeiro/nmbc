@@ -58,7 +58,8 @@ import threading
 import plotly.express as px
 import plotly
 from stoch_greeks import calculate_greeks
-
+from scipy.integrate import quad
+from scipy.stats import poisson
 
 app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
@@ -91,7 +92,7 @@ def calc_greeks():
 	for i in invests:
 		t = yf.Ticker(i.investment_name.upper())
 		price = t.history(period='1d')['Close'].iloc[-1]
-		greeks = calculate_greeks(1/12, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
+		greeks = calculate_greeks(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
 		df["name"].append(i.investment_name)
 		df["delta"].append(greeks['Delta'])
 		df["gamma"].append(greeks['Gamma'])
@@ -171,19 +172,32 @@ def calc_greeks():
 def calc_option_greeks():
 	from greeks import black_scholes_greeks
 	ls = []
-	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [],"receipt":[]}
+	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [],'price':[],"receipt":[]}
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
-		t = yf.Ticker(i.investment_name.upper())
-		price = t.history(period='1d')['Close'].iloc[-1]
-		greeks = black_scholes_greeks(price, i.target_price, i.time_float, i.risk_neutral, i.spread)
-		df["name"].append(i.investment_name)
-		df["delta"].append(greeks['Delta'])
-		df["gamma"].append(greeks['Gamma'])
-		df["theta"].append(greeks["Theta"])
-		df["vega"].append(greeks["Vega"])
-		df["rho"].append(greeks["Rho"])
-		df["receipt"].append(i.receipt)
+		try:
+			t = yf.Ticker(i.investment_name.upper())
+			type_option = str(i.investment_type).strip('InvestmentType.')
+			print(type_option)
+			if type_option == 'u':
+				OT = 'put'
+				price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+				greeks = black_scholes_greeks(price, i.target_price, i.time_float, i.risk_neutral, i.spread, option_type=OT)
+			else:
+				price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+				greeks = black_scholes_greeks(price, i.target_price, i.time_float, i.risk_neutral, i.spread, option_type=type_option)
+			df["name"].append(i.investment_name)
+			df["delta"].append(np.round(greeks['Delta'],5))
+			df["gamma"].append(np.round(greeks['Gamma'],5))
+			df["theta"].append(np.round(greeks["Theta"],5))
+			df["vega"].append(np.round(greeks["Vega"],5))
+			df["rho"].append(np.round(greeks["Rho"],5))
+			df["price"].append(np.round(greeks["Option Price"],5))
+			df["receipt"].append(i.receipt)
+		except Exception as e:
+			print(type_option)
+			print(f"Error calculating greeks for {i.investment_name}: {str(e)}")
+			pass
 		
 	html = pd.DataFrame(df).to_html()
 	string =f"""<!DOCTYPE html>
@@ -1357,8 +1371,8 @@ def greeks():
 		return jsonify(greeks)
 	return render_template("options-pricing.html")
 
-@app.route('/stoch/greeks',methods=['GET','POST'])
-def stoch_greeks():
+@app.route('/stoch-greeks',methods=['GET','POST'])
+def stochGreeks():
 	from stoch_greeks import calculate_greeks
 	if request.method =="POST":
 		s0 = float(request.form['S'])
@@ -1879,7 +1893,6 @@ def transform_coef():
 		t = yf.Ticker(ticker)
 		history = t.history(period=p,interval=i)
 		
-		
 		hig_low = history["High"] - history["Low"]
 		hl = hig_low.pct_change()[1:]# Percentage returns (ignoring first NaN)
 		hl = [(i-np.mean(hl))/np.std(hl) for i in hl]
@@ -1922,6 +1935,33 @@ def transform_coef():
 @app.route("/single-reversion-coef",methods=["GET",'POST'])
 def reversion():
 	if request.method=="POST":
+		def calculate_reversion_coefficient_sklearn(prices):
+			"""
+			Calculate the reversion coefficient of a stock based on its price data using sklearn.
+			
+			Args:
+			- prices (pd.Series or list): A series of historical stock prices.
+			
+			Returns:
+			- float: The reversion coefficient.
+			"""
+			# Convert to pandas Series if it's not already
+			if not isinstance(prices, pd.Series):
+				prices = pd.Series(prices)
+			
+			# Prepare lagged and current prices
+			lagged_prices = prices.shift(1).dropna().values.reshape(-1, 1)  # Lagged prices as X
+			current_prices = prices[1:].values.reshape(-1, 1)               # Current prices as y
+
+			# Fit the linear regression model
+			model = LinearRegression()
+			model.fit(lagged_prices, current_prices)
+			
+			# Reversion coefficient is the slope of the lagged price
+			reversion_coefficient = model.coef_[0][0]
+			
+			return reversion_coefficient
+		
 		ticker = request.values.get("tickers")
 		period = request.values.get("period")
 		interval = request.values.get("interval")
@@ -1929,17 +1969,8 @@ def reversion():
 		t = yf.Ticker(ticker)
 		history = t.history(period=period,interval=interval)
 		prices = history["Close"]
-		log_returns = np.log(prices / prices.shift(1)).dropna()
-		lagged_returns = log_returns.shift(1).dropna()
-		log_returns = log_returns.iloc[1:]
-		lagged_returns = lagged_returns.iloc[1:]
-		X = lagged_returns.values.reshape(-1, 1)  # Reshape for sklearn
-		y = log_returns.values
-		lr = LinearRegression()
-		fit = lr.fit(X, y[:-1])
-		beta = fit.coef_
-		reversion_coefficient = -np.log(1 - beta)/100
-		
+		reversion_coefficient = calculate_reversion_coefficient_sklearn(prices)
+
 		return render_template('single-reversion.html',reversion=reversion_coefficient.item())
 	return render_template('single-reversion.html')
 
@@ -2631,6 +2662,14 @@ def volume_diff():
 	return render_template("v(t).html")
 
 
+@app.route('/stock-from-call', methods=['GET','POST'])
+def stock_from_call():
+	return render_template("stock_from_call.html")
+
+@app.route('/stock-from-put', methods=['GET','POST'])
+def stock_from_put():
+	return render_template("stock_from_put.html")
+
 @app.route('/stoch/yc-stoch-filt', methods=['GET','POST'])
 def yc_stoch_filt():
 	return render_template("yc-stoch-filt.html")
@@ -2712,6 +2751,7 @@ def stats_binom():
 		"""
 		return html_table_with_styles
 	return render_template('bin_stats.html')
+
 @app.route('/plotly/<ticker>')
 def plot_ly(ticker):
 	t = yf.Ticker(ticker.upper())
@@ -2793,9 +2833,183 @@ def ddm_spread():
 		return "INVALID COMPANY STOCK"
 	return render_template("ddm-spread.html")
 
+
+
+@app.route('/filtration',methods=["GET","POST"])
+def filtration():
+	from filtration import f
+	from scipy.integrate import quad
+	if request.method == 'POST':
+		target_index = request.values.get('target_index').upper()
+		target_stock = request.values.get('target_stock').upper()
+		# interval = request.values.get('interval')
+		
+		# Fetch the index history
+		i = yf.Ticker(target_index)
+		index = i.history(period='2y')["Close"]
+		ret_index = index.pct_change()[1:]
+
+		# Fetch the ticker data from user input
+		t = yf.Ticker(target_stock)
+		history = t.history(period='2y')
+		close = history["Close"]
+		ret = close.pct_change()[1:]  # Percentage returns
+
+		# Normalize returns
+		norm_ret = [(i - np.mean(ret)) / np.std(ret) for i in ret]
+		# Apply f(t) to normalized returns
+		r = np.array([f(i) for i in norm_ret])
+		# Prepare index returns as features for regression
+		X = np.array([ret_index]).T
+		X = X.reshape(-1, 1)
+		# Fit linear regression model
+		model = LinearRegression().fit(X[:], r)
+		# Make a prediction for the next day (or any other future time point)
+		# Here, we use the last known return value (ret_index[-1]) to predict
+		next_day_ret = np.array([ret_index[-1]]).reshape(-1, 1)
+		predicted_r = model.predict(next_day_ret)
+		pred = (predicted_r + np.mean(ret))*np.std(ret)
+		# Variance calculations for price and returns
+		var_price = np.var(close)/len(close)
+		var_ret = np.var(ret)*np.sqrt(12)
+		var_transform = np.sqrt(r@r)
+		return render_template("filtration.html",filt=predicted_r[0])
+	return render_template("filtration.html")
+
+@app.route("/drift&vol",methods=["GET","POST"])
+def drift_vol():
+	if request.method == "POST":
+		ticker = request.values.get("ticker").upper()
+		p = request.values.get("p")
+		i = request.values.get("i")
+		data = yf.Ticker(ticker).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
+		data['Log Returns'] = np.log(data['Close'] / data['Close'].shift(1))
+		# Time step (e.g., daily returns, assume 252 trading days in a year)
+		delta_t = 1 / 252
+		# Drift (mean of log returns divided by time step)
+		mu = data['Log Returns'].mean() / delta_t
+		# Volatility (standard deviation of log returns divided by square root of time step)
+		sigma = data['Log Returns'].std() / np.sqrt(delta_t)
+		return render_template("drift&vol.html",mu=mu,sigma=sigma)
+	return render_template("drift&vol.html")
+
 @app.route("/value-algo")
 def add_value_algo():
 	return render_template("value-algo.html")
+
+@app.route("/dV")
+def dV():
+	return render_template("dV.html")
+
+@app.route("/v3algo",methods=["GET","POST"])
+def value_algo_three():
+	return render_template("v3.html")
+
+@app.route("/paramatize", methods=["GET", "POST"])
+def paramatize():
+    if request.method == "POST":
+        receipt = request.values.get("receipt")
+        # Safely retrieve and default values
+        mu = request.values.get("mu") or "0"
+        sigma = request.values.get("sigma") or "0"
+        reversion = request.values.get("reversion") or "0"
+        spread = request.values.get("spread") or "0"
+        forward = request.values.get("forward") or "0"
+        risk_neutral = request.values.get("risk_neutral") or "0"
+        filtration = request.values.get("filtration") or "0"
+        time_float = request.values.get("time_float") or "0"
+        target_price = request.values.get("target_price") or "0"
+        delta = request.values.get("delta") or "0"
+        rho = request.values.get("rho") or "0"
+        theta = request.values.get("theta") or "0"
+        vega = request.values.get("vega") or "0"
+        dividend_yield = request.values.get("dividend_yield") or "0"
+        coe = request.values.get("coe") or "0"
+        cod = request.values.get("cod") or "0"
+        wacc = request.values.get("wacc") or "0"
+        rf = request.values.get("rf") or "0"
+
+        try:
+            inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
+            if not inv:
+                return "Invalid receipt", 400
+
+            new_token = TokenParameters(
+                owner=inv.owner,
+                investment_name=inv.investment_name,
+                receipt=inv.receipt,
+                mu=float(mu),
+                rf=float(rf),
+                sigma=float(sigma),
+                reversion=float(reversion),
+                spread=float(spread),
+                forward=float(forward),
+                risk_neutral=float(risk_neutral),
+                filtration=float(filtration),
+                time_float=float(time_float),
+                target_price=float(target_price),
+                delta=float(delta),
+                rho=float(rho),
+                theta=float(theta),
+                vega=float(vega),
+                dividend_yield=float(dividend_yield),
+                coe=float(coe),
+                cod=float(cod),
+                wacc=float(wacc),
+            )
+            db.session.add(new_token)
+            db.session.commit()
+            return "success"
+        except ValueError as e:
+            db.session.rollback()
+            return f"Invalid input: {e}", 400
+        except Exception as e:
+            db.session.rollback()
+            return f"An error occurred: {e}", 500
+
+    return render_template("parameter-form.html")
+
+
+        
+# @app.route("/dV", methods=["GET", "POST"])
+# def dV():
+#     if request.method == "POST":
+# 		t = request.values.get('t') #np.linspace(0,3,10)
+# 		s = request.values.get('s') #np.linspace(3,5,10)
+# 		T = request.values.get('T') #np.linspace(5,10,10)
+# 		r0 = request.values.get('r0')
+# 		c0 = request.values.get('c0')
+# 		K = request.values.get('K')
+
+@app.route('/token-parameters/<int:id>')
+def token_parameters(id):
+	try:
+		params = TokenParameters.query.get_or_404(id)
+		token_data = {
+		"owner": params.owner,
+		"investment_name": params.investment_name,
+		"receipt": params.receipt,
+		"mu": float(params.mu),
+		"rf": float(params.rf),
+		"sigma": float(params.sigma),
+		"reversion": float(params.reversion),
+		"spread": float(params.spread),
+		"forward": float(params.forward),
+		"risk_neutral": float(params.risk_neutral),
+		"filtration": float(params.filtration),
+		"time_float": float(params.time_float),
+		"target_price": float(params.target_price),
+		"delta": float(params.delta),
+		"rho": float(params.rho),
+		"theta": float(params.theta),
+		"vega": float(params.vega),
+		"dividend_yield": float(params.dividend_yield),
+		"coe": float(params.coe),
+		"cod": float(params.cod),
+		"wacc": float(params.wacc)}
+		return jsonify(token_data)
+	except Exception as e:
+		return str(e), 500
 
 if __name__ == '__main__':
 	with app.app_context():

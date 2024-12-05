@@ -305,6 +305,33 @@ class InvestmentType(enum.Enum):
     call = 'call'
     put = 'put'    
 
+class TokenParameters(db.Model):
+    __tablename__ = 'parameters'
+
+    id = db.Column(db.Integer, unique=True ,primary_key=True)
+    owner =  db.Column(db.String(1024))
+    investment_name = db.Column(db.String(1024))
+    receipt = db.Column(db.String(1024),unique=True)
+    mu = db.Column(db.Float())
+    sigma = db.Column(db.Float())
+    reversion = db.Column(db.Float())
+    spread = db.Column(db.Float())
+    forward = db.Column(db.Float())
+    rf = db.Column(db.Float())
+    risk_neutral = db.Column(db.Float())
+    filtration = db.Column(db.Float())
+    time_float = db.Column(db.Float())
+    target_price = db.Column(db.Float())
+    delta = db.Column(db.Float())
+    rho = db.Column(db.Float())
+    theta = db.Column(db.Float())
+    vega = db.Column(db.Float())
+    dividend_yield = db.Column(db.Float())
+    coe = db.Column(db.Float())
+    cod = db.Column(db.Float())
+    wacc = db.Column(db.Float())
+
+
 class InvestmentDatabase(db.Model):
     __tablename__ = 'investments'
     

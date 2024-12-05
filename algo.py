@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from scipy.stats import norm
 import numpy as np
 from scipy.integrate import quad
