@@ -2593,6 +2593,21 @@ def tree():
 		return html_table_with_styles
 	return render_template("tree-view.html",style="color red;")
 
+from reverse_bs import calculate_stock_price_and_derivatives
+@app.route("/reversed-bs",methods=["GET", "POST"])
+def rev_bs():
+	if request.method == "POST":
+		V = request.values.get("V") 
+		delta =request.values.get("delta") 
+		K = request.values.get("K")
+		T = request.values.get("T") 
+		r = request.values.get("r") 
+		sigma = request.values.get("sigma")
+		St, theta, maturity_sensitivity = calculate_stock_price_and_derivatives(V, delta, K, T, r, sigma)
+		return render_template("rev-bs.html",St=St,theta=theta,ms=maturity_sensitivity)
+	return render_template("rev-bs.html")
+
+
 @app.route("/dash")
 def dash():
 	return render_template("dashboard.html")
@@ -2657,6 +2672,10 @@ def get_stoch_p_exp():
 def stoch_price_classical():
 	return render_template("stoch-pricing-two.html")
 
+@app.route('/dV2', methods=['GET','POST'])
+def dV2():
+	return render_template("dV2.html")
+
 @app.route('/stoch/v(t)', methods=['GET','POST'])
 def volume_diff():
 	return render_template("v(t).html")
@@ -2677,6 +2696,30 @@ def yc_stoch_filt():
 @app.route('/yc', methods=['GET','POST'])
 def yc():
 	return render_template("yc.html")
+
+import priceAlgo as pa
+@app.route('/PriceAlgo', methods=['GET','POST'])
+def price_Algo():
+	if request.method=="POST":
+		# # Example Usage
+		K = float(request.values.get("K"))  # Strike price
+		T = float(request.values.get("T"))  # Time to maturity (1 year)
+		s = float(request.values.get("s"))
+		t = float(request.values.get("t"))
+		r = float(request.values.get("r"))  # Risk-free interest rate (5%)
+		v = float(request.values.get("v"))  # Volatility (20%)
+		St = float(request.values.get("St"))
+		dt = float(request.values.get("dt"))
+
+		p = pa.price(St,K,r,v,t,s,T)
+		print(p)
+		pdt = pa.dPdt(St,K,r,v,t,s,T)*dt
+		pdT = pa.dPdT(St,K,r,v,t,s,T)*dt
+		pds = pa.dPds(St,K,r,v,t,s,T)*dt
+
+		return render_template("price_algo.html",pds=pds,pdT=pdT,pdt=pdt,p=p)
+	return render_template("price_algo.html")
+
 
 @app.route('/option/probdist',methods=["GET","POST"])
 def prodist():
@@ -2897,6 +2940,14 @@ def drift_vol():
 def add_value_algo():
 	return render_template("value-algo.html")
 
+@app.route("/p-algo-one")
+def palgoone():
+	return render_template("p-algo-one.html")
+
+@app.route("/p-algo-two")
+def palgotwo():
+	return render_template("p-algo-two.html")
+
 @app.route("/dV")
 def dV():
 	return render_template("dV.html")
@@ -2969,17 +3020,6 @@ def paramatize():
 
     return render_template("parameter-form.html")
 
-
-        
-# @app.route("/dV", methods=["GET", "POST"])
-# def dV():
-#     if request.method == "POST":
-# 		t = request.values.get('t') #np.linspace(0,3,10)
-# 		s = request.values.get('s') #np.linspace(3,5,10)
-# 		T = request.values.get('T') #np.linspace(5,10,10)
-# 		r0 = request.values.get('r0')
-# 		c0 = request.values.get('c0')
-# 		K = request.values.get('K')
 
 @app.route('/token-parameters/<int:id>')
 def token_parameters(id):
