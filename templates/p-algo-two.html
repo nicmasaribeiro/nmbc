@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Calculations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        form {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 8px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .result-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Financial Calculations</h1>
+    <form id="calculationForm">
+        <label for="mu">Mu (Expected Return):</label>
+        <input type="number" id="mu" name="mu" step="0.01" required>
+
+        <label for="sigma">Sigma (Volatility):</label>
+        <input type="number" id="sigma" name="sigma" step="0.01" required>
+
+        <label for="T">T:</label>
+        <input type="number" id="T" name="T" step="0.01" required>
+
+        <label for="s">s:</label>
+        <input type="number" id="s" name="s" step="0.01" required>
+
+        <label for="t">t:</label>
+        <input type="number" id="t" name="t" step="0.01" required>
+
+        <label for="r0">r0:</label>
+        <input type="number" id="r0" name="r0" step="0.01" required>
+
+        <label for="c0">c0:</label>
+        <input type="number" id="c0" name="c0" step="0.01" required>
+
+        <label for="K">K:</label>
+        <input type="number" id="K" name="K" step="0.01" required>
+
+        <button type="submit">Calculate</button>
+    </form>
+
+    <h2>Results:</h2>
+    <div id="results"></div>
+
+    <script>
+        function B0(t, s, T, r0, c0) {
+            return (r0 * Math.exp(((T - t) * r0) / c0)) / ((s - t) * (T - t));
+        }
+
+        function V(t, s, T, K, r0, c0) {
+            const B0_val = B0(t, s, T, r0, c0);
+            return B0_val * (1 - B0_val / K) + B0_val * K * Math.exp(-r0 * t);
+        }
+
+        function result(t, T, K, r0) {
+            return K * Math.exp(r0 * (T - t)) * (T - t);
+        }
+
+        function result2(t, s, T, K, r0, c0, mu, sigma) {
+            const V_val = V(t, s, T, K, r0, c0);
+            return (K * Math.exp(r0 * (mu + (1 / 2) * Math.pow(sigma, 2)) * (T - t) * (s - T)) * (T - t)) /
+                ((1 + V_val + s) * (T - s));
+        }
+
+        function numericalDerivative(func, variable, dx = 1e-5) {
+            return (func(variable + dx) - func(variable - dx)) / (2 * dx);
+        }
+
+        function secondDerivative(func, variable, dx = 1e-5) {
+            return (func(variable + dx) - 2 * func(variable) + func(variable - dx)) / (dx * dx);
+        }
+
+        document.getElementById('calculationForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Get input values
+            const mu = parseFloat(document.getElementById('mu').value);
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const T = parseFloat(document.getElementById('T').value);
+            const s = parseFloat(document.getElementById('s').value);
+            const t = parseFloat(document.getElementById('t').value);
+            const r0 = parseFloat(document.getElementById('r0').value);
+            const c0 = parseFloat(document.getElementById('c0').value);
+            const K = parseFloat(document.getElementById('K').value);
+
+            // Perform calculations
+            const B0Result = B0(t, s, T, r0, c0);
+            const VResult = V(t, s, T, K, r0, c0);
+            const resultVal = result(t, T, K, r0);
+            const result2Val = result2(t, s, T, K, r0, c0, mu, sigma);
+
+            const dR_dT = numericalDerivative((T_val) => V(t, s, T_val, K, r0, c0), T);
+            const dR_ds = numericalDerivative((s_val) => V(t, s_val, T, K, r0, c0), s);
+            const dR_dt = numericalDerivative((t_val) => V(t_val, s, T, K, r0, c0), t);
+
+            const dR_dT2 = secondDerivative((T_val) => V(t, s, T_val, K, r0, c0), T);
+            const dR_ds2 = secondDerivative((s_val) => V(t, s_val, T, K, r0, c0), s);
+            const dR_dt2 = secondDerivative((t_val) => V(t_val, s, T, K, r0, c0), t);
+
+            // Display results
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = ''; // Clear previous results
+
+            const results = {
+                "B0": B0Result,
+                "V": VResult,
+                "Result": resultVal,
+                "Result2": result2Val,
+                "dR/dT (1st derivative)": dR_dT,
+                "dR/ds (1st derivative)": dR_ds,
+                "dR/dt (1st derivative)": dR_dt,
+                "d²R/dT² (2nd derivative)": dR_dT2,
+                "d²R/ds² (2nd derivative)": dR_ds2,
+                "d²R/dt² (2nd derivative)": dR_dt2
+            };
+
+            for (const [key, value] of Object.entries(results)) {
+                const resultElement = document.createElement('p');
+                resultElement.className = 'result-item';
+                resultElement.textContent = `${key}: ${value}`;
+                resultsDiv.appendChild(resultElement);
+            }
+        });
+    </script>
+</body>
+</html>

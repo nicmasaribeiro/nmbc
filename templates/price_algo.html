@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Pricing with Derivatives</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        form {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 8px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            background: #fff;
+            align-content: center;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .result-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Option Pricing with Derivatives</h1>
+    <form id="pricingForm" action="/PriceAlgo" method="POST">
+
+        <label for="v">Sigma (Volatility):</label>
+        <input type="number" id="v" name="v" step="0.001" required>
+
+        <label for="T">T (Maturity):</label>
+        <input type="number" id="T" name="T" step="0.001"  required>
+
+        <label for="s"> s (Sell Time):</label>
+        <input type="number" id="s" name="s" step="0.001" required>
+
+        <label for="t">t (Current Time):</label>
+        <input type="number" id="t" name = "t" step="0.001" required>
+
+        <label for="r">r (Interest Rate):</label>
+        <input type="number" id="r" name="r" step="0.001" required>
+
+        <label for="St">St (Current Price):</label>
+        <input type="number" id="St" name="St" step="0.001" required>
+
+        <label for="K">K (Strike Price):</label>
+        <input type="number" id="K" name="K" step="0.001" required>
+
+        <label for="dt">dt (Time Differetial):</label>
+        <input type="number" id="dt" name="dt" step="0.001" value=".001" required>
+        
+        <button type="submit">Calculate</button>
+    </form>
+
+    
+    <div id="results" >
+        <h2>Price: {{p}}</h2>
+        <h2>dPds: {{pds}}</h2>
+        <h2>dPdT: {{pdT}}</h2>
+        <h2>dPdt: {{pdt}}</h2>
+    </div>
+
+</body>
+</html>
