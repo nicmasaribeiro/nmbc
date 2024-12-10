@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black-Scholes Calculator</title>
+    <style>
+        body {
+            padding-top: 500px;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            padding-top: 100px;
+            max-width: 500px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #0056b3;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #0056b3;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #003f7d;
+        }
+
+        h2 {
+            color: #0056b3;
+        }
+
+        p {
+            font-size: 16px;
+        }
+
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border: 1px solid #b6d4fe;
+            border-radius: 5px;
+        }
+
+        .error {
+            margin-top: 20px;
+            padding: 15px;
+            background: #ffe6e6;
+            border: 1px solid #f5c2c2;
+            border-radius: 5px;
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Black-Scholes Stock Option Calculator</h1>
+        <form method="POST">
+            <label for="option_price">Option Price:</label>
+            <input type="text" id="option_price" name="option_price" required>
+
+            <label for="strike_price">Strike Price (K):</label>
+            <input type="text" id="strike_price" name="strike_price" required>
+
+            <label for="maturity_time">Maturity Time (T):</label>
+            <input type="text" id="maturity_time" name="maturity_time" required>
+
+            <label for="current_time">Current Time (t):</label>
+            <input type="text" id="current_time" name="current_time" required>
+
+            <label for="time_scale">Time Scale (ts):</label>
+            <input type="text" id="time_scale" name="time_scale" required>
+
+            <label for="interest_rate">Interest Rate (r):</label>
+            <input type="text" id="interest_rate" name="interest_rate" required>
+
+            <label for="variance">Variance (σ²):</label>
+            <input type="text" id="variance" name="variance" required>
+
+            <button type="submit">Calculate</button>
+        </form>
+
+        {% if estimated_stock_price %}
+            <div class="results">
+                <h2>Results:</h2>
+                <p>Estimated Stock Price: {{ estimated_stock_price }}</p>
+                <p>Reversed Option Price: {{ value }}</p>
+                <p>∂V/∂t: {{ dvdt }}</p>
+                <p>∂V/∂ts: {{ dvdts }}</p>
+                <p>∂V/∂T: {{ dvdT }}</p>
+                <p>∂V/∂r: {{ dvdr0 }}</p>
+                <p>∂V/∂K: {{ dvdk }}</p>
+                <p>∂V/∂P: {{ dvdp }}</p>
+                <p>∂2V/∂P2 (gamma): {{ dvdp2 }}</p>
+                <p>∂V/∂σ: {{ dvdv }}</p>
+            
+
+
+            </div>
+        {% elif error %}
+            <div class="error">
+                <h2>Error:</h2>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

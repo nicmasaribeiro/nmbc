@@ -57,7 +57,7 @@
     </style>
 </head>
 <body>
-    <h1>Option Pricing with Derivatives</h1>
+    <h1>Option Value-Derivatives</h1>
     <form id="pricingForm">
         <label for="mu">Mu (Expected Return):</label>
         <input type="number" id="mu" step="0.01" required>
@@ -129,7 +129,7 @@
             resultsDiv.innerHTML = ''; // Clear previous results
 
             const results = {
-                "B0 (with s and t)": B0Result,
+                "B0 (Fwd Rate)": B0Result,
                 "V (Option Value)": VResult,
                 "dV/dt (Time Derivative)": dVdt,
                 "dV/ds (Stock Price Derivative)": dVds,
