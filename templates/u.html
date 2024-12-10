@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Calculations</title>
+    <script>
+        // Define B0 function
+        function B0(t, s, T, r0, c0) {
+            return (r0 * Math.exp(((T - t) * r0) / c0)) / ((s - t) * (T - t));
+        }
+
+        // Define V function
+        function V(t, s, T, K, r0, c0) {
+            const B0Value = B0(t, s, T, r0, c0);
+            const term1 = B0Value * (1 - B0Value / K);
+            const term2 = B0Value * K * Math.exp(-r0 * t);
+            return term1 + term2;
+        }
+
+        // Numerical derivative function
+        function derivative(func, x, dx = 1e-5, n = 1) {
+            if (n === 1) {
+                return (func(x + dx) - func(x - dx)) / (2 * dx);
+            } else if (n === 2) {
+                return (func(x + dx) - 2 * func(x) + func(x - dx)) / (dx * dx);
+            }
+        }
+
+        // Define Rt
+        function Rt(t, s, T, K, r0, c0) {
+            const V_t = (t) => V(t, s, T, K, r0, c0);
+            const V_s = (s) => V(t, s, T, K, r0, c0);
+            const V_T = (T) => V(t, s, T, K, r0, c0);
+
+            const r_dVdt = derivative(V_t, t, 1e-5, 1);
+            const r_dVdt2 = derivative(V_t, t, 1e-5, 2);
+            const r_dVds = derivative(V_s, s, 1e-5, 1);
+            const r_dVds2 = derivative(V_s, s, 1e-5, 2);
+            const r_dVdT = derivative(V_T, T, 1e-5, 1);
+            const r_dVdT2 = derivative(V_T, T, 1e-5, 2);
+
+            return ((1 + r_dVdt) ** r_dVdt2) * ((1 + r_dVds) ** r_dVds2) * ((1 + r_dVdT) ** r_dVdT2);
+        }
+
+        // Calculate Pt
+        function calculatePt(t, s, T, K, r0, c0) {
+            const V_value = V(t, s, T, K, r0, c0);
+            const Rt_value = Rt(t, s, T, K, r0, c0);
+            return V_value / Rt_value;
+        }
+
+        // Event handler for calculations
+        function calculate() {
+            // Get inputs
+            const t = parseFloat(document.getElementById("t").value);
+            const s = parseFloat(document.getElementById("s").value);
+            const T = parseFloat(document.getElementById("T").value);
+            const r0 = parseFloat(document.getElementById("r0").value);
+            const c0 = parseFloat(document.getElementById("c0").value);
+            const K = parseFloat(document.getElementById("K").value);
+
+            // Perform calculations
+            const Pt = calculatePt(t, s, T, K, r0, c0);
+            const B0Value = B0(t, s, T, r0, c0);
+
+            // Update results
+            document.getElementById("PtResult").textContent = Pt.toFixed(5);
+            document.getElementById("B0Result").textContent = B0Value.toFixed(5);
+        }
+    </script>
+</head>
+<body>
+    <h1>Financial Equation Calculator</h1>
+    <form onsubmit="event.preventDefault(); calculate();">
+        <label>t: <input type="number" id="t" value="0" step="0.01"></label><br>
+        <label>s: <input type="number" id="s" value="2" step="0.01"></label><br>
+        <label>T: <input type="number" id="T" value="5" step="0.01"></label><br>
+        <label>r<sub>0</sub>: <input type="number" id="r0" value="0.06" step="0.001"></label><br>
+        <label>c<sub>0</sub>: <input type="number" id="c0" value="0.25" step="0.01"></label><br>
+        <label>K: <input type="number" id="K" value="10" step="0.01"></label><br><br>
+        <button type="submit">Calculate</button>
+    </form>
+    <h2>Results</h2>
+    <p>B<sub>0</sub>: <span id="B0Result">--</span></p>
+    <p>P<sub>t</sub>: <span id="PtResult">--</span></p>
+</body>
+</html>
