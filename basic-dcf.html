@@ -1,0 +1,40 @@
+
+
+
+
+{% extends "base.html" %}
+
+{% block title %} DCF Pricing Model{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<h1>Discounted Cash Flow</h1>
+<div class="container">
+    <form method="POST">
+    
+    <label for="ticker">Ticker</label><br>
+    <input type="text" id="ticker" name="ticker" class="input-field"><br><br>
+    
+    <label for="T">Taxes</label><br>
+    <input type="text" id="taxes" name="taxes" class="input-field"><br><br>
+
+    <label for="ticker">Regression Beta</label><br>
+    <input type="text" id="rg" name="rg" class="input-field"><br><br>
+    
+    <label for="ticker">Risk Free</label><br>
+    <input type="text" id="rf" name="rf" class="input-field"><br><br>
+        
+    <label for="ticker">Equity Risk Premium</label><br>
+    <input type="text" id="erp" name="erp" class="input-field"><br><br>
+    
+    <label for="K">Credit Spread</label><br>
+    <input type="text" id="cs" name="cs" class="input-field"><br><br>
+    
+    <label for="K">Cost of Debt</label><br>
+    <input type="text" id="rd" name="rd" class="input-field"><br><br>
+    
+    <input type="submit" value="Calculate" class="submit-button">
+</form>
+</div>
+
+{% endblock %}

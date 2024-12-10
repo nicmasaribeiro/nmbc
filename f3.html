@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate f₃(s, u) with Drift and Volatility Coefficients</title>
+    <!-- Include MathJax for rendering mathematical equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Load Plotly.js for graphing -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script>
+        // Define N(s, u) function (adjust based on your model)
+        function N(s, u) {
+            return Math.sin(s) + Math.cos(u); // Example function for N(s, u)
+        }
+
+        // Function to approximate the integral of a function f from a to b
+        function integrate(f, a, b, step = 0.01) {
+            let result = 0;
+            for (let t = a; t <= b; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f₃(s, u)
+        function f3(s, u) {
+            const Ns_u = N(s, u); // N(s, u)
+            const first_term = s * s * u * u * Math.pow(Ns_u, 2);
+
+            // Second term: -2su N(s, u) * integral from 1/u to s of N(t, t) dt
+            const second_term_integral = integrate(t => N(t, t), 1/u, s);
+            const second_term = -2 * s * u * Ns_u * second_term_integral;
+
+            // Third term: integral from 1/u to s of (integral from 1/u to s of N(x, y)^2 dx) dy
+            const inner_integral = (x, y) => Math.pow(N(x, y), 2);
+            const outer_integral = (y) => integrate(x => inner_integral(x, y), 1/u, s); // Inner integral for x
+            const third_term = integrate(outer_integral, 1/u, s); // Outer integral for y
+
+            // Calculate final f₃(s, u)
+            return first_term + second_term + third_term;
+        }
+
+        // Function to calculate drift coefficient
+        function driftCoefficient(s, u) {
+            return integrate(t => N(s, t), 0, u); // Example drift based on N(s, u)
+        }
+
+        // Function to calculate volatility coefficient
+        function volatilityCoefficient(s, u) {
+            return Math.sqrt(integrate(t => Math.pow(N(s, t), 2), 0, u)); // Volatility as sqrt of variance
+        }
+
+        // Function to calculate expected appreciation
+        function expectedAppreciation(s, u, drift, volatility, timePeriods) {
+            return drift * timePeriods + 0.5 * Math.pow(volatility, 2) * timePeriods; // Appreciation formula
+        }
+
+        // Function to calculate and display f₃(s, u), drift, and volatility
+        function calculateF3() {
+            const s = parseFloat(document.getElementById("s").value);
+            const u = parseFloat(document.getElementById("u").value);
+
+            // Calculate f₃(s, u), drift, and volatility
+            const f3_result = f3(s, u);
+            const drift = driftCoefficient(s, u);
+            const volatility = volatilityCoefficient(s, u);
+
+            // Display the result
+            document.getElementById("result_F3").innerText = `f₃(${s}, ${u}) = ${f3_result.toFixed(6)}`;
+            document.getElementById("result_drift").innerText = `Drift Coefficient = ${drift.toFixed(6)}`;
+            document.getElementById("result_volatility").innerText = `Volatility Coefficient = ${volatility.toFixed(6)}`;
+        }
+
+        // Function to simulate f₃(s, u) over a range of values
+        function simulateF3() {
+            const start_s = parseFloat(document.getElementById("start_s").value);
+            const end_s = parseFloat(document.getElementById("end_s").value);
+            const step_s = parseFloat(document.getElementById("step_s").value);
+            const u = parseFloat(document.getElementById("u_sim").value);
+
+            let output = "<table border='1'><tr><th>s</th><th>f₃(s, u)</th></tr>";
+
+            for (let s = start_s; s <= end_s; s += step_s) {
+                const f3_result = f3(s, u);
+                output += `<tr><td>${s.toFixed(2)}</td><td>${f3_result.toFixed(6)}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById("simulationResult").innerHTML = output;
+        }
+
+        // Function to simulate expected appreciation over time
+        function simulateAppreciation() {
+            const s = parseFloat(document.getElementById("s_appreciation").value);
+            const u = parseFloat(document.getElementById("u_appreciation").value);
+            const drift = driftCoefficient(s, u);
+            const volatility = volatilityCoefficient(s, u);
+            const timePeriods = parseFloat(document.getElementById("timePeriods").value);
+
+            let timeValues = [];
+            let appreciationValues = [];
+
+            for (let t = 0; t <= timePeriods; t += 1) {
+                const appreciation = expectedAppreciation(s, u, drift, volatility, t);
+                timeValues.push(t);
+                appreciationValues.push(appreciation);
+            }
+
+            // Plot the graph using Plotly.js
+            const trace = {
+                x: timeValues,
+                y: appreciationValues,
+                mode: 'lines',
+                name: 'Expected Appreciation',
+                line: { color: '#1f77b4' }
+            };
+
+            const layout = {
+                title: 'Expected Stock Appreciation Over Time',
+                xaxis: { title: 'Time Periods' },
+                yaxis: { title: 'Expected Appreciation' },
+                paper_bgcolor: '#f4f6f9',
+                plot_bgcolor: '#f4f6f9'
+            };
+
+            Plotly.react('appreciationGraph', [trace], layout);
+        }
+    </script>
+</head>
+<body>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate and Display f₃(s, u), Drift, and Volatility</h1>
+
+    <div>
+        <h3>The formula for \( f_3(s, u) \) is:</h3>
+        <p>
+            \[
+            f_3(s, u) = s^2 u^2 N(s, u)^2 - 2su N(s, u) \int_{\frac{1}{u}}^{s} N(t, t) \, dt + \int_{\frac{1}{u}}^{s} \left( \int_{\frac{1}{u}}^{s} N(x, y)^2 \, dx \right) dy
+            \]
+        </p>
+    </div>
+
+    <!-- Explanation of the formula -->
+    <h2>Explanation of the Formula</h2>
+    <p>
+        The function \( f_3(s, u) \) represents the interaction between two variables \( s \) and \( u \), where the function \( N(s, u) \) introduces a relationship between them. The drift coefficient captures the trend, and the volatility coefficient captures the uncertainty or variability over time.
+    </p>
+
+    <h2>Calculate f₃(s, u), Drift, and Volatility</h2>
+
+    <label for="s">Enter value for s: </label>
+    <input type="number" id="s" step="0.01" value="1"><br><br>
+
+    <label for="u">Enter value for u: </label>
+    <input type="number" id="u" step="0.01" value="1"><br><br>
+
+    <button onclick="calculateF3()">Calculate f₃(s, u)</button>
+
+    <h3 id="result_F3">f₃(s, u) = </h3>
+    <h3 id="result_drift">Drift Coefficient = </h3>
+    <h3 id="result_volatility">Volatility Coefficient = </h3>
+
+    <!-- Simulation section -->
+    <h2>Simulation of f₃(s, u)</h2>
+
+    <label for="start_s">Start value for s: </label>
+    <input type="number" id="start_s" step="0.01" value="0.1"><br><br>
+
+    <label for="end_s">End value for s: </label>
+    <input type="number" id="end_s" step="0.1" value="5"><br><br>
+
+    <label for="step_s">Step size for s: </label>
+    <input type="number" id="step_s" step="0.01" value="0.1"><br><br>
+
+    <label for="u_sim">Enter value for u (for simulation): </label>
+    <input type="number" id="u_sim" step="0.01" value="1"><br><br>
+
+    <button onclick="simulateF3()">Run Simulation</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <!-- Expected appreciation section -->
+    <h2>Simulate Expected Stock Appreciation</h2>
+
+    <label for="s_appreciation">Enter value for s: </label>
+    <input type="number" id="s_appreciation" step="0.01" value="1"><br><br>
+
+    <label for="u_appreciation">Enter value for u: </label>
+    <input type="number" id="u_appreciation" step="0.01" value="1"><br><br>
+
+    <label for="timePeriods">Enter number of time periods: </label>
+    <input type="number" id="timePeriods" step="1" value="10"><br><br>
+
+    <button onclick="simulateAppreciation()">Simulate Expected Appreciation</button>
+
+    <h3>Appreciation Graph:</h3>
+    <div id="appreciationGraph" style="width:100%;height:500px;"></div>
+
+    <!-- Style for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f6f9;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+    </style>
+</body>
+</html>

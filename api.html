@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Asset Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .stock-data {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+
+        .stock-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 300px;
+            margin: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stock-card h2 {
+            font-size: 24px;
+            color: #444;
+        }
+
+        .stock-card p {
+            font-size: 18px;
+            color: #666;
+        }
+
+        /* Responsive design */
+        @media (max-width: 600px) {
+            .stock-card {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Stock Asset Data</h1>
+    <div class="stock-data">
+        <div class="stock-card">
+            <h2 id="stock-symbol">AAPL</h2>
+            <p>Price: $<span id="stock-price">150.00</span></p>
+            <p>Change: <span id="stock-change">+1.20%</span></p>
+        </div>
+        <div class="stock-card">
+            <h2 id="stock-symbol-2">GOOGL</h2>
+            <p>Price: $<span id="stock-price-2">2750.00</span></p>
+            <p>Change: <span id="stock-change-2">+2.05%</span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // You can use a stock API to dynamically update the stock data
+    // Here's a placeholder example using static values for now
+
+    const stockData = {
+        AAPL: {
+            symbol: 'AAPL',
+            price: 150.00,
+            change: '+1.20%'
+        },
+        GOOGL: {
+            symbol: 'GOOGL',
+            price: 2750.00,
+            change: '+2.05%'
+        }
+    };
+
+    async function updateStockData() {
+        const symbols = ['AAPL', 'GOOGL'];
+        for (const symbol of symbols) {
+            const response = await fetch(`/api/stocks/${symbol}`);
+            const stockData = await response.json();
+            
+            document.getElementById(`stock-symbol${symbol === 'AAPL' ? '' : '-2'}`).innerText = stockData.symbol;
+            document.getElementById(`stock-price${symbol === 'AAPL' ? '' : '-2'}`).innerText = stockData.price.toFixed(2);
+            document.getElementById(`stock-change${symbol === 'AAPL' ? '' : '-2'}`).innerText = stockData.change.toFixed(2) + '%';
+        }
+    }
+    
+    // Call the function to update data
+    updateStockData();
+
+    // In a real implementation, you would fetch the data from a stock API like Alpha Vantage or Yahoo Finance API
+</script>
+
+</body>
+</html>

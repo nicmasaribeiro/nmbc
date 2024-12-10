@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <title>Calculate f(t), g(t, r), S(t, r), and Spread Coefficient</title>
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Function to approximate the integral from 0 to s of a function f
+        function integrate(f, s, step = 0.01) {
+            let result = 0;
+            for (let t = 0; t <= s; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+            const second_term = -2 * s * B(s) * integrate(B, s);
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s);
+            const third_term = integrate(outer_integral, s);
+            return first_term + second_term + third_term;
+        }
+
+        // Function to compute g(t, r) = (1 - r^2) * e^(r * f(t))
+        function g(t, r) {
+            const ft = f(t);
+            return (1 - Math.pow(r, 2)) * Math.exp(r * ft);
+        }
+
+        // Function to compute S(t, r) = g(t, r)^t * d_t + exp(f(t)) * B(t)
+        function S(t, r, dt) {
+            const gt = g(t, r);
+            const ft = f(t);
+            const bt = B(t);
+            return Math.pow(gt, t) * dt + Math.exp(ft) * bt;
+        }
+
+        // Function to compute the spread coefficient
+        // Spread coefficient = f(t) * g(t, r) / (1 - S(t, r))
+        function spreadCoefficient(t, r, dt) {
+            const ft = f(t);
+            const gt = g(t, r);
+            const st = S(t, r, dt);
+            return ft * gt / (1 - st);
+        }
+
+        // Softmax function to normalize values
+        function softmax(values) {
+            const expValues = values.map(v => Math.exp(v));
+            const sumExp = expValues.reduce((a, b) => a + b, 0);
+            return expValues.map(v => v / sumExp);
+        }
+
+        // Function to calculate and display f(t), g(t, r), S(t, r), and Spread Coefficient
+        function calculate() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const dt = parseFloat(document.getElementById("dt").value);
+
+            // Calculate f(t), g(t, r), S(t, r), and Spread Coefficient
+            const ft = f(t);
+            const gt = g(t, r);
+            const st = S(t, r, dt);
+            const spreadCoeff = spreadCoefficient(t, r, dt);
+
+            // Calculate softmax of f(t), g(t, r), and S(t, r)
+            const softmaxValues = softmax([ft, gt, st]);
+
+            // Display the results
+            document.getElementById("result_f").innerText = `f(${t}) = ${ft.toFixed(6)}`;
+            document.getElementById("result_g").innerText = `g(${t}, ${r}) = ${gt.toFixed(6)}`;
+            document.getElementById("result_s").innerText = `S(${t}, ${r}) = ${st.toFixed(6)}`;
+            document.getElementById("result_spread").innerText = `Spread Coefficient = ${spreadCoeff.toFixed(6)}`;
+            document.getElementById("result_softmax").innerText = `Softmax: [f(t) = ${softmaxValues[0].toFixed(6)}, g(t, r) = ${softmaxValues[1].toFixed(6)}, S(t, r) = ${softmaxValues[2].toFixed(6)}]`;
+        }
+
+        // Function to simulate values over a range of t and r
+        function simulate() {
+            const start_t = parseFloat(document.getElementById("start_t").value);
+            const end_t = parseFloat(document.getElementById("end_t").value);
+            const r_value = parseFloat(document.getElementById("r_sim").value);
+            const dt = parseFloat(document.getElementById("dt_sim").value);
+            const step = parseFloat(document.getElementById("step_t").value);
+
+            let output = "<table border='1'><tr><th>t</th><th>f(t)</th><th>g(t, r)</th><th>S(t, r)</th><th>Spread Coefficient</th></tr>";
+
+            for (let t = start_t; t <= end_t; t += step) {
+                const ft = f(t);
+                const gt = g(t, r_value);
+                const st = S(t, r_value, dt);
+                const spreadCoeff = spreadCoefficient(t, r_value, dt);
+
+                output += `<tr><td>${t.toFixed(2)}</td><td>${ft.toFixed(6)}</td><td>${gt.toFixed(6)}</td><td>${st.toFixed(6)}</td><td>${spreadCoeff.toFixed(6)}</td></tr>`;
+            }
+
+            output += "</table>";
+            document.getElementById("simulationResult").innerHTML = output;
+        }
+    </script>
+</head>
+<body>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate f(t), g(t, r), S(t, r), and Spread Coefficient</h1>
+
+    <!-- Explanation Section -->
+    <h2>Explanation of the Equations and Their Financial Implications</h2>
+    <p>
+        <strong>f(t):</strong> This function represents a filtration of stochastic noise inherent in the quadratic variance of an asset. The noise is modeled as a Gaussian distribution, 
+        and its effects accumulate over time. In financial models, \( f(t) \) captures the impact of stochastic volatility and is used in models such as stochastic volatility models 
+        to assess variance over time.
+    </p>
+    
+    <p>
+        <strong>g(t, r):</strong> The function represents the growth rate of stochastic noise in the system. The variable \( r \) modulates 
+        how noise amplifies or dampens over time, with positive \( r \) values indicating growth and negative \( r \) values suggesting decay. This is crucial for understanding the growth dynamics of financial models where volatility is a driving force.
+    </p>
+    
+    <p>
+        <strong>S(t, r):</strong> The term \( S(t, r) \) captures the overall noise and growth in the forward rate of a financial asset. The first term of \( S(t, r) \), 
+        \( g(t, r)^t \cdot dt \), captures time-modulated growth, while the second term incorporates stochastic noise through \( B(t) \).
+    </p>
+
+    <p>
+        <strong>Depth Coefficient:</strong> The spread coefficient represents the depth of market in financial markets, 
+        which is the difference between bid and ask prices. This coefficient helps quantify how stochastic noise and variance interact to influence the pricing spread.
+    </p>
+
+    <h2>Calculate f(t), g(t, r), S(t, r), and Spread Coefficient</h2>
+
+    <label for="t">Enter value for t: </label>
+    <input type="number" id="t" step="0.01" value="1"><br><br>
+
+    <label for="r">Enter value for r: </label>
+    <input type="number" id="r" step="0.01" value="0.5"><br><br>
+
+    <label for="dt">Enter value for dt: </label>
+    <input type="number" id="dt" step="0.01" value="1"><br><br>
+
+    <button onclick="calculate()">Calculate</button>
+
+    <h3 id="result_f">f(t) = </h3>
+    <h3 id="result_g">g(t, r) = </h3>
+    <h3 id="result_s">S(t, r) = </h3>
+    <h3 id="result_spread">Spread Coefficient = </h3>
+    <h3 id="result_softmax">Softmax: </h3>
+
+    <h2>Simulation of f(t), g(t, r), S(t, r), and Spread Coefficient</h2>
+
+    <label for="start_t">Start value for t: </label>
+    <input type="number" id="start_t" step="0.1" value="0"><br><br>
+
+    <label for="end_t">End value for t: </label>
+    <input type="number" id="end_t" step="0.1" value="5"><br><br>
+
+    <label for="r_sim">Enter value for r (for simulation): </label>
+    <input type="number" id="r_sim" step="0.01" value="0.5"><br><br>
+
+    <label for="dt_sim">Enter value for dt (for simulation): </label>
+    <input type="number" id="dt_sim" step="0.01" value="1"><br><br>
+
+    <label for="step_t">Step size for t: </label>
+    <input type="number" id="step_t" step="0.01" value="0.1"><br><br>
+
+    <button onclick="simulate()">Run Simulation</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: #3498db;
+        }
+
+        h4 a:hover {
+            color: #2980b9;
+        }
+
+        #simulationResult {
+            margin-top: 20px;
+        }
+    </style>
+</body>
+</html>

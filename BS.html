@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <title>Black-Scholes Derivation</title>
+</head>
+<body>
+    <h1>Derivation of the Black-Scholes Equation</h1>
+
+    <h2>Assumptions</h2>
+    <ol>
+        <li>The price of the underlying asset \( S \) follows a <strong>geometric Brownian motion</strong>:
+            \[
+            dS = \mu S \, dt + \sigma S \, dW,
+            \]
+            where:
+            <ul>
+                <li>\( \mu \) is the drift rate,</li>
+                <li>\( \sigma \) is the volatility,</li>
+                <li>\( W \) is a Wiener process.</li>
+            </ul>
+        </li>
+        <li>No arbitrage opportunities exist in the market.</li>
+        <li>Trading is frictionless (no transaction costs, no taxes, continuous trading).</li>
+        <li>The risk-free interest rate \( r \) is constant.</li>
+        <li>The option is European, exercisable only at maturity.</li>
+    </ol>
+
+    <h2>Step 1: Portfolio Replication</h2>
+    <p>We construct a portfolio \( \Pi \) consisting of:</p>
+    <ul>
+        <li>\( \Delta \) units of the underlying asset \( S \),</li>
+        <li>A short position in one option (value \( V(S, t) \)).</li>
+    </ul>
+    <p>The portfolio value is:
+        \[
+        \Pi = \Delta S - V(S, t).
+        \]
+    </p>
+    <p>The change in the portfolio value over a small time interval \( dt \) is:
+        \[
+        d\Pi = \Delta \, dS - dV.
+        \]
+    </p>
+
+    <h2>Step 2: Apply Ito's Lemma to \( V(S, t) \)</h2>
+    <p>Using Ito's lemma for \( V(S, t) \), where \( V \) is a function of both \( S \) and \( t \):
+        \[
+        dV = \frac{\partial V}{\partial t} \, dt + \frac{\partial V}{\partial S} \, dS + \frac{1}{2} \frac{\partial^2 V}{\partial S^2} \sigma^2 S^2 \, dt.
+        \]
+    </p>
+    <p>Substitute \( dS = \mu S \, dt + \sigma S \, dW \) into \( dV \):
+        \[
+        dV = \frac{\partial V}{\partial t} \, dt + \frac{\partial V}{\partial S} (\mu S \, dt + \sigma S \, dW) + \frac{1}{2} \frac{\partial^2 V}{\partial S^2} \sigma^2 S^2 \, dt.
+        \]
+    </p>
+    <p>Simplify:
+        \[
+        dV = \left( \frac{\partial V}{\partial t} + \mu S \frac{\partial V}{\partial S} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt + \sigma S \frac{\partial V}{\partial S} \, dW.
+        \]
+    </p>
+
+    <h2>Step 3: Eliminate Risk (Hedging)</h2>
+    <p>To eliminate risk (the stochastic term \( dW \)), choose \( \Delta = \frac{\partial V}{\partial S} \). Substituting \( \Delta dS \) and \( dV \) into \( d\Pi \):
+        \[
+        d\Pi = \Delta \, dS - dV = \frac{\partial V}{\partial S} (\mu S \, dt + \sigma S \, dW) - \left( \frac{\partial V}{\partial t} \, dt + \frac{\partial V}{\partial S} (\mu S \, dt + \sigma S \, dW) + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \, dt \right).
+        \]
+    </p>
+    <p>After simplifying:
+        \[
+        d\Pi = -\left( \frac{\partial V}{\partial t} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt.
+        \]
+    </p>
+
+    <h2>Step 4: Arbitrage-Free Condition</h2>
+    <p>In an arbitrage-free market, the portfolio \( \Pi \) must earn the risk-free rate \( r \):
+        \[
+        d\Pi = r \Pi \, dt.
+        \]
+    </p>
+    <p>Substitute \( \Pi = \Delta S - V = \frac{\partial V}{\partial S} S - V \):
+        \[
+        -\left( \frac{\partial V}{\partial t} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt = r \left( \frac{\partial V}{\partial S} S - V \right) dt.
+        \]
+    </p>
+    <p>Simplify:
+        \[
+        \frac{\partial V}{\partial t} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + r S \frac{\partial V}{\partial S} - r V = 0.
+        \]
+    </p>
+
+    <h2>Black-Scholes Equation</h2>
+    <p>The Black-Scholes PDE is:
+        \[
+        \frac{\partial V}{\partial t} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + r S \frac{\partial V}{\partial S} - r V = 0.
+        \]
+    </p>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced DCF Model</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        h2 {
+            color: #333;
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+        .input-section label {
+            margin-right: 10px;
+            display: block;
+        }
+        .input-section input {
+            padding: 5px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .input-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        canvas {
+            max-width: 600px;
+            margin-top: 20px;
+        }
+        .input-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Enhanced DCF Model</h2>
+
+<div class="input-header">Input Parameters:</div>
+<div class="input-container">
+    <div class="input-section">
+        <label for="revenue">Revenue:</label>
+        <input type="number" id="revenue" value="500000" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="ebitda">EBITDA:</label>
+        <input type="number" id="ebitda" value="100000" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="capex">CapEx:</label>
+        <input type="number" id="capex" value="50000" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="taxes">Taxes (%):</label>
+        <input type="number" id="taxes" value="21" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="nwc">Net Working Capital Changes:</label>
+        <input type="number" id="nwc" value="10000" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="depreciation">Depreciation & Amortization:</label>
+        <input type="number" id="depreciation" value="20000" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="discountRate">Discount Rate (WACC) (%):</label>
+        <input type="number" id="discountRate" value="10" oninput="updateDCFModel()">
+    </div>
+    <div class="input-section">
+        <label for="terminalGrowthRate">Terminal Growth Rate (%):</label>
+        <input type="number" id="terminalGrowthRate" value="2" oninput="updateDCFModel()">
+    </div>
+</div>
+
+<button onclick="downloadCSV()">Download DCF Data</button>
+
+<h3>DCF Results</h3>
+<canvas id="dcfChart"></canvas>
+
+<script>
+    // DCF Data and Chart Initialization
+    let dcfData = {
+        labels: ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Terminal Value'],
+        datasets: [{
+            label: 'Free Cash Flow',
+            data: [0, 0, 0, 0, 0, 0],
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+        }]
+    };
+
+    let dcfChart = new Chart(document.getElementById('dcfChart'), {
+        type: 'bar',
+        data: dcfData,
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Function to calculate DCF and update chart
+    function updateDCFModel() {
+        let revenue = parseFloat(document.getElementById('revenue').value);
+        let ebitda = parseFloat(document.getElementById('ebitda').value);
+        let capex = parseFloat(document.getElementById('capex').value);
+        let taxes = parseFloat(document.getElementById('taxes').value) / 100;
+        let nwc = parseFloat(document.getElementById('nwc').value);
+        let depreciation = parseFloat(document.getElementById('depreciation').value);
+        let discountRate = parseFloat(document.getElementById('discountRate').value) / 100;
+        let terminalGrowthRate = parseFloat(document.getElementById('terminalGrowthRate').value) / 100;
+
+        let freeCashFlows = [];
+        let discountFactors = [];
+        let presentValueFCF = [];
+
+        // Validate inputs
+        if (isNaN(revenue) || isNaN(ebitda) || isNaN(capex) || isNaN(taxes) || isNaN(nwc) || isNaN(depreciation) || isNaN(discountRate) || isNaN(terminalGrowthRate)) {
+            alert('Please ensure all fields contain valid numbers.');
+            return;
+        }
+
+        // Calculate Free Cash Flow and Discounted FCF for 5 years
+        for (let i = 1; i <= 5; i++) {
+            let fcf = (ebitda - capex - depreciation - nwc) * (1 - taxes);
+            freeCashFlows.push(fcf);
+            let discountFactor = 1 / Math.pow(1 + discountRate, i);
+            discountFactors.push(discountFactor);
+            presentValueFCF.push(fcf * discountFactor);
+        }
+
+        // Calculate Terminal Value and Discounted Terminal Value
+        let terminalValue = freeCashFlows[freeCashFlows.length - 1] * (1 + terminalGrowthRate) / (discountRate - terminalGrowthRate);
+        let discountedTerminalValue = terminalValue / Math.pow(1 + discountRate, 5);
+
+        // Update Chart Data
+        dcfData.datasets[0].data = [...presentValueFCF, discountedTerminalValue];
+        dcfChart.update();
+    }
+
+    // Function to download DCF data as CSV
+    function downloadCSV() {
+        let csvContent = "data:text/csv;charset=utf-8,Year,Free Cash Flow,Discount Factor,Present Value\n";
+
+        for (let i = 0; i < 5; i++) {
+            csvContent += `Year ${i + 1},${dcfData.datasets[0].data[i].toFixed(2)},${(1 / Math.pow(1.1, i + 1)).toFixed(2)},${dcfData.datasets[0].data[i].toFixed(2)}\n`;
+        }
+        csvContent += `Terminal Value,,${(1 / Math.pow(1.1, 5)).toFixed(2)},${dcfData.datasets[0].data[5].toFixed(2)}\n`;
+
+        let encodedUri = encodeURI(csvContent);
+        let link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "dcf_data.csv");
+        document.body.appendChild(link); // Required for FF
+
+        link.click();
+    }
+
+    // Initial Calculation
+    updateDCFModel();
+</script>
+
+</body>
+</html>

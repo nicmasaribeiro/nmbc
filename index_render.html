@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>NMBC Notebook.io</title>
+	
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='pages-index.css') }}">
+		<script>
+		let myStorage = window.localStorage;
+		
+		</script>
+		<style>
+			body{
+				background-color: #7c7da6;
+			}
+		</style>
+		
+	</head>
+
+<body id="body">
+<!--    <h1>Snap.IO <em>view</em></h1>-->
+	
+	<div class="header">
+		<a href="/"><h1>NMCYBC</h1></a>
+		<p>Welcome to NMCYBlockchain Information Exchange</p>
+	</div>
+
+<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="page.html"><div class="download">Download Notebook</div></a>
+<br>
+<br>
+<div class="counter">
+	<h2>Notebook has</h2>
+	<h1 id="counter">1</h1> <h2>Pages</h2>
+</div>
+	<button onclick="add();return true;">
+		CAPTURE
+	</button> 
+	
+	<script>
+		let c = 0;
+		myStorage.setItem('count', c);
+		document.getElementById('counter').innerHTML = myStorage.getItem('count');
+	</script>
+	
+	<script> 
+		
+		var count = c;
+		
+		function add()
+		{ 
+			count = count + 1;
+			myStorage.setItem('count', count);
+			
+			document.getElementById('counter').innerHTML = myStorage.getItem('count');
+			
+			var object = document.getElementById("captured"); 
+			var newObject = document.createElement("div"); 
+			newObject.innerHTML = object.innerHTML; 
+			document.getElementById("body").appendChild(newObject); 
+		} 
+	</script> 
+	
+	<div id="blank_space"></div>
+	
+	<div id="captured">
+		
+		<!-- ======= image frame <======> <input type="file". onchange="openFile(event)"> --> 
+		<div id="img_view">
+			
+			<div><h2 style="color: white;"> LogKnot <em>RENDER</em></h2> <div id="blank_space"></div> 
+				<form method="post" enctype="multipart/form-data">
+					<input name="file" type="file" accept="/*" onchange="openFile(event)"> 
+				
+				</form> 
+			</div> 
+			
+			<div id="blank_space"></div> 
+			
+			<script>
+				openFile =(event)=> { 
+					var input = event.target; 
+					var reader = new FileReader(); 
+					reader.onload =()=> { 
+						var dataURL = reader.result;
+						var data_count = myStorage.getItem('count');
+						var output = document.getElementById("img"); 
+						output.src = dataURL; }; 
+					let result = reader.readAsDataURL(input.files[0]);
+					localStorage.setItem('buffer', result);}; 
+			</script> 
+			
+			<div id="blank_space"></div>
+			
+			<!-- ======= FILE frame <======> <input type="file". onchange="openFile(event)"> --> 
+			<div class="notebook-container"> <iframe class="frame" id="img" width="95%" height="1300px" sandbox="allow-scripts;"></iframe> </div> 
+			
+			<div id="blank_space"></div> <hr>   
+		</div> 
+		
+	</div>  
+		
+	
+	</body>
+</html>

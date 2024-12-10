@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explanation of \( f(t, r) \)</title>
+    <!-- MathJax for rendering LaTeX-style equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 20px;
+            padding: 20px;
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        p {
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .equation {
+            text-align: center;
+            font-size: 1.4em;
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+
+        .explanation {
+            background-color: #f4f4f9;
+            padding: 15px;
+            border-left: 5px solid #007bff;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        h2 {
+            color: #0056b3;
+            font-size: 1.3em;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <h1>Explanation of the Function \( f(t, r) \)</h1>
+
+    <p>The function \( f(t, r) \) is given by the following mathematical expression:</p>
+
+    <div class="equation">
+        \( f(t, r) = \int_{0}^{t} W(z) r^{2} \operatorname{sech}(z) \left( t^{2} B(t)^{2} - 2 t r B(t) \int_{0}^{t} B(x) dx + \left( \int_{0}^{t} \left( \int_{0}^{t} B(x)^{2} dx \right) dy \right) \right) dz \)
+    </div>
+
+    <p>This equation represents a complex function that involves integrals, hyperbolic functions, and stochastic processes. Let’s break down each of the components to understand what they represent.</p>
+
+    <div class="explanation">
+        <h2>1. \( W(z) \): Stochastic Process</h2>
+        <p>The term \( W(z) \) can represent a stochastic process such as a Poisson or Wiener process. It models random fluctuations over time. In this case, \( z \) is the variable being integrated, and \( W(z) \) contributes randomness to the integral.</p>
+    </div>
+
+    <div class="explanation">
+        <h2>2. \( r^{2} \): Squared Scaling Factor</h2>
+        <p>The term \( r^{2} \) represents a scaling factor related to the variable \( r \). It scales the entire expression inside the integral by \( r^{2} \), amplifying or reducing its magnitude depending on the value of \( r \).</p>
+    </div>
+
+    <div class="explanation">
+        <h2>3. \( \operatorname{sech}(z) \): Hyperbolic Secant Function</h2>
+        <p>\( \operatorname{sech}(z) = \frac{1}{\cosh(z)} \) is the hyperbolic secant function. It’s commonly used in hyperbolic trigonometry and rapidly decays as \( z \) increases. It modulates the integrand by dampening or amplifying the contribution of \( z \) in the integral.</p>
+    </div>
+
+    <div class="explanation">
+        <h2>4. \( t^{2} B(t)^{2} \): Quadratic Term with \( B(t) \)</h2>
+        <p>This term, \( t^{2} B(t)^{2} \), represents a quadratic expression in \( t \) and \( B(t) \). Here, \( B(t) \) is typically a stochastic process, such as a normal distribution, that introduces randomness. The quadratic form means that this term grows quadratically with \( t \).</p>
+    </div>
+
+    <div class="explanation">
+        <h2>5. \( -2 t r B(t) \int_{0}^{t} B(x) dx \): Interaction Term</h2>
+        <p>This part of the equation represents an interaction between \( t \), \( r \), and \( B(t) \). The integral \( \int_{0}^{t} B(x) dx \) sums over the stochastic process \( B(x) \) from 0 to \( t \). This term modifies the growth of the expression by interacting with both the current time \( t \) and the random process \( B(t) \).</p>
+    </div>
+
+    <div class="explanation">
+        <h2>6. Nested Integral \( \int_{0}^{t} \left( \int_{0}^{t} B(x)^{2} dx \right) dy \): Double Integral of \( B(t) \)</h2>
+        <p>The nested integral represents a double integral over the random process \( B(t) \). The innermost integral \( \int_{0}^{t} B(x)^{2} dx \) calculates the square of \( B(x) \) over the interval \( [0, t] \). This is then integrated again with respect to \( y \). This term introduces a deeper level of complexity and randomness to the overall function.</p>
+    </div>
+
+    <div class="explanation">
+        <h2>7. The Outer Integral \( \int_{0}^{t} \ldots dz \)</h2>
+        <p>The entire expression is integrated over \( z \) from 0 to \( t \). This outer integral accumulates the effects of the stochastic process, scaling factors, and hyperbolic functions over time, giving the final result for the function \( f(t, r) \).</p>
+    </div>
+
+    <p>In summary, this function represents a complex interaction between stochastic processes, time-dependent scaling factors, and integrals. Each term adds its own layer of complexity, and the outer integral captures the accumulation of these effects over time.</p>
+
+</body>
+
+</html>

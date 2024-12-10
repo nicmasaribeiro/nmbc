@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with ChatGPT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        #chatbox {
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        #messages {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+        }
+        .message {
+            padding: 5px;
+            margin: 5px 0;
+        }
+        .user-message {
+            text-align: right;
+            background-color: #e0f7fa;
+        }
+        .bot-message {
+            text-align: left;
+            background-color: #fce4ec;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+        }
+        input {
+            width: 80%;
+        }
+        button {
+            width: 18%;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="chatbox">
+        <h2>Chat with ChatGPT</h2>
+        <div id="messages">
+            <!-- Messages will appear here -->
+        </div>
+        <form id="chat-form">
+            <input type="text" id="user-input" placeholder="Type your message..." required>
+            <button type="submit">Send</button>
+<!--        <input type="file" name="file">-->
+        </form>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const messagesDiv = document.getElementById('messages');
+
+        // Function to add a message to the chat
+        function addMessage(content, className) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', className);
+            messageDiv.textContent = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Handle form submission
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const message = userInput.value;
+            addMessage(message, 'user-message');
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage(data.response, 'bot-message');
+                } else if (data.error) {
+                    addMessage('Error: ' + data.error, 'bot-message');
+                }
+            } catch (error) {
+                addMessage('Error: ' + error.message, 'bot-message');
+            }
+        });
+    </script>
+</body>
+</html>

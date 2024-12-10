@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate f(t,r)</title>
+    
+    <!-- MathJax for rendering LaTeX equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script>
+        // Hyperbolic secant function
+        function sech(z) {
+            return 1 / Math.cosh(z);
+        }
+
+        // Define W(z), which could be modeled as a Poisson distribution or another stochastic process
+        function W(z) {
+            return poissonPDF(z);
+        }
+
+        // Poisson PDF (as a placeholder for W(z))
+        function poissonPDF(lambda) {
+            return Math.exp(-lambda) * Math.pow(lambda, lambda) / factorial(lambda);
+        }
+
+        // Factorial helper function
+        function factorial(n) {
+            return n <= 1 ? 1 : n * factorial(n - 1);
+        }
+
+        // Define B(t), modeled as a Gaussian distribution (as before)
+        function B(t) {
+            const mean = 0;
+            const variance = 1 / t;
+            return normalPDF(mean, variance);
+        }
+
+        // Normal PDF function for B(t)
+        function normalPDF(mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((0 - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Numerical integration using the trapezoidal rule
+        function integrate(f, a, b, n = 1000) {
+            const h = (b - a) / n;
+            let sum = 0.5 * (f(a) + f(b));
+
+            for (let i = 1; i < n; i++) {
+                sum += f(a + i * h);
+            }
+
+            return sum * h;
+        }
+
+        // Inner integrals involving B(t)
+        function innerIntegrals(t) {
+            const B_t = B(t);
+            
+            // First inner integral: ∫ B(x) dx from 0 to t
+            const integral_1 = integrate(B, 0, t);
+            
+            // Second inner integral: ∫ B(x)^2 dx from 0 to t
+            const integral_2 = integrate(x => B(x) ** 2, 0, t);
+            
+            // Outer integral: ∫(∫ B(x)^2 dx from 0 to t) dy from 0 to t
+            const outer_integral = integrate(() => integral_2, 0, t);
+            
+            // Calculate the full expression inside the main function
+            return t ** 2 * B_t ** 2 - 2 * t * B_t * integral_1 + outer_integral;
+        }
+
+        // Main function f(t, r)
+        function f(t, r) {
+            const integrand = z => {
+                const W_z = W(z);
+                const sech_z = sech(z);
+                const inner_expr = innerIntegrals(t); // Compute the inner integral expression
+                
+                return W_z * (1+Math.pow(r, 2)) * sech_z * inner_expr;
+            };
+
+            // Outer integral over z from 0 to t
+            const outer_integral = integrate(integrand, 0, t);
+            return outer_integral;
+        }
+
+        // Function to calculate and display f(t,r)
+        function calculateF() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+
+            // Validate input
+            if (isNaN(t) || isNaN(r)) {
+                document.getElementById("result_f").innerText = "Please enter valid numbers for t and r.";
+                return;
+            }
+
+            // Calculate f(t, r)
+            const f_tr = f(t, r);
+
+            // Display the result
+            document.getElementById("result_f").innerText = `f(${t}, ${r}) = ${f_tr.toFixed(4)}`;
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        label {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #result_f {
+            margin-top: 20px;
+            font-size: 1.4em;
+            color: #16a085;
+        }
+
+        .equation {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate Forward Rate</h1>
+
+    <!-- Display the function using MathJax -->
+    
+
+    <label for="t">Enter value for \( t \):</label>
+    <input type="number" id="t" step="0.01" value="1">
+
+    <label for="r">Enter value for \( r \):</label>
+    <input type="number" id="r" step="0.01" value="1">
+
+    <button onclick="calculateF()">Calculate \( f(t,r) \)</button>
+
+    <div id="result_f"></div>
+
+</body>
+
+</html>

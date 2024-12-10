@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>bib.io</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='pages-index.css') }}">		<link rel="stylesheet" type="text/css" href="../../pages/pages-index.css">
+
+		<style>
+			
+			body{
+				background: grey;
+				
+			}
+			
+			#blank_space{height:30px ;}
+			
+			div.scroll {
+				background: #038cfc;
+				padding-left: 10px;
+				padding-top: 25px;
+				border-radius: 12px;
+				/*			background: colo=#038cfc; */
+				height: 70%;
+				width: 100%;
+				overflow-x: hidden;
+				/*			position: fixed;*/
+				/*			z-index: 1;*/
+				text-align: justify;
+				margin-right: 40px;
+				/*			overflow-y: hidden;*/
+				
+			}
+			
+			.scroll #note_bubble {
+				color: white;
+				font-size: 20px;
+				width: 90%;
+				padding-left: 20px;
+				padding-right: 20px;
+				padding-top: 25px;
+				padding-bottom: 25px;
+				border-radius: 12px;
+				background: black;
+				z-index: 2;
+				text-align: justify;
+				margin-right: 10px;
+				text-indent: 5px;
+				text-align: left;
+				margin-bottom: 20px;
+				/*			align-content:space-around;*/
+				/*			overflow-y: hidden;*/
+				
+			}
+			
+			.scroll #note_bubble:hover{
+				background: #fffcde;
+				color: black;
+				font-size: 30px;
+			}
+			
+			.scroll #full_area {
+				padding-top: 20px;
+				padding-bottom: 20px;
+				padding-left: 15px;
+				padding-right: 15px;
+				margin-top: 10px;
+				background: black;
+				border-radius: 10px;
+			}
+			
+			
+			
+			.scroll textarea {
+				/*			visibility: hidden;*/
+				width: 90%;
+				font-size: 15px;
+				z-index: -1;
+				/*			position: hidden;*/
+				/*			height: 330px;*/
+			}
+			
+			.scroll textarea:hover {
+				visibility: visible;/*			position: hidden;*/
+				/*			height: 330px;*/
+			}
+			
+			
+			
+			.scroll h3 {
+				color: #fffcde;
+				font-size: 23px;
+			}
+			/*			#notes{line-height: 30px;}*/
+			
+			@media print {
+				
+				
+			}
+			
+			#stats {
+				padding-top: 5px;
+				padding-bottom: 5px;
+				text-indent: 30px;
+				font-size: 13px;
+				background:  #fffcde;
+			}
+			
+			.grid-container{
+				display: grid;
+				grid-template-columns: auto auto;
+				background: black;
+			}
+			
+			.grid-item{
+				padding: 20px;
+				font-size: 30px;
+				text-align: center;
+				color: white;
+			}
+			
+		</style>
+		
+		<link rel="stylesheet" type="text/css" href="styles/sytles.css">		
+		
+		<script>
+		
+			window.onbeforeunload = function () {return 'return';};
+			
+			var myStorage = window.localStorage;
+			
+			var noteStorage = window.sessionStorage;
+					
+			
+		</script>
+	
+	</head>
+	<body>
+		<div class="header">
+			<a href="/"><h1>NMCYBC</h1></a>
+			<p>Welcome to NMCYBlockchain Information Exchange</p>
+		</div>
+	
+	<div id="blank_space"></div>
+		
+				<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="./downloads/page.html"><div class="download">Download Bibliography</div></a>
+		<div id="blank_space"></div>
+	
+	<div>
+	<button hidden onclick="window.print();return false;">print</button>
+	<button  onclick="authDoc()">authorize</button>
+	</div>
+
+
+	<div class ="grid-container" id="meta">
+		
+		<div class="grid-item" id="aut"></div>
+		<div class="grid-item" id="aud"></div>
+		
+		<script>
+		function authDoc() {
+		
+			var author =  prompt('request author', 'id');
+			var audiance = prompt('request audiance', 'id');
+			
+			document.getElementById('aut').innerHTML = author;
+			document.getElementById('aud').innerHTML = audiance;
+		}
+		</script>
+	</div>
+
+	<div id="blank_space"></div>
+	
+	<div id="grid-container">
+		 <div id="grid_item">
+			<div id="toggle"> 
+				<button onclick="toggle1('img_view1')" style="padding: 30px 30px 30px 30px;font-size: 20px;font-style: italic;border-radius: 12px;"><strong>toggle1</strong></button> 
+																		<script> toggle1 = function (id) { var e = document.getElementById('img_view'); if (e.style.display === 'none') { e.style.display = 'block'; } else { e.style.display = 'none' } } </script> 
+																		
+				<div id="img_view"> 
+					<div> 
+						<h2> Document <em>CAPTURE</em> </h2> 
+						<input type="file" accept="/*" capture="enviroment" onchange="openFile(event)"> 
+					</div> 
+				<div id="blank_space">
+					
+			</div>
+						
+																		<script> var openFile = function (event) { var input = event.target; var reader = new FileReader(); reader.onload = function () { var dataURL = reader.result; var output = document.getElementById("img"); output.src = dataURL; }; reader.readAsDataURL(input.files[0]); }; </script> 
+						
+						<!-- ======= image view <======> <input type="file". onchange="openFile(event)"> --> 
+	<div class="frame"> <iframe class="frame" id="img" width="54%" height="500px"></iframe> </div> </div> <div></div> </div></div>  </div></div> </div>
+
+	<div id="blank_space"></div>
+	
+	<div id="stats">
+		<h3><em> ( # of queries)</em></h3>
+		<div>
+		<h2 style="font-size: 25px;">  ∆ count Ω <div id="counter"></div></h2>
+		</div>
+	</div>
+	<div id="blank_space"></div>
+	
+<!-- ====== INPUT FORM ======= -->
+		<form action="#" onsubmit="addNote(); return false;">
+			<textarea id="note" type="text" style="width: 100%;font-size: 20px;" spellcheck="on"></textarea>
+			<input id="notename" type="text">
+			<input type="submit">
+		</form>
+<!-- ====== INPUT FORM ======= -->
+
+		
+		<div id="blank_space"></div>
+
+
+<!-- ====== NOTE PAD AREA ======= -->
+		<div class="scroll" id="note_pad"></div>
+<!-- ====== NOTE PAD AREA ======= -->
+
+
+
+		<div id="counter">0</div>
+		
+		<script>
+			let c = 0;
+			myStorage.setItem('count', c);
+			document.getElementById('counter').innerHTML = myStorage.getItem('count');
+		</script>
+
+				
+		<script> //start script
+
+		
+		let area = document.getElementById('note_pad');
+		
+		var count = c;
+		
+		
+		
+		function addNote() {
+			
+			count = count + 1;
+			myStorage.setItem('count', count);
+			
+			document.getElementById('counter').innerHTML = myStorage.getItem('count');
+			
+			var n = document.getElementById('note');
+
+			var name = document.getElementById('notename');
+			var namearea = document.createElement('h3');
+			namearea.innerHTML = name.value;
+
+		// CREATE CONTAINER FOR #n-INPUTs ==> new var1 ==> FULL-TEXT-AREA___div
+							var full_area = document.createElement('div');
+								full_area.setAttribute('id', 'full_area');
+			
+			
+						
+			
+		//	CAPUTURE TEXT INPUT ==to=> new var3 ===> N0TE___div
+							var note = document.createElement('div');
+								note.setAttribute('id', 'note_bubble');
+												
+												note.innerHTML = n.value;
+
+			
+
+		//	CAPUTURE TEXT INPUT ==to=> new var4 ===> TEXT-N0TE___textarea
+							var text_note = document.createElement('textarea');
+								text_note.setAttribute('id', 'note_textArea');
+									
+												text_note.innerHTML = n.value;
+												
+
+		// CREATE INDEX ==> new varT ==> FULL-TEXT-AREA___div
+							var index = document.createElement('h3');
+							index.setAttribute('id', 'index');
+							index.innerHTML = count + " )   "  + name.value;
+							
+		// assign iframe
+							var html = document.getElementById('img');
+							var iframe = document.createElement('div');
+							var iframe = html.innerHTML;
+
+							
+
+
+		//	APPEND VARS TO [ #2 ] <=== to ==>  [ [#3] , [#4] ]
+							full_area.appendChild(index);
+							full_area.appendChild(note);
+							full_area.appendChild(text_note);
+							full_area.append(iframe);
+							
+//							full_area.append("<hr>");
+							
+							
+
+		//	APPEND VARS TO [ #1 ] <=== to ==>  { [ #1 ] : [ [#3] , [#4] ] }	
+							area.appendChild(full_area);
+		
+	
+	// ADD noteINPUT TO SEESSION-STORAGE   		
+				noteStorage.setItem(count, n.value);
+	
+	// RESET INPUT AREA 		
+			n.value = "";
+			name.value="";
+			
+			
+// END OF FUNCTION == ADD NOTE ==> 		
+		};
+			
+		//end script </script>
+
+		
+		
+	</body>
+</html>

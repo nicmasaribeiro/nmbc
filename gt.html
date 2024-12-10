@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculate and Simulate g(t, r)</title>
+    <!-- Load MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Function to approximate the integral from 0 to s of a function f
+        function integrate(f, s, step = 0.01) {
+            let result = 0;
+            for (let t = 0; t <= s; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            // First term: s^2 * B(s)^2
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+
+            // Second term: -2s * B(s) * integral of B(t) from 0 to s
+            const second_term = -2 * s * B(s) * integrate(B, s);
+
+            // Third term: integral from 0 to s of (integral from 0 to s of B(x)^2 dx) dy
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s); // Inner integral with respect to x
+            const third_term = integrate(outer_integral, s);
+
+            // Calculate final f(s)
+            return first_term + second_term + third_term;
+        }
+
+        // Function to compute g(t, r)
+        function g(t, r) {
+            const ft = f(t); // Compute f(t)
+            return (1 - Math.pow(r, 2)) * Math.exp(r * ft);
+        }
+
+        // Function to simulate g(t, r) over time
+        function simulateG(startTime, endTime, r, step = 0.1) {
+            const results = [];
+            for (let t = startTime; t <= endTime; t += step) {
+                results.push({ t: t.toFixed(2), g_value: g(t, r).toFixed(6) });
+            }
+            return results;
+        }
+
+        function calculateG() {
+            const t = parseFloat(document.getElementById("t").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const result = g(t, r);
+            document.getElementById("result").innerText = `g(${t}, ${r}) = ${result.toFixed(6)}`;
+        }
+
+        function runSimulation() {
+            const startTime = parseFloat(document.getElementById("startTime").value);
+            const endTime = parseFloat(document.getElementById("endTime").value);
+            const r = parseFloat(document.getElementById("r_sim").value);
+
+            const simulationResults = simulateG(startTime, endTime, r);
+            let output = `<table><thead><tr><th>t</th><th>g(t, r)</th></tr></thead><tbody>`;
+            simulationResults.forEach(result => {
+                output += `<tr><td>${result.t}</td><td>${result.g_value}</td></tr>`;
+            });
+            output += `</tbody></table>`;
+            document.getElementById("simulationResult").innerHTML = output;
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 20px;
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2em;
+        }
+
+        p {
+            font-size: 1.1em;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="number"] {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        #result {
+            font-size: 1.3em;
+            margin-top: 10px;
+        }
+
+        #simulationResult {
+            margin-top: 20px;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: #3498db;
+        }
+
+        h4 a:hover {
+            color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate and Simulate Stochastic Growth</h1>
+
+    <h2>Calculate g(t, r) at a specific point</h2>
+
+    <label for="t">Enter value for t: </label>
+    <input type="number" id="t" step="0.01" value="1"><br><br>
+
+    <label for="r">Enter value for r: </label>
+    <input type="number" id="r" step="0.01" value="0.5"><br><br>
+
+    <button onclick="calculateG()">Calculate g(t, r)</button>
+
+    <h3 id="result">g(t, r) = </h3>
+
+    <h2>Simulate g(t, r) over a time range</h2>
+
+    <label for="startTime">Start time (t): </label>
+    <input type="number" id="startTime" step="0.1" value="0"><br><br>
+
+    <label for="endTime">End time (t): </label>
+    <input type="number" id="endTime" step="0.1" value="5"><br><br>
+
+    <label for="r_sim">Enter value for r: </label>
+    <input type="number" id="r_sim" step="0.01" value="0.5"><br><br>
+
+    <button onclick="runSimulation()">Simulate g(t, r)</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+</body>
+</html>

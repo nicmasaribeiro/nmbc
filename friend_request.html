@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Friend Request</title>
+</head>
+<body>
+	<h1>Friend Request from {{ friend_request.user }}</h1>
+	<form method="POST">
+		<button type="submit" name="action" value="accept">Accept</button>
+		<button type="submit" name="action" value="reject">Reject</button>
+	</form>
+</body>
+</html>

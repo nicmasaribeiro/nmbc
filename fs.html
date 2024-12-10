@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula f(s) Calculation</title>
+    <!-- Load MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Load Plotly.js for graphing -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script>
+        // Normal PDF (Gaussian distribution) approximation function
+        function normPdf(x, mean, variance) {
+            const scale = Math.sqrt(variance);
+            const expTerm = Math.exp(-0.5 * Math.pow((x - mean) / scale, 2));
+            return expTerm / (scale * Math.sqrt(2 * Math.PI));
+        }
+
+        // Define B(s) as the PDF of a normal distribution with mean 0 and variance 1/s
+        function B(s) {
+            if (s === 0) return 0; // Avoid division by zero
+            return normPdf(s, 0, 1 / Math.max(s, 0.01)); // Safeguard small s values
+        }
+
+        // Function to approximate the integral from 0 to s of a function f
+        function integrate(f, s, step = 0.01) {
+            let result = 0;
+            for (let t = 0; t <= s; t += step) {
+                result += f(t) * step; // Riemann sum approximation
+            }
+            return result;
+        }
+
+        // Function to compute f(s)
+        function f(s) {
+            // First term: s^2 * B(s)^2
+            const first_term = Math.pow(s, 2) * Math.pow(B(s), 2);
+
+            // Second term: -2s * B(s) * integral of B(t) from 0 to s
+            const second_term = -2 * s * B(s) * integrate(B, s);
+
+            // Third term: integral from 0 to s of (integral from 0 to s of B(x)^2 dx) dy
+            const inner_integral = (x) => Math.pow(B(x), 2);
+            const outer_integral = (y) => integrate(inner_integral, s); // Inner integral with respect to x
+            const third_term = integrate(outer_integral, s);
+
+            // Calculate final f(s)
+            return first_term + second_term + third_term;
+        }
+
+        // Function to simulate f(s) over a range of s values
+        function simulateFS(start, end, step = 0.1) {
+            let results = [];
+            let xValues = [];
+            let yValues = [];
+
+            for (let s = start; s <= end; s += step) {
+                const fVal = f(s);
+                results.push({ s: s.toFixed(2), f_value: fVal.toFixed(6) });
+                xValues.push(s);
+                yValues.push(fVal);
+            }
+
+            // Plot the graph using Plotly
+            Plotly.newPlot('graph', [{
+                x: xValues,
+                y: yValues,
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#1f77b4' }
+            }], {
+                title: 'Graph of f(s)',
+                xaxis: { title: 's' },
+                yaxis: { title: 'f(s)' },
+                paper_bgcolor: '#f4f6f9'
+            });
+
+            return results;
+        }
+
+        function calculateFS() {
+            const s = parseFloat(document.getElementById("s").value);
+            const result = f(s);
+            document.getElementById("result").innerText = `f(${s}) = ${result.toFixed(6)}`;
+        }
+
+        function runSimulation() {
+            const start = parseFloat(document.getElementById("start_s").value);
+            const end = parseFloat(document.getElementById("end_s").value);
+
+            const simulationResults = simulateFS(start, end);
+            let output = `<table border="1"><tr><th>s</th><th>f(s)</th></tr>`;
+            simulationResults.forEach(result => {
+                output += `<tr><td>${result.s}</td><td>${result.f_value}</td></tr>`;
+            });
+            output += `</table>`;
+            document.getElementById("simulationResult").innerHTML = output;
+        }
+    </script>
+</head>
+<body>
+    <h4><a href="/stoch/tools">Back</a></h4>
+    <h1>Calculate and Graph f(s)</h1>
+    
+    <!-- Display the formula using MathJax -->
+
+    <!-- Explanation of the function -->
+    <h2>Explanation</h2>
+    <p>
+        The function \( f(s) \) models a filtration process where stochastic noise, represented by the normal distribution \( B(s) \), affects the quadratic variance of an asset. 
+        This filtration smooths out the effects of the random fluctuations over time, allowing us to better understand the underlying behavior of the asset's variance.
+    </p>
+    <p>
+        The filtration of stochastic noise is crucial in financial models where volatility is random and time-dependent. The term \( s^2 B(s)^2 \) captures the magnitude of noise at a particular point in time, 
+        while the integral terms capture the cumulative impact of noise over the interval from 0 to \( s \).
+    </p>
+    <p>
+        This is important in situations like modeling the quadratic variance of an asset (e.g., a stock) in models such as the Heston stochastic volatility model. In these models, 
+        the quadratic variance influences option prices, as higher noise (volatility) leads to higher option premiums.
+    </p>
+
+    <h2>Examples of Similar Situations</h2>
+    <p>
+        1. Heston Model: A well-known financial model where the variance of an asset is stochastic and follows its own random process. The quadratic variation of the asset's price 
+        is crucial for pricing options in this model.
+    </p>
+    <p>
+        2. Signal Processing: In systems affected by random noise, filtering techniques are used to reduce the impact of stochastic variations, much like \( f(s) \) does.
+    </p>
+
+    <h2>Calculate f(s) at a specific value</h2>
+    <label for="s">Enter value for s: </label>
+    <input type="number" id="s" step="0.01" value="1">
+    <button onclick="calculateFS()">Calculate f(s)</button>
+
+    <h3 id="result">f(s) = </h3>
+
+    <h2>Simulate f(s) over a range of values and Graph</h2>
+    <label for="start_s">Start value for s: </label>
+    <input type="number" id="start_s" step="0.1" value="0"><br><br>
+
+    <label for="end_s">End value for s: </label>
+    <input type="number" id="end_s" step="0.1" value="5"><br><br>
+
+    <button onclick="runSimulation()">Simulate and Graph f(s)</button>
+
+    <h3>Simulation Results:</h3>
+    <div id="simulationResult"></div>
+
+    <h2>Graph of f(s)</h2>
+    <div id="graph" style="width:100%;height:500px;"></div>
+
+    <!-- Add some margin for better presentation -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f6f9;
+        }
+
+        h1, h3, h2 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        th, td {
+            padding: 5px 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        h4 a {
+            text-decoration: none;
+            color: #3498db;
+        }
+
+        h4 a:hover {
+            color: #2980b9;
+        }
+
+        #graph {
+            margin-top: 20px;
+        }
+    </style>
+</body>
+</html>

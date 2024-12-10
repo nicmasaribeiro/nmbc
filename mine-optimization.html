@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mine Optimization</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .form-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        input[type="file"], input[type="text"], input[type="numeric"] {
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        input[type="file"] {
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <h1>Mine Optimization</h1>
+        <form action="/mine/optimization" method="POST" enctype="multipart/form-data">
+            <label for="file">Upload File:</label>
+            <input type="file" name="file" id="file">
+
+            <label for="receipt">Receipt:</label>
+            <input type="text" name="receipt" id="receipt" placeholder="Enter receipt">
+
+            <label for="ticker">Company Ticker:</label>
+            <input type="text" name="ticker" id="ticker" placeholder="Enter company ticker">
+
+            <label for="score">Optimization Score:</label>
+            <input type="numeric" name="score" id="score" placeholder="Enter score of optimization">
+
+            <label for="optimal_value">Target Optimization Result:</label>
+            <input type="numeric" name="optimal_value" id="optimal_value" placeholder="Enter result of optimization">
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+</body>
+</html>

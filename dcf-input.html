@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCF Input Form</title>
+</head>
+<body>
+    <h2>DCF Valuation Input Form</h2>
+
+    <form id="dcfForm" action="/generate_dcf" method="POST">
+        <h3>Years</h3>
+        <label for="years">Years (Comma-separated):</label>
+        <input type="text" id="years" name="years" placeholder="e.g., 2024E,2025E,2026E" required><br><br>
+
+        <h3>Revenue</h3>
+        <label for="revenue">Revenue (Comma-separated):</label>
+        <input type="text" id="revenue" name="revenue" placeholder="e.g., 5000,6000,7000" required><br><br>
+
+        <h3>Revenue Growth %</h3>
+        <label for="revenue_growth">Revenue Growth % (Comma-separated):</label>
+        <input type="text" id="revenue_growth" name="revenue_growth" placeholder="e.g., 10,12,15" required><br><br>
+
+        <h3>EBITDA</h3>
+        <label for="ebitda">EBITDA (Comma-separated):</label>
+        <input type="text" id="ebitda" name="ebitda" placeholder="e.g., 1000,1200,1400" required><br><br>
+
+        <h3>EBITDA Margin %</h3>
+        <label for="ebitda_margin">EBITDA Margin % (Comma-separated):</label>
+        <input type="text" id="ebitda_margin" name="ebitda_margin" placeholder="e.g., 20,20,20" required><br><br>
+
+        <h3>Depreciation & Amortization</h3>
+        <label for="depreciation">Depreciation & Amortization (Comma-separated):</label>
+        <input type="text" id="depreciation" name="depreciation" placeholder="e.g., 200,210,220" required><br><br>
+
+        <h3>EBIT</h3>
+        <label for="ebit">EBIT (Comma-separated):</label>
+        <input type="text" id="ebit" name="ebit" placeholder="e.g., 800,990,1180" required><br><br>
+
+        <h3>Taxes</h3>
+        <label for="taxes">Taxes (Comma-separated):</label>
+        <input type="text" id="taxes" name="taxes" placeholder="e.g., 160,198,236" required><br><br>
+
+        <h3>NOPAT (Net Operating Profit After Tax)</h3>
+        <label for="nopat">NOPAT (Comma-separated):</label>
+        <input type="text" id="nopat" name="nopat" placeholder="e.g., 640,792,944" required><br><br>
+
+        <h3>Capital Expenditure</h3>
+        <label for="capex">Capital Expenditure (Comma-separated):</label>
+        <input type="text" id="capex" name="capex" placeholder="e.g., 150,160,170" required><br><br>
+
+        <h3>Change in Net Working Capital</h3>
+        <label for="change_in_nwc">Change in Net Working Capital (Comma-separated):</label>
+        <input type="text" id="change_in_nwc" name="change_in_nwc" placeholder="e.g., 50,60,70" required><br><br>
+
+        <h3>Free Cash Flow</h3>
+        <label for="free_cash_flow">Free Cash Flow (Comma-separated):</label>
+        <input type="text" id="free_cash_flow" name="free_cash_flow" placeholder="e.g., 440,572,704" required><br><br>
+
+        <h3>Discount Factor</h3>
+        <label for="discount_factor">Discount Factor (Comma-separated):</label>
+        <input type="text" id="discount_factor" name="discount_factor" placeholder="e.g., 0.91,0.83,0.75" required><br><br>
+
+        <h3>Present Value of FCF</h3>
+        <label for="present_value_fcf">Present Value of FCF (Comma-separated):</label>
+        <input type="text" id="present_value_fcf" name="present_value_fcf" placeholder="e.g., 400,475,528" required><br><br>
+
+        <h3>Terminal Value</h3>
+        <label for="terminal_value">Terminal Value:</label>
+        <input type="text" id="terminal_value" name="terminal_value" placeholder="e.g., 15000" required><br><br>
+
+        <h3>Perpetual Growth Rate %</h3>
+        <label for="perpetual_growth_rate">Perpetual Growth Rate %:</label>
+        <input type="text" id="perpetual_growth_rate" name="perpetual_growth_rate" placeholder="e.g., 2.5" required><br><br>
+
+        <h3>Terminal Value (Discounted)</h3>
+        <label for="terminal_value_discounted">Terminal Value (Discounted):</label>
+        <input type="text" id="terminal_value_discounted" name="terminal_value_discounted" placeholder="e.g., 11200" required><br><br>
+
+        <input type="submit" value="Generate DCF Template">
+    </form>
+
+    <script>
+        document.getElementById('dcfForm').onsubmit = function(event) {
+            event.preventDefault();  // Prevent default form submission
+            
+            let formData = {
+                years: document.getElementById('years').value.split(','),
+                revenue: document.getElementById('revenue').value.split(',').map(Number),
+                revenue_growth: document.getElementById('revenue_growth').value.split(',').map(Number),
+                ebitda: document.getElementById('ebitda').value.split(',').map(Number),
+                ebitda_margin: document.getElementById('ebitda_margin').value.split(',').map(Number),
+                depreciation: document.getElementById('depreciation').value.split(',').map(Number),
+                ebit: document.getElementById('ebit').value.split(',').map(Number),
+                taxes: document.getElementById('taxes').value.split(',').map(Number),
+                nopat: document.getElementById('nopat').value.split(',').map(Number),
+                capex: document.getElementById('capex').value.split(',').map(Number),
+                change_in_nwc: document.getElementById('change_in_nwc').value.split(',').map(Number),
+                free_cash_flow: document.getElementById('free_cash_flow').value.split(',').map(Number),
+                discount_factor: document.getElementById('discount_factor').value.split(',').map(Number),
+                present_value_fcf: document.getElementById('present_value_fcf').value.split(',').map(Number),
+                terminal_value: Number(document.getElementById('terminal_value').value),
+                perpetual_growth_rate: Number(document.getElementById('perpetual_growth_rate').value),
+                terminal_value_discounted: Number(document.getElementById('terminal_value_discounted').value)
+            };
+
+            // Send data to Flask backend
+            fetch('/generate_dcf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.dcf_file && data.terminal_value_file) {
+                    alert("DCF Template Generated! Download the files from the server.");
+                } else {
+                    alert("Error generating DCF template.");
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        };
+    </script>
+</body>
+</html>
