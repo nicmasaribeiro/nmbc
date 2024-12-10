@@ -2721,6 +2721,29 @@ def price_Algo():
 	return render_template("price_algo.html")
 
 
+import option_fwd_algo as ofa
+@app.route('/option-fwd-algo', methods=['GET','POST'])
+def option_fwd_algo():
+	if request.method=="POST":
+		tf = float(request.values.get("tf"))  # Strike price
+		T2 = float(request.values.get("t2"))
+		T1 = float(request.values.get("t1"))
+		r1 = float(request.values.get("r1"))  # Risk-free interest rate (5%)
+		r2 = float(request.values.get("r2"))  # Risk-free interest rate (5%)
+		sigma = float(request.values.get("v"))  # Volatility (20%)
+		S0 = float(request.values.get("S0"))
+		K = float(request.values.get("K"))
+		option_type = request.form['option_type']
+		
+		p = ofa.option_valuation_with_forward_rate(S0, K, r1, r2, T1, T2, tf, sigma, option_type)
+		pdt1 = ofa.dPdT1(S0, K, r1, r2, T1, T2, tf, sigma, option_type)
+		pdt2 = ofa.dPdT2(S0, K, r1, r2, T1, T2, tf, sigma, option_type)
+		pdT1_2 = ofa.dPdT1_2(S0, K, r1, r2, T1, T2, tf, sigma, option_type)
+		pdT2_2 = ofa.dPdT2_2(S0, K, r1, r2, T1, T2, tf, sigma, option_type)
+		
+		return render_template("option-fwd-algo.html",p=p,pdt1=pdt1,pdt2=pdt2,pdt1_2=pdT1_2,pdt2_2=pdT2_2)
+	return render_template("option-fwd-algo.html")
+
 @app.route('/option/probdist',methods=["GET","POST"])
 def prodist():
 	if request.method=="POST":
@@ -2955,6 +2978,50 @@ def dV():
 @app.route("/v3algo",methods=["GET","POST"])
 def value_algo_three():
 	return render_template("v3.html")
+
+import reverse_bs_2 as rbs2
+@app.route("/reverse_bs2", methods=["GET","POST"])
+def reverse_bs2():
+	if request.method == "POST":
+		V = float(request.form['option_price'])
+		K = float(request.form['strike_price'])
+		T = float(request.form['maturity_time'])
+		delta = float(request.form['delta'])
+		r0 = float(request.form['interest_rate'])
+		sigma2 = float(request.form['variance'])
+		sigma = np.sqrt(sigma2)
+		result = rbs2.calculate_stock_price_and_derivatives(V, delta, K, T, r0, sigma)
+		return render_template("reverse_bs_2.html")
+	return render_template("reverse_bs_2.html")
+
+import bs_diff_two as bdt
+@app.route("/bs_diff_2",methods=["GET","POST"])
+def bs_diff_2():
+	if request.method == "POST":
+		option_price = float(request.form['option_price'])
+		K = float(request.form['strike_price'])
+		T = float(request.form['maturity_time'])
+		t = float(request.form['current_time'])
+		ts = float(request.form['time_scale'])
+		r0 = float(request.form['interest_rate'])
+		sigma2 = float(request.form['variance'])
+		sigma = np.sqrt(sigma2)
+
+		estimated_stock_price = bdt.estimate_stock_price_bs(option_price, K, T, t, ts, r0, sigma)
+		dvdt = bdt.dVdt(option_price, K, T, t, ts, r0, sigma)
+		value = bdt.option_value(option_price, K, T, t, ts, r0, sigma)
+		dvdts = bdt.dVdts(option_price, K, T, t, ts, r0, sigma)
+		dvdT = bdt.dVdT(option_price, K, T, t, ts, r0, sigma)
+		dvdr0 = bdt.dVdr0(option_price, K, T, t, ts, r0, sigma)
+		dvdk = bdt.dVdK(option_price, K, T, t, ts, r0, sigma)
+		dvdp = bdt.dVdP(option_price, K, T, t, ts, r0, sigma)
+		dvdv = bdt.dVdv(option_price, K, T, t, ts, r0, sigma)
+		dvdp2 = bdt.dVdP2(option_price, K, T, t, ts, r0, sigma)
+		return render_template("bs_diff_2.html",estimated_stock_price=estimated_stock_price,
+						 dvdt=dvdt,value=value,dvdts=dvdts,dvdT=dvdT,dvdr0=dvdr0,dvdk=dvdk,
+						 dvdp=dvdp,dvdv=dvdv,dvdp2=dvdp2)
+	return render_template("bs_diff_2.html")
+
 
 @app.route("/paramatize", methods=["GET", "POST"])
 def paramatize():
