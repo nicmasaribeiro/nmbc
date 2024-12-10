@@ -93,7 +93,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Black-Scholes Stock Option Calculator</h1>
+        <h1> Black-Scholes Stock & Option Calculator</h1>
         <form method="POST">
             <label for="option_price">Option Price:</label>
             <input type="text" id="option_price" name="option_price" required>
@@ -102,13 +102,13 @@
             <input type="text" id="strike_price" name="strike_price" required>
 
             <label for="maturity_time">Maturity Time (T):</label>
-            <input type="text" id="maturity_time" name="maturity_time" required>
+            <input type="text" id="maturity_time" name="maturity_time"required>
 
             <label for="current_time">Current Time (t):</label>
-            <input type="text" id="current_time" name="current_time" required>
+            <input type="text" id="current_time" name="current_time" value="0.0833" required>
 
             <label for="time_scale">Time Scale (ts):</label>
-            <input type="text" id="time_scale" name="time_scale" required>
+            <input type="text" id="time_scale" name="time_scale" value=".0039" required>
 
             <label for="interest_rate">Interest Rate (r):</label>
             <input type="text" id="interest_rate" name="interest_rate" required>
@@ -123,7 +123,9 @@
             <div class="results">
                 <h2>Results:</h2>
                 <p>Estimated Stock Price: {{ estimated_stock_price }}</p>
-                <p>Reversed Option Price: {{ value }}</p>
+                <p>Reversed Option dts: {{ value }}</p>
+                <p>Reversed Option dT: {{ value2 }}</p>
+                <p>Reversed Option dt: {{ value3 }}</p>
                 <p>∂V/∂t: {{ dvdt }}</p>
                 <p>∂V/∂ts: {{ dvdts }}</p>
                 <p>∂V/∂T: {{ dvdT }}</p>
