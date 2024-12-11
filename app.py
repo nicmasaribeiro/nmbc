@@ -2979,20 +2979,14 @@ def dV():
 def value_algo_three():
 	return render_template("v3.html")
 
-import reverse_bs_2 as rbs2
+@app.route("/reverse_bs",methods=["GET","POST"])
+def reverse_bs():
+	return render_template("reverse_bs.html")
+
+# import reverse_bs_2 as rbs2
 @app.route("/reverse_bs2", methods=["GET","POST"])
 def reverse_bs2():
-	if request.method == "POST":
-		V = float(request.form['option_price'])
-		K = float(request.form['strike_price'])
-		T = float(request.form['maturity_time'])
-		delta = float(request.form['delta'])
-		r0 = float(request.form['interest_rate'])
-		sigma2 = float(request.form['variance'])
-		sigma = np.sqrt(sigma2)
-		result = rbs2.calculate_stock_price_and_derivatives(V, delta, K, T, r0, sigma)
-		return render_template("reverse_bs_2.html")
-	return render_template("reverse_bs_2.html")
+	return render_template("reverse_bs2.html")
 
 import bs_diff_two as bdt
 @app.route("/bs_diff_2",methods=["GET","POST"])
@@ -3010,6 +3004,8 @@ def bs_diff_2():
 		estimated_stock_price = bdt.estimate_stock_price_bs(option_price, K, T, t, ts, r0, sigma)
 		dvdt = bdt.dVdt(option_price, K, T, t, ts, r0, sigma)
 		value = bdt.option_value(option_price, K, T, t, ts, r0, sigma)
+		value2 = bdt.option_value_dT(option_price, K, T, t, ts, r0, sigma)
+		value3 = bdt.option_value_dt(option_price, K, T, t, ts, r0, sigma)
 		dvdts = bdt.dVdts(option_price, K, T, t, ts, r0, sigma)
 		dvdT = bdt.dVdT(option_price, K, T, t, ts, r0, sigma)
 		dvdr0 = bdt.dVdr0(option_price, K, T, t, ts, r0, sigma)
@@ -3019,7 +3015,7 @@ def bs_diff_2():
 		dvdp2 = bdt.dVdP2(option_price, K, T, t, ts, r0, sigma)
 		return render_template("bs_diff_2.html",estimated_stock_price=estimated_stock_price,
 						 dvdt=dvdt,value=value,dvdts=dvdts,dvdT=dvdT,dvdr0=dvdr0,dvdk=dvdk,
-						 dvdp=dvdp,dvdv=dvdv,dvdp2=dvdp2)
+						 dvdp=dvdp,dvdv=dvdv,dvdp2=dvdp2,value2=value2,value3=value3)
 	return render_template("bs_diff_2.html")
 
 

@@ -141,3 +141,13 @@ def option_value(option_price, K, T, t, ts, r0, sigma):
 	result = dVdts(option_price, K, T, t, ts, r0, sigma)+(1/2)*sigma*dVdP2(option_price, K, T, t, ts, r0, sigma)+r0*option_price*dVdP(option_price, K, T, t, ts, r0, sigma) - r0*estimate_stock_price_bs(option_price, K, T, t, ts, r0, sigma)
 	return result
 
+def option_value_dT(option_price, K, T, t, ts, r0, sigma):
+	result = dVdT(option_price, K, T, t, ts, r0, sigma)+(1/2)*sigma*dVdP2(option_price, K, T, t, ts, r0, sigma)+r0*option_price*dVdP(option_price, K, T, t, ts, r0, sigma) - r0*estimate_stock_price_bs(option_price, K, T, t, ts, r0, sigma)
+	return result
+
+def option_value_dt(option_price, K, T, t, ts, r0, sigma):
+	result = dVdt(option_price, K, T, t, ts, r0, sigma)+(1/2)*sigma*dVdP2(option_price, K, T, t, ts, r0, sigma)+r0*option_price*dVdP(option_price, K, T, t, ts, r0, sigma) - r0*estimate_stock_price_bs(option_price, K, T, t, ts, r0, sigma)
+	return result
+
+
+
