@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Price and Derivatives Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.5.0/math.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stock Price and Derivatives Calculator</h1>
+    <form id="stockPriceForm">
+        <label for="V">Option Value (V): </label>
+        <input type="number" id="V" step="any" placeholder="Enter option value" required>
+
+        <label for="delta">Delta: </label>
+        <input type="number" id="delta" step="any" placeholder="Enter delta value" required>
+
+        <label for="K">Strike Price (K): </label>
+        <input type="number" id="K" step="any" placeholder="Enter strike price" required>
+
+        <label for="T">Time to Maturity (T): </label>
+        <input type="number" id="T" step="any" placeholder="Enter time to maturity (in years)" required>
+
+        <label for="r">Risk-Free Rate (r): </label>
+        <input type="number" id="r" step="any" placeholder="Enter risk-free interest rate" required>
+
+        <label for="sigma">Volatility (σ): </label>
+        <input type="number" id="sigma" step="any" placeholder="Enter volatility" required>
+
+        <button type="button" onclick="calculateStockPriceAndDerivatives()">Calculate</button>
+    </form>
+
+    <h2 id="result">Results will appear here.</h2>
+
+    <script>
+        function calculateStockPriceAndDerivatives() {
+            const V = parseFloat(document.getElementById("V").value);
+            const delta = parseFloat(document.getElementById("delta").value);
+            const K = parseFloat(document.getElementById("K").value);
+            const T = parseFloat(document.getElementById("T").value);
+            const r = parseFloat(document.getElementById("r").value);
+            const sigma = parseFloat(document.getElementById("sigma").value);
+
+            function deltaEquation(S) {
+                const d1 = (Math.log(S / K) + (r + Math.pow(sigma, 2) / 2) * T) / (sigma * Math.sqrt(T));
+                const calculatedDelta = 0.5 * (1 + math.erf(d1 / Math.sqrt(2))); // Approximation for norm.cdf
+                return calculatedDelta - delta;
+            }
+
+            // Solve for stock price using a simple numerical method
+            function solveDeltaEquation() {
+                let lower = 1; // Initial guess lower bound
+                let upper = K * 2; // Initial guess upper bound
+                let tolerance = 1e-6;
+                let mid;
+
+                while (upper - lower > tolerance) {
+                    mid = (lower + upper) / 2;
+                    if (deltaEquation(mid) * deltaEquation(lower) < 0) {
+                        upper = mid;
+                    } else {
+                        lower = mid;
+                    }
+                }
+                return (lower + upper) / 2;
+            }
+
+            const stockPrice = solveDeltaEquation();
+
+            // Numerical derivative function
+            function numericalDerivative(func, variable, dx = 1e-5) {
+                return (func(variable + dx) - func(variable - dx)) / (2 * dx);
+            }
+
+            // Option value function
+            function optionValue(S) {
+                const d1 = (Math.log(S / K) + (r + Math.pow(sigma, 2) / 2) * T) / (sigma * Math.sqrt(T));
+                const d2 = d1 - sigma * Math.sqrt(T);
+                return S * 0.5 * (1 + math.erf(d1 / Math.sqrt(2))) - K * Math.exp(-r * T) * 0.5 * (1 + math.erf(d2 / Math.sqrt(2)));
+            }
+
+            // Time derivative (Theta)
+            function optionValueWithTime(T_val) {
+                const d1 = (Math.log(stockPrice / K) + (r + Math.pow(sigma, 2) / 2) * T_val) / (sigma * Math.sqrt(T_val));
+                const d2 = d1 - sigma * Math.sqrt(T_val);
+                return stockPrice * 0.5 * (1 + math.erf(d1 / Math.sqrt(2))) - K * Math.exp(-r * T_val) * 0.5 * (1 + math.erf(d2 / Math.sqrt(2)));
+            }
+
+            const theta = numericalDerivative(optionValueWithTime, T);
+
+            // Maturity sensitivity
+            const maturitySensitivity = numericalDerivative(optionValue, T);
+
+            // Display results
+            document.getElementById("result").innerHTML = `
+                <p><strong>Stock Price:</strong> ${stockPrice.toFixed(2)}</p>
+                <p><strong>Time Derivative (Theta):</strong> ${theta.toFixed(2)}</p>
+                <p><strong>Maturity Sensitivity:</strong> ${maturitySensitivity.toFixed(2)}</p>
+            `;
+        }
+    </script>
+</body>
+</html>
