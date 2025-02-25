@@ -11,6 +11,7 @@ import csv
 import random
 import subprocess as sp
 import xml.etree.ElementTree as ET
+from flask_executor import Executor
 import xml.dom.minidom
 import yfinance
 import pandas as pd
@@ -60,10 +61,15 @@ import plotly
 from stoch_greeks import calculate_greeks
 from scipy.integrate import quad
 from scipy.stats import poisson
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 
 app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
 cache = Cache(app)
+executor = Executor(app)
+Session = scoped_session(sessionmaker(bind=engine))
+
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
@@ -80,8 +86,12 @@ network = Network()
 network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
-p2p = P2PNode('0.0.0.0',PORT)
 
+
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    Session.remove()
 
 @app.route('/stoch/greeks', methods=['GET','POST'])
 @cache.cached(300)  # Cache this route for 5 minutes
@@ -290,32 +300,51 @@ def change_value_update():
 		db.session.commit()
 	
 def update():
-	recalculate()
-	change_value_update()
-	invests = InvestmentDatabase.query.all()
-	try:
-		for i in invests:
-			t = yf.Ticker(i.investment_name.upper())
-			prices_vector = t.history(period='5d',interval='1m')
-			price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
-			i.market_price = price
-			db.session.commit()
-			current_time = datetime.now()
-			time_difference =  i.timestamp - current_time
-			i.time_float += time_difference.total_seconds() / (365.25 * 24 * 36_000_000)
-			i.timestamp = current_time
-			db.session.commit()			
-			i.tokenized_price = black_scholes(price,i.target_price,i.time_float,.05, np.std(prices_vector['Close'].pct_change()[1:])*np.sqrt(525960),i.investment_type)
-			i.coins = i.tokenized_price * (1+i.spread)**(i.time_float)
-			db.session.commit()
-	except:
-		pass
-	return 0
+    """
+    Update investment data, including market price, time_float, tokenized price, and coins.
+    """
+    recalculate()
+    change_value_update()
+    invests = InvestmentDatabase.query.all()
 
-@app.route('/task')
-def task():
-	p2p.connect_to_peer('0.0.0.0',PORT)
-	return "Success"
+    for i in invests:
+        try:
+            # Fetch current market data
+            t = yf.Ticker(i.investment_name.upper())
+            prices_vector = t.history(period='5d', interval='1m')
+            price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
+            
+            # Update market price
+            i.market_price = price
+
+            # Calculate time difference since the last update
+            current_time = datetime.now()
+            time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
+
+            # Update time_float (time remaining until maturity)
+            i.time_float += time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
+
+            # Update timestamp to the current time
+            i.timestamp = current_time
+
+            # Calculate tokenized price and coins
+            i.tokenized_price = i.market_price / i.quantity  # Simplified for now
+            i.coins = i.tokenized_price * (1 + i.spread) ** i.time_float
+
+            # Commit changes to the database
+            db.session.commit()
+
+        except Exception as e:
+            # Log the exception for debugging
+            print(f"Error updating investment {i.investment_name}: {e}")
+            db.session.rollback()  # Rollback in case of errors
+
+    return 0
+
+@app.route('/startup')
+def long_task():
+    executor.submit(update)
+    return "Updated Assets"
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -759,10 +788,22 @@ def html_trans_database():
 	t = TransactionDatabase.query.all()
 	return render_template("html-trans.html", trans=t)
 
+@app.route('/mine/investments',methods=['GET','POST'])
+def mine_investments():
+	update()
+	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
+
+
+# @app.route('/update/invs',methods=['GET','POST'])
+# def mine_investments():
+# 	# update()
+# 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
+
+
 @login_required
 @app.route('/html/investment/ledger',methods=['GET'])
 def html_investment_ledger():
-	update()
+	# update()
 	t = InvestmentDatabase.query.all()
 	return render_template("html-invest-ledger.html", invs=t)
 
@@ -1786,6 +1827,8 @@ def mine_optimization():
 		ticker = request.values.get("ticker")
 		score = float(request.values.get("score"))
 		optimal_value = float(request.values.get("optimal_value"))
+		description = float(request.values.get("description"))
+
 		# Ensure the receipt exists in the query
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
 		if not optmimization:
@@ -1800,7 +1843,8 @@ def mine_optimization():
 							receipt=receipt,
 							output_data=output_data,
 							filename=optmimization.filename,
-							created_at=dt.datetime.now())
+							created_at=dt.datetime.now(),
+							description=description)
 		db.session.add(token)
 		db.session.commit()
 		packet = {
@@ -2987,6 +3031,29 @@ def reverse_bs():
 @app.route("/reverse_bs2", methods=["GET","POST"])
 def reverse_bs2():
 	return render_template("reverse_bs2.html")
+
+from option_pricing import compute_stock_price_from_option
+@app.route("/options/pricing",methods=["GET","POST"])
+def options_pricing():
+	if request.method == "POST":
+		option_price = float(request.form['option_price'])
+		K_min = float(request.form['k_min'])
+		K_max = float(request.form['k_max'])
+		T = float(request.form['maturity_time'])
+		sigma2 = float(request.form['variance'])
+		r = float(request.form['interest_rate']) # Risk-free rate (5%)
+		sigma = np.sqrt(sigma2)
+		estimated_stock_price = compute_stock_price_from_option(option_price, T, r, K_min, K_max, sigma)
+		print(estimated_stock_price)
+		return render_template("options_pricing.html",stock_price=estimated_stock_price)
+	return render_template("options_pricing.html")
+
+# option_price = .05  # Example option price
+# T = 1.0833  # Time to maturity (1 year)
+# r = 0.046  # Risk-free rate (5%)
+# K_min = .05  # Minimum strike price
+# K_max = 5  # Maximum strike price
+# sigma = 0.1250  # Volatility (20%)
 
 import bs_diff_two as bdt
 @app.route("/bs_diff_2",methods=["GET","POST"])

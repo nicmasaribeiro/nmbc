@@ -429,6 +429,7 @@ class OptimizationToken(db.Model):
     output_data = db.Column(db.LargeBinary, nullable=False)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    description = db.Column(db.String())
 
 
 class Optimization(db.Model):
