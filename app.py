@@ -64,7 +64,6 @@ from scipy.stats import poisson
 from sqlalchemy.orm import scoped_session, sessionmaker
 from models import Swap,SwapBlock
 from swap_model import TokenizedInterestRateSwap
-from flask_migrate import Migrate
 import uuid
 import logging
 
@@ -77,7 +76,6 @@ app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
 cache = Cache(app)
 executor = Executor(app)
 Session = scoped_session(sessionmaker(bind=engine))
-migrate = Migrate(app, db)
 
 
 openai.api_key = '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'
