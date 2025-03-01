@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Portfolio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .approve-btn {
+            padding: 5px 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .approve-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h2>My Portfolio</h2>
+    <table>
+        <tr>
+            <th>Stock ID</th>
+            <th>Ticker</th>
+            <th>Stock Price</th>
+            <th>Stock Mean</th>
+            <th>Stock Std</th>
+            <th>Weight</th>
+        </tr>
+        {% for p in portfolio %}
+        <tr>
+            <td>{{ p.id }}</td>
+            <td>{{ p.token_name }}</td>
+            <td>{{ p.price }}</td>
+            <td>{{ p.mean }}</td>
+            <td>{{ p.std }}</td>
+            <td>{{ p.weight }}</td>
+<!--        <td>-->
+<!--            <form action="/swaps/approve" method="POST">-->
+<!--                <button class="approve-btn">Approve</button>-->
+<!--            </form>-->
+<!--        </td>-->
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

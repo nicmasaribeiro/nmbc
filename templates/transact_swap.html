@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transact Swap</title>
+</head>
+<body>
+    <h1>Transact Swap</h1>
+    <form action="/swaps/transaction" method="post">
+        <label for="swap_id">Swap ID:</label>
+        <input type="text" id="swap_id" name="swap_id" required><br><br>
+        
+        <label for="sender">Sending Party:</label>
+        <input type="text" id="sender" name="sender" required><br><br>
+        
+        <label for="destination">Destination Party:</label>
+        <input type="text" id="destination" name="destination" required><br><br>
+        
+        <button type="submit">Send Swap</button>
+    </form>
+</body>
+</html>

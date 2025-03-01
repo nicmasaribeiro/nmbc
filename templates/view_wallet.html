@@ -1,0 +1,15 @@
+<h2>Your Wallet</h2>
+<p>Balance: ${{ wallet.balance }}</p>
+<p>Coins: {{ wallet.coins }}</p>
+
+<h2>Pending Transfers</h2>
+<ul>
+    {% for transfer in transactions %}
+        <li>
+            Period {{ transfer.period }}: Pay {{ transfer.net_cash_flow }} to {{ transfer.receiver }}
+            <form action="/swaps/approve_transfer/{{ transfer.swap_id }}" method="POST">
+                <button type="submit">Approve</button>
+            </form>
+        </li>
+    {% endfor %}
+</ul>

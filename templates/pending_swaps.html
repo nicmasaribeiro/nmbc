@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Swaps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .approve-btn {
+            padding: 5px 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .approve-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h2>All Swaps</h2>
+    <table>
+        <tr>
+            <th>Swap ID</th>
+            <th>Notional</th>
+            <th>Fixed Rate</th>
+            <th>Floating Rate Spread</th>
+            <th>Counterparty A</th>
+            <th>Counterparty B</th>
+            <th>Status</th>
+            <th>Equity</th>
+        </tr>
+        {% for swap in swaps %}
+        <tr>
+            <td>{{ swap.id }}</td>
+            <td>{{ swap.notional }}</td>
+            <td>{{ swap.fixed_rate }}</td>
+            <td>{{ swap.floating_rate_spread }}</td>
+            <td>{{ swap.counterparty_a }}</td>
+            <td>{{ swap.counterparty_b }}</td>
+            <td>{{ swap.status }}</td>
+            <td>{{ swap.equity }}</td>
+<!--        <td>-->
+<!--            <form action="/swaps/approve" method="POST">-->
+<!--                <button class="approve-btn">Approve</button>-->
+<!--            </form>-->
+<!--        </td>-->
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

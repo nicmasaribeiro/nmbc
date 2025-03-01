@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swap Marketplace</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { margin-bottom: 20px; }
+        .swap-container { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Swap Marketplace</h1>
+    
+    <h2>Request a Swap</h2>
+    <form action="/swaps/request" method="post">
+        <input type="text" name="requesting_party" placeholder="Your Name" required>
+        <input type="text" name="counterparty_a" placeholder="counterparty_a" required>
+        <input type="text" name="counterparty_b" placeholder="counterparty_b" required>
+        <input type="number" step="0.01" name="notional" placeholder="Notional" required>
+        <input type="number" step="0.01" name="fixed_rate" placeholder="Fixed Rate" required>
+        <input type="number" step="0.01" name="floating_rate_spread" placeholder="Floating Rate Spread" required>
+        <input type="number" step="0.01" name="periods" placeholder="Periods" required>
+        <button type="submit">Request Swap</button>
+    </form>
+    
+    <h2>Offer a Swap</h2>
+    <form action="/swaps/offer" method="post">
+        <input type="text" name="offering_party" placeholder="Your Name" required>
+        <input type="number" step="0.01" name="notional" placeholder="Notional" required>
+        <input type="number" step="0.01" name="fixed_rate" placeholder="Fixed Rate" required>
+        <input type="number" step="0.01" name="floating_rate_spread" placeholder="Floating Rate Spread" required>
+        <input type="number" step="0.01" name="periods" placeholder="Periods" required>
+
+        <button type="submit">Offer Swap</button>
+    </form>
+    
+    <h2>Available Swaps</h2>
+    {% for swap in swaps %}
+        <div class="swap-container">
+            <p><strong>Requesting/Offering Party:</strong> {{ swap.requesting_party or swap.offering_party }}</p>
+            <p><strong>Notional:</strong> {{ swap.notional }}</p>
+            <p><strong>Fixed Rate:</strong> {{ swap.fixed_rate }}</p>
+            <p><strong>Floating Rate Spread:</strong> {{ swap.floating_rate_spread }}</p>
+            <p><strong>Status:</strong> {{ swap.status }}</p>
+            <form action="/swaps/approve" method="post" style="display:inline;">
+                <input type="hidden" name="swap_id" value="{{ swap.id }}">
+                <input type="hidden" name="approving_party" value="Your Name">
+                <button type="submit">Approve</button>
+            </form>
+            <form action="/swaps/reject" method="post" style="display:inline;">
+                <input type="hidden" name="swap_id" value="{{ swap.id }}">
+                <input type="hidden" name="rejecting_party" value="Your Name">
+                <button type="submit">Reject</button>
+            </form>
+        </div>
+    {% endfor %}
+</body>
+</html>

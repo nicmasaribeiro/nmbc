@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Approve Swap</title>
+</head>
+<body>
+    <h1>Approve Swap</h1>
+    <form action="{{ url_for('approve_swap') }}" method="post">
+        <label for="swap_id">Swap ID:</label>
+        <input type="text" id="swap_id" name="swap_id" required><br><br>
+
+        <label for="approving_party">Approving Party:</label>
+        <input type="text" id="approving_party" name="approving_party" required><br><br>
+        
+        <label for="destination">Second Party:</label>
+        <input type="text" id="destination" name="destination" required><br><br>
+        
+        <button type="submit">Approve Swap</button>
+    </form>
+</body>
+</html>

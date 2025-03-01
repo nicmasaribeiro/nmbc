@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reject Swap</title>
+</head>
+<body>
+    <h1>Reject Swap</h1>
+    <form action="{{ url_for('reject_swap') }}" method="post">
+        <label for="swap_id">Swap ID:</label>
+        <input type="text" id="swap_id" name="swap_id" required><br><br>
+
+        <label for="rejecting_party">Rejecting Party:</label>
+        <input type="text" id="rejecting_party" name="rejecting_party" required><br><br>
+
+        <button type="submit">Reject Swap</button>
+    </form>
+</body>
+</html>
