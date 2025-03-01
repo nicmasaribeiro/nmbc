@@ -58,4 +58,4 @@ def send_message():
 	node.send_message(message)
 	return jsonify({'message': f'Message sent: {message}'})
 
-app.run()
+app.run(port=5050)

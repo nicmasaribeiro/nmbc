@@ -22,6 +22,7 @@ import os
 import sys
 from sqlalchemy.ext.mutable import MutableList
 import datetime as dt
+from flask_pymongo import PyMongo
 
 UPLOAD_FOLDER = 'local'
 ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}
@@ -36,6 +37,11 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
+
+# MongoDB Configuration (For NoSQL DB)
+# app.config["MONGO_URI"] = "mongodb+srv://your_mongodb_user:password@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority"
+# mongo = PyMongo(app)
+
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -58,6 +64,8 @@ class WalletDB(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     coinbase_wallet = db.Column(db.String)
     token = db.Column(db.String(3072))
+    swap_debt_balance = db.Column(db.Float, default=0)
+    swap_credit_balance = db.Column(db.Float, default=0)
 
     def set_transaction(sender_wallet, recv_wallet, value):
         sender = sender_wallet
@@ -89,6 +97,8 @@ class WalletDB(db.Model):
         Wallet.balance -= value
         Wallet.coins += value
         db.session.commit()
+
+
 
 class SocialNetwork(db.Model):
     __tablename__ = 'social'
@@ -134,21 +144,26 @@ class TransactionType(enum.Enum):
     investment = "investment"
     liquidation = 'liquidation'
     information_exchange = 'info-exchange'
-    
+    swap = 'swap'
+
+
 class TransactionDatabase(db.Model):
     __tablename__ = 'transactions'
     
     id = db.Column(db.Integer, primary_key=True)
     txid = db.Column(db.String, nullable=False)
     username = db.Column(db.String)
-    from_address = db.Column(db.String, db.ForeignKey('wallets.address'))
-    to_address = db.Column(db.String, db.ForeignKey('wallets.address'))
+    from_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)  # Ensure Not NULL
+    to_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     type = db.Column(db.Enum(TransactionType), nullable=False)
     signature = db.Column(db.String(1024))
+
     from_wallet = db.relationship('WalletDB', foreign_keys=[from_address])
     to_wallet = db.relationship('WalletDB', foreign_keys=[to_address])
+
+
 
 
 class Blog(db.Model):
@@ -181,7 +196,62 @@ class Peer(db.Model):
         self.miner_wallet -= value
         self.cash += value
         db.session.commit()
-        
+
+
+class Swap(db.Model):
+    __tablename__ = 'swap'
+
+    id = db.Column(db.Integer, primary_key=True)
+    notional = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(), nullable=False)
+    fixed_rate = db.Column(db.Float, nullable=False)
+    floating_rate_spread = db.Column(db.Float, nullable=False)
+    equity = db.Column(db.String, nullable=False)
+    equity_rate = db.Column(db.Float, default=0)
+    amount = db.Column(db.Float, nullable=False)
+    counterparty_a = db.Column(db.String(100), nullable=False)
+    counterparty_b = db.Column(db.String(100), nullable=False)
+    receipt = db.Column(db.String(100), nullable=False)
+    blocks = db.relationship('SwapBlock', backref='swap', lazy=True)
+
+class SwapBlock(db.Model):
+    __tablename__ = 'swap_block'
+
+    id = db.Column(db.Integer, primary_key=True)
+    index = db.Column(db.Integer, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    data = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String, nullable=True)  # ✅ Allow NULL values
+    previous_hash = db.Column(db.String, nullable=False)
+    hash = db.Column(db.String, nullable=False)
+    swap_id = db.Column(db.Integer, db.ForeignKey('swap.id'), nullable=False)
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.String(512), nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender = db.relationship('Users', foreign_keys=[sender_id])
+    receiver = db.relationship('Users', foreign_keys=[receiver_id])
+
+class SwapTransaction(db.Model):
+    __tablename__ = 'swap_transactions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    swap_id = db.Column(db.Integer, nullable=False)
+    receipt = db.Column(db.String(100), nullable=False)
+    sender = db.Column(db.String, nullable=False)
+    receiver = db.Column(db.String, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String, default="Pending")
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Block(db.Model):
     __tablename__ = 'blocks'
     
@@ -246,7 +316,21 @@ class PrivateBlock:
 		
 	def calculate_hash(self):
 		return hashlib.sha256(str(self.index).encode()) .hexdigest()   
+
+class Portfolio(db.Model):
+    __tablename__ = 'portfolio'
     
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(1024),unique=False)
+    token_name = db.Column(db.String(1024),unique=False)
+    token_address = db.Column(db.String(1024), unique=False)
+    user_address = db.Column(db.String(1024), unique=False)#, unique=True, nullable=False
+    transaction_receipt = db.Column(db.String)
+    price = db.Column(db.Float,default=0.0)
+    mean = db.Column(db.Integer,default=0.0)
+    std = db.Column(db.Float, default=0)
+    weight = db.Column(db.Float, default=0)
+
 class AssetToken(db.Model):
     __tablename__ = 'asset_token'
     

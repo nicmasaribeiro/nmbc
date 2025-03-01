@@ -62,17 +62,28 @@ from stoch_greeks import calculate_greeks
 from scipy.integrate import quad
 from scipy.stats import poisson
 from sqlalchemy.orm import scoped_session, sessionmaker
+from models import Swap,SwapBlock
+from swap_model import TokenizedInterestRateSwap
+from flask_migrate import Migrate
+import uuid
+import logging
+from flask_pymongo import PyMongo
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
 cache = Cache(app)
 executor = Executor(app)
 Session = scoped_session(sessionmaker(bind=engine))
+migrate = Migrate(app, db)
 
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
+
 
 global nmbc
 nmbc = NMCYBlockchain()
@@ -87,11 +98,198 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-
-
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     Session.remove()
+
+@app.route('/my_portfolio', methods=['GET'])
+@login_required
+def portfolio():
+	user = current_user
+	portfolio = Portfolio.query.filter_by(username=user.username).all()
+	return render_template('portfolio.html', portfolio=portfolio)
+
+
+@app.route('/notifications/send', methods=['GET','POST'])
+@login_required
+def send_notification():
+	if request.method == 'POST':
+		sender = request.form['sender']
+		receiver_id = request.form['receiver']
+		message = request.form['message']
+
+		if not receiver_id or not message:
+			return jsonify({"error": "Missing required fields"}), 400
+
+		notification = Notification(
+			sender_id=sender,
+			receiver_id=receiver_id,
+			message=message
+		)
+		db.session.add(notification)
+		db.session.commit()
+		return jsonify({"message": "Notification sent successfully"}), 201
+	return render_template("send_note.html")
+
+@app.route('/get/notes', methods=['GET','POST'])
+def get_notifications():
+	if request.method == 'POST':
+		u = request.form['user']
+		notifications = Notification.query.filter_by(receiver_id=u).order_by(Notification.timestamp.desc()).all()
+		return render_template("my_notes.html",notes=notifications)
+	return render_template("get_notes.html")
+
+@app.route('/notifications/read/<int:notification_id>', methods=['POST'])
+@login_required
+def mark_notification_as_read(notification_id):
+    notification = Notification.query.get_or_404(notification_id)
+    if notification.receiver_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({"message": "Notification marked as read"}), 200
+
+
+@app.route('/swaps/request', methods=['POST','GET'])
+@login_required
+def request_swap():
+	if request.method == 'POST':
+		requesting_party = request.form['requesting_party']
+		counterparty_b = request.form['counterparty_b']
+		counterparty_a = request.form['counterparty_a']
+		floating_rate_spread=float(request.form['floating_rate_spread'])
+		fixed_rate = float(request.form['fixed_rate'])
+		notional = float(request.form['notional'])
+		floating_rate_spread = float(request.form['floating_rate_spread'])
+		issuer = current_user
+		amount = float(request.form['tokens'])
+		receipt = os.urandom(10)
+		equity = request.form['equity_rate']
+		id = random.randint(0,1_000_000_000_000)
+		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=amount,receipt=receipt,
+			 floating_rate_spread=floating_rate_spread,
+			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)
+		db.session.add(sdb)
+		db.session.commit()
+	return render_template('request_swap.html')
+                           
+@app.route('/all/swaps', methods=['POST', 'GET'])
+def pending_swap():
+	s = Swap.query.all()
+	print(s)
+	return render_template('pending_swaps.html', swaps=s)
+
+
+@app.route('/swaps/negotiate', methods=['POST', 'GET'])
+def negotiate_swap():
+    if request.method == 'POST':
+        swap_id = request.form['swap_id']
+        party = request.form['party']
+        updated_terms = {
+            'notional': float(request.form['notional']),
+            'fixed_rate': float(request.form['fixed_rate']),
+            'floating_rate_spread': float(request.form['floating_rate_spread']),
+        }
+
+        # Retrieve the existing swap
+        swap = Swap.query.filter_by(id=swap_id).first()
+        
+        if not swap:
+            flash("Swap not found!", "error")
+            return redirect('/')
+
+        # Check if the party is authorized to negotiate
+        if party not in [swap.counterparty_a, swap.counterparty_b]:
+            flash("Unauthorized negotiation attempt!", "error")
+            return redirect('/')
+		
+        # Update swap terms
+        swap.notional = updated_terms['notional']
+        swap.fixed_rate = updated_terms['fixed_rate']
+        swap.floating_rate_spread = updated_terms['floating_rate_spread']
+		# swap.status = 'Negotiating'
+
+        # Commit changes to the database
+        db.session.commit()
+
+        flash("Swap terms successfully negotiated!", "success")
+        return redirect('/')
+
+    return render_template('negotiate_swap.html')
+
+
+@app.route('/swaps/approve', methods=['POST','GET'])
+def approve_swap():
+	if request.method == 'POST':
+		swap_id = request.form['swap_id']
+		approving_party = request.form['approving_party']
+		second_party = request.form['destination']
+		s = Swap.query.filter_by(id=swap_id).first()
+		s.status = 'Approved'
+		db.session.commit()
+		transaction = SwapTransaction(id=s.id,swap_id=swap_id,receipt=s.receipt,
+								sender=s.counterparty_a,receiver=s.counterparty_b,
+								amount=s.amount,status='approved',timestamp=datetime.now())
+		db.session.add(transaction)
+		db.session.commit()
+		wallet_one = WalletDB.query.filter_by(address=approving_party).first()
+		wallet_two = WalletDB.query.filter_by(address=second_party).first()
+		wallet_one.swap_debt_balance -= s.notional
+		db.session.commit()
+		return redirect('/swap/market')
+	return render_template('approve_swap.html')
+
+@app.route('/swaps/reject', methods=['POST','GET'])
+def reject_swap():
+	if request.method == 'POST':
+		swap_id = request.form['swap_id']
+		rejecting_party = request.form['rejecting_party']
+		s = Swap.query.filter_by(id=swap_id).first()
+		db.session.delete(s)
+		db.session.commit()
+		return redirect('/swap/market')
+	return render_template('reject_swap.html')
+
+
+
+@app.route('/swaps/transaction', methods=['POST', 'GET'])
+def transact_swap():
+	if request.method == 'POST':
+		# Validate and retrieve form data
+		swap_id = request.form.get('swap_id')
+		transaction_party = request.form.get('sender')
+		second_party = request.form.get('destination')
+
+
+		# Fetch swap and wallet details
+		s = Swap.query.filter_by(id=swap_id).first()
+		wallet_one = WalletDB.query.filter_by(address=transaction_party).first()
+		wallet_two = WalletDB.query.filter_by(address=second_party).first()
+
+		# Fetch historical data and calculate return
+		ticker = yf.Ticker(s.equity.upper())
+		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])
+		print(ret)
+		if s.status   == 'Approved':
+			wallet_one.swap_debt_balance += (s.notional * (s.fixed_rate)) # / s.amount
+			wallet_two.swap_credit_balance += s.notional * (abs(ret)) #/ s.amount)
+			db.session.commit()
+
+			return redirect('/swap/market')
+	return render_template('transact_swap.html')
+
+@app.route('/swap/market')
+def swap_marketplace():
+	swaps = Swap.query.all()
+	return render_template('swap_manage.html',swaps=swaps)
+
+@app.route('/swap/index')
+def index_swap():
+	swaps = Swap.query.all()
+	return render_template('swap_index.html', swaps=swaps)
+
 
 @app.route('/stoch/greeks', methods=['GET','POST'])
 @cache.cached(300)  # Cache this route for 5 minutes
@@ -322,7 +520,7 @@ def update():
             time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
 
             # Update time_float (time remaining until maturity)
-            i.time_float += time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
+            i.time_float -= time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
 
             # Update timestamp to the current time
             i.timestamp = current_time
@@ -341,10 +539,10 @@ def update():
 
     return 0
 
-@app.route('/startup')
+@app.route('/long_task')
 def long_task():
     executor.submit(update)
-    return "Updated Assets"
+    return "Task started"
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -502,7 +700,7 @@ def sell_cash():
 
 @app.route('/')
 def base():
-	return render_template('base.html')
+	return render_template('index_base.html')
 
 @app.route('/signup', methods=['POST','GET'])
 def signup():
@@ -794,12 +992,6 @@ def mine_investments():
 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 
 
-# @app.route('/update/invs',methods=['GET','POST'])
-# def mine_investments():
-# 	# update()
-# 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
-
-
 @login_required
 @app.route('/html/investment/ledger',methods=['GET'])
 def html_investment_ledger():
@@ -831,6 +1023,27 @@ def html_block(id):
 def get_block(id):
 	block = Block.query.get_or_404(id)
 	return render_template("html-block.html",block=block)
+
+
+
+@app.route('/add/portfolio',methods=['POST','GET'])
+def add_portfolio():
+	if request.method == 'POST':
+		ticker = request.form.get('name').upper()
+		price = yf.Ticker(ticker).history(period='ytd',interval='1d')['Close']
+		mean = np.mean(price)
+		std = np.std(price)
+		weight = float(request.form.get('weight'))
+		user = request.form.get("username")
+		u = Users.query.filter_by(username=user).first()
+		prt = Portfolio(mean=mean,std=std,weight=weight,price=price[-1],username=user,
+				token_name=ticker.upper(),token_address=os.urandom(10),user_address=u.personal_token,transaction_receipt=os.urandom(10))
+		db.session.add(prt)
+		db.session.commit()
+		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>Portfolio {ticker}"""
+	return render_template("add_port.html")
+
+
 
 
 @app.route('/holdings', methods=['GET'])
@@ -1302,15 +1515,15 @@ def invest():
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
 		if password == wal.password:
 			if inv.quantity >= 0:
-				if wal.coins >= staked_coins:
+				if (wal.coins >= staked_coins) and (inv.quantity > 0):
 					inv.quantity -= staked_coins
 					db.session.commit()
-					total_value = inv.tokenized_price*staked_coins
+					total_value = inv.tokenized_price * staked_coins
 					house = BettingHouse.query.get_or_404(1)
-					house.coin_fee(0.1*total_value)
-					owner_wallet.coins += 0.1*total_value
+					house.coin_fee(0.1 * total_value)
+					owner_wallet.coins += 0.1 * total_value
 					db.session.commit()
-					new_value = 0.8*total_value
+					new_value = 0.8 * total_value
 					wal.coins -= total_value
 					inv.coins_value += new_value
 					db.session.commit()
@@ -3047,13 +3260,6 @@ def options_pricing():
 		print(estimated_stock_price)
 		return render_template("options_pricing.html",stock_price=estimated_stock_price)
 	return render_template("options_pricing.html")
-
-# option_price = .05  # Example option price
-# T = 1.0833  # Time to maturity (1 year)
-# r = 0.046  # Risk-free rate (5%)
-# K_min = .05  # Minimum strike price
-# K_max = 5  # Maximum strike price
-# sigma = 0.1250  # Volatility (20%)
 
 import bs_diff_two as bdt
 @app.route("/bs_diff_2",methods=["GET","POST"])
