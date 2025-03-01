@@ -67,7 +67,6 @@ from swap_model import TokenizedInterestRateSwap
 from flask_migrate import Migrate
 import uuid
 import logging
-from flask_pymongo import PyMongo
 
 
 logging.basicConfig(level=logging.INFO)
