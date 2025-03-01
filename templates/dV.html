@@ -172,11 +172,11 @@
 <body>
     <h1>Curvature of Rates</h1>
     <form onsubmit="event.preventDefault(); calculate();">
-        <label>t (Short Rate): <input type="number" id="t"></label>
-        <label>s: (Medium Rate) <input type="number" id="s"></label>
-        <label>T: (Long Rate) <input type="number" id="T" ></label>
-        <label>r<sub>0</sub> (Risk-Free): <input type="number" id="r0" ></label>
-        <label>c<sub>0</sub>: (Stoch Price)<input type="number" id="c0"></label>
+        <label>t (Short Rate): <input type="number" id="t" step="0.01"></label>
+        <label>s: (Medium Rate) <input type="number" id="s" step="0.01"></label>
+        <label>T: (Long Rate) <input type="number" id="T" step="0.01" ></label>
+        <label>r<sub>0</sub> (Risk-Free): <input type="number" id="r0" step="0.01" ></label>
+        <label>c<sub>0</sub>: (Stoch Price)<input type="number" id="c0" step="0.01"></label>
         <label>K: (Strike) <input type="number" id="K" ></label>
         <button type="submit">Calculate</button>
     </form>
