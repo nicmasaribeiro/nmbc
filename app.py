@@ -249,9 +249,9 @@ def request_swap():
 		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=periods,receipt=receipt,
 			 floating_rate_spread=floating_rate_spread,
 			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)
-		trans =  TransactionDatabase(txid=os.urandom(10).hex(),username=requesting_party,
-							   from_address=requesting_party,to_address=counterparty_b,amount=0,
-							   timestamp=datetime.utcnow,type='swap',signature=os.urandom(10).hex())
+		# trans =  TransactionDatabase(txid=os.urandom(10).hex(),username=requesting_party,
+							#    from_address=requesting_party,to_address=counterparty_b,amount=0,
+							#    timestamp=datetime.utcnow,type='swap',signature=os.urandom(10).hex())
 		# swp_trans = SwapTransaction(swap_id=id,receipt=os.urandom(10).hex(),
 							#   sender=counterparty_a,receiver=counterparty_b,amount=periods,timestamp=dt.datetime.utcnow())
 		
@@ -263,7 +263,7 @@ def request_swap():
 		db.session.add(duo_factor_one)
 		db.session.add(duo_factor_two)
 		# db.session.add(swp_trans)
-		db.session.add(trans)		
+		# db.session.add(trans)		
 		db.session.add(sdb)
 		db.session.commit()
 	return render_template('request_swap.html')
