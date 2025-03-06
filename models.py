@@ -23,6 +23,7 @@ import sys
 from sqlalchemy.ext.mutable import MutableList
 import datetime as dt
 
+
 UPLOAD_FOLDER = 'local'
 ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}
 
@@ -36,10 +37,6 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
-
-# MongoDB Configuration (For NoSQL DB)
-# app.config["MONGO_URI"] = "mongodb+srv://your_mongodb_user:password@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority"
-# mongo = PyMongo(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -132,6 +129,7 @@ class Users(UserMixin, db.Model):
     private_wallet = PrivateWallet()
     personal_token = db.Column(db.String(3072))
     private_token = db.Column(db.String(3072))
+    cell_number = db.Column(db.String())
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=True)
     wallet = db.relationship('WalletDB', backref='user', uselist=False)
 
@@ -144,6 +142,18 @@ class TransactionType(enum.Enum):
     liquidation = 'liquidation'
     information_exchange = 'info-exchange'
     swap = 'swap'
+
+class DualFactor(db.Model):
+    __tablename__ = 'dual_factor'
+
+    id = db.Column(db.Integer, primary_key=True)
+    dual_factor_signature = db.Column(db.String, nullable=False)
+    identifier =  db.Column(db.String, nullable=False)
+    username = db.Column(db.String)
+    from_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)  # Ensure Not NULL
+    to_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class TransactionDatabase(db.Model):
@@ -208,6 +218,9 @@ class Swap(db.Model):
     equity = db.Column(db.String, nullable=False)
     equity_rate = db.Column(db.Float, default=0)
     amount = db.Column(db.Float, nullable=False)
+    total_amount = db.Column(db.Float,default=0)
+    fee = .01 #db.Column(db.Float, default=0)
+    maturity = db.Column(db.Float, default=0)
     counterparty_a = db.Column(db.String(100), nullable=False)
     counterparty_b = db.Column(db.String(100), nullable=False)
     receipt = db.Column(db.String(100), nullable=False)
