@@ -66,6 +66,11 @@ from models import Swap,SwapBlock
 from swap_model import TokenizedInterestRateSwap
 import uuid
 import logging
+import schedule # apscheduler.schedulers.background import BackgroundScheduler
+import threading
+from twilio.rest import Client
+
+
 
 
 logging.basicConfig(level=logging.INFO)
@@ -81,7 +86,6 @@ Session = scoped_session(sessionmaker(bind=engine))
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
-
 global nmbc
 nmbc = NMCYBlockchain()
 global coin
@@ -95,6 +99,8 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
+
+
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     Session.remove()
@@ -105,6 +111,76 @@ def portfolio():
 	user = current_user
 	portfolio = Portfolio.query.filter_by(username=user.username).all()
 	return render_template('portfolio.html', portfolio=portfolio)
+
+@app.route('/swaps/transaction', methods=['POST', 'GET'])
+def transact_swap():
+	if request.method == 'POST':
+		# Validate and retrieve form data
+		swap_id = request.form.get('swap_id')
+		transaction_party = request.form.get('sender')
+		second_party = request.form.get('destination')
+
+
+		# Fetch swap and wallet details
+		s = Swap.query.filter_by(id=swap_id).first()
+		wallet_one = WalletDB.query.filter_by(address=transaction_party).first()
+		wallet_two = WalletDB.query.filter_by(address=second_party).first()
+
+		# Fetch historical data and calculate return
+		ticker = yf.Ticker(s.equity.upper())
+		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])
+		print(ret)
+		if (s.status   == 'Approved') and (s.total_amount >= 0):
+			s.total_amount -= (s.notional * s.maturity)/s.amount
+			wallet_one.swap_debt_balance += (s.notional * (s.fixed_rate)) # / s.amount
+			wallet_two.swap_credit_balance += s.notional * (abs(ret)) #/ s.amount)
+			db.session.commit()
+			return redirect('/swap/market')
+	return render_template('transact_swap.html')
+
+def execute_swap():
+	"""Executes swap transactions at scheduled intervals"""
+	swaps = Swap.query.all()  # Get all swaps from the database
+
+	for s in swaps:
+		periods = s.amount
+		maturity = s.maturity
+		time_total = maturity * 365  # Convert years to days
+
+		# Fetch historical stock data
+		ticker = yf.Ticker(s.equity.upper())
+		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+
+		if len(historical_data) < 2:
+			print(f"Not enough historical data for {s.equity}")
+			continue  # Skip if data is insufficient
+
+		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])  # Log return
+		print(f"Return for {s.equity}: {ret}")
+
+		wallet_one = WalletDB.query.filter_by(address=s.counterparty_a).first()
+		wallet_two = WalletDB.query.filter_by(address=s.counterparty_b).first()
+
+		if not wallet_one or not wallet_two:
+			print(f"Wallets not found for {s.counterparty_a} or {s.counterparty_b}")
+			continue  # Skip if wallets are missing
+
+		def logic():
+			if s.status == 'Approved' and s.total_amount >= 0:
+				wallet_one.swap_debt_balance += s.notional * s.fixed_rate
+				wallet_two.swap_credit_balance += s.notional * abs(ret)
+				s.total_amount -= (s.notional * maturity)/periods
+				db.session.commit()  # Commit transaction
+				print(f"Executed swap for {s.id}: Debt Balance Updated")
+
+		# Schedule swap execution at defined intervals
+		execution_interval = time_total / periods  # Calculate days per execution
+		schedule.every(int(execution_interval)).days.do(logic)
+
+	print("All swaps scheduled successfully.")
+# Run the function every 10 seconds (for testing purposes)
+schedule.every(3600).seconds.do(execute_swap)
 
 
 @app.route('/notifications/send', methods=['GET','POST'])
@@ -148,8 +224,14 @@ def mark_notification_as_read(notification_id):
     return jsonify({"message": "Notification marked as read"}), 200
 
 
-@app.route('/swaps/request', methods=['POST','GET'])
+@app.route('/duo-factor/requests', methods=['GET'])
 @login_required
+def dual_factor():
+	dual = DualFactor.query.filter_by(username=current_user.username).all()
+	return render_template('duo-factor.html',dual=dual)
+
+
+@app.route('/swaps/request', methods=['POST','GET'])
 def request_swap():
 	if request.method == 'POST':
 		requesting_party = request.form['requesting_party']
@@ -159,61 +241,185 @@ def request_swap():
 		fixed_rate = float(request.form['fixed_rate'])
 		notional = float(request.form['notional'])
 		floating_rate_spread = float(request.form['floating_rate_spread'])
-		issuer = current_user
-		amount = float(request.form['tokens'])
-		receipt = os.urandom(10)
-		equity = request.form['equity_rate']
-		id = random.randint(0,1_000_000_000_000)
-		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=amount,receipt=receipt,
+		issuer = counterparty_a
+		periods = float(request.form['tokens'])
+		receipt = os.urandom(10).hex()
+		equity = request.form['equity_rate'].upper()
+		id = len(Swap.query.all()) + 1 #r#andom.randint(0,1_000_000_000_000)
+		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=periods,receipt=receipt,
 			 floating_rate_spread=floating_rate_spread,
 			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)
+		trans =  TransactionDatabase(txid=os.urandom(10).hex(),username=requesting_party,
+							   from_address=requesting_party,to_address=counterparty_b,amount=0,
+							   timestamp=datetime.utcnow,type='swap',signature=os.urandom(10).hex())
+		# swp_trans = SwapTransaction(swap_id=id,receipt=os.urandom(10).hex(),
+							#   sender=counterparty_a,receiver=counterparty_b,amount=periods,timestamp=dt.datetime.utcnow())
+		
+		duo_factor_one = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_a,
+							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
+		
+		duo_factor_two = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_b,
+							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
+		db.session.add(duo_factor_one)
+		db.session.add(duo_factor_two)
+		# db.session.add(swp_trans)
+		db.session.add(trans)		
 		db.session.add(sdb)
 		db.session.commit()
 	return render_template('request_swap.html')
+
+
                            
 @app.route('/all/swaps', methods=['POST', 'GET'])
 def pending_swap():
 	s = Swap.query.all()
-	print(s)
 	return render_template('pending_swaps.html', swaps=s)
 
+import random
+import string
+from flask import session
 
+# def request_negotiation():
 @app.route('/swaps/negotiate', methods=['POST', 'GET'])
 def negotiate_swap():
-    if request.method == 'POST':
-        swap_id = request.form['swap_id']
-        party = request.form['party']
-        updated_terms = {
-            'notional': float(request.form['notional']),
-            'fixed_rate': float(request.form['fixed_rate']),
-            'floating_rate_spread': float(request.form['floating_rate_spread']),
-        }
+	if request.method == 'GET':
+		session['negotiation_signature'] = str(random.randint(0, 1_000_000))
+		print(session['negotiation_signature'])
 
-        # Retrieve the existing swap
-        swap = Swap.query.filter_by(id=swap_id).first()
-        
-        if not swap:
-            flash("Swap not found!", "error")
-            return redirect('/')
-
-        # Check if the party is authorized to negotiate
-        if party not in [swap.counterparty_a, swap.counterparty_b]:
-            flash("Unauthorized negotiation attempt!", "error")
-            return redirect('/')
+		# Secure credentials
+		account_sid = 'ACbdc55c104aec01f8aae7df05d05966fb'
+		auth_token = '467316527e47db772e74d8e716fcf16c'
 		
-        # Update swap terms
-        swap.notional = updated_terms['notional']
-        swap.fixed_rate = updated_terms['fixed_rate']
-        swap.floating_rate_spread = updated_terms['floating_rate_spread']
-		# swap.status = 'Negotiating'
+		if not account_sid or not auth_token:
+			return "Twilio credentials are missing", 500
 
-        # Commit changes to the database
-        db.session.commit()
+		try:
+			client = Client(account_sid, auth_token)
+			message = client.messages.create(
+				from_='+16205228999',
+				body=session['negotiation_signature'],
+				to='+5511994441328'
+			)
+		except Exception as e:
+			return f"Failed to send SMS: {str(e)}", 500
 
-        flash("Swap terms successfully negotiated!", "success")
-        return redirect('/')
+		return render_template('negotiate_swap.html')
 
-    return render_template('negotiate_swap.html')
+	elif request.method == 'POST':
+		swap_id = request.form.get('swap_id')
+		party = request.form.get('party')
+		sig = request.form.get('signature')
+
+		stored_sig = session.get('negotiation_signature')
+		if stored_sig != sig:
+			return "Invalid signature", 400
+
+		try:
+			notional = float(request.form['notional'])
+			fixed_rate = float(request.form['fixed_rate'])
+			floating_rate_spread = float(request.form['floating_rate_spread'])
+		except ValueError:
+			return "Invalid numerical values", 400
+
+		swap = Swap.query.filter_by(id=swap_id).first()
+		if not swap:
+			return "Swap not found", 404
+
+		# Update swap terms
+		swap.notional = notional
+		swap.fixed_rate = fixed_rate
+		swap.floating_rate_spread = floating_rate_spread
+		db.session.commit()
+
+		session.pop('negotiation_signature', None)
+		return redirect('/')
+
+	return render_template('negotiate_swap.html')
+
+
+# @app.route('/swaps/negotiate', methods=['POST', 'GET'])
+# def negotiate_swap():
+# 	if request.method == 'GET':
+# 		# Generate a random signature and store it in session
+# 		session['negotiation_signature'] = str(random.randint(0,1_000_000)) #''.join(random.choices(string.ascii_letters + string.digits, k=16))
+# 		print(session['negotiation_signature'])
+# 		account_sid = 'ACbdc55c104aec01f8aae7df05d05966fb'
+# 		auth_token = '467316527e47db772e74d8e716fcf16c'
+# 		client = Client(account_sid, auth_token)
+# 		message = client.messages.create(
+# 			from_='+16205228999',
+# 			body=session['negotiation_signature'],
+# 			to='+5511994441328'
+# 		)
+
+# 		return render_template('negotiate_swap.html')#, signature=session['negotiation_signature'])
+
+# 	elif request.method == 'POST':
+# 		swap_id = request.form['swap_id']
+# 		party = request.form['party']
+# 		sig = request.form['signature']
+# 		updated_terms = {
+# 			'notional': float(request.form['notional']),
+# 			'fixed_rate': float(request.form['fixed_rate']),
+# 			'floating_rate_spread': float(request.form['floating_rate_spread']),
+# 		}
+
+# 		# Retrieve the existing swap
+# 		swap = Swap.query.filter_by(id=swap_id).first()
+		
+# 		# Update swap terms
+# 		swap.notional = updated_terms['notional']
+# 		swap.fixed_rate = updated_terms['fixed_rate']
+# 		swap.floating_rate_spread = updated_terms['floating_rate_spread']
+# 		# Commit changes to the database
+# 		db.session.commit()
+# 		# Clear the signature after successful negotiation
+# 		session.pop('negotiation_signature', None)
+# 		return redirect('/')
+
+# 	return render_template('negotiate_swap.html')
+
+
+# @app.route('/swaps/negotiate', methods=['POST', 'GET'])	
+# def negotiate_swap():
+# 	if request.method == 'POST':
+# 		swap_id = request.form['swap_id']
+# 		party = request.form['party']
+# 		sig = request.form['signature']
+# 		updated_terms = {
+# 			'notional': float(request.form['notional']),
+# 			'fixed_rate': float(request.form['fixed_rate']),
+# 			'floating_rate_spread': float(request.form['floating_rate_spread']),
+# 		}
+
+# 		# Retrieve the existing swap
+# 		swap = Swap.query.filter_by(id=swap_id).first()
+		
+# 		if not swap:
+# 			flash("Swap not found!", "error")
+# 			return redirect('/')
+
+# 		# Check if the party is authorized to negotiate
+# 		if party not in [swap.counterparty_a, swap.counterparty_b]:
+# 			flash("Unauthorized negotiation attempt!", "error")
+# 			return redirect('/')
+		
+# # 
+# 		# if sig == singnature:
+# 			# Update swap terms
+# 		swap.notional = updated_terms['notional']
+# 		swap.fixed_rate = updated_terms['fixed_rate']
+# 		swap.floating_rate_spread = updated_terms['floating_rate_spread']
+# 		# swap.status = 'Negotiating'
+
+# 		# Commit changes to the database
+# 		db.session.commit()
+
+# 		flash("Swap terms successfully negotiated!", "success")
+# 		return redirect('/')
+
+# 	return render_template('negotiate_swap.html')
+
 
 
 @app.route('/swaps/approve', methods=['POST','GET'])
@@ -222,20 +428,34 @@ def approve_swap():
 		swap_id = request.form['swap_id']
 		approving_party = request.form['approving_party']
 		second_party = request.form['destination']
-		s = Swap.query.filter_by(id=swap_id).first()
-		s.status = 'Approved'
-		db.session.commit()
-		transaction = SwapTransaction(id=s.id,swap_id=swap_id,receipt=s.receipt,
-								sender=s.counterparty_a,receiver=s.counterparty_b,
-								amount=s.amount,status='approved',timestamp=datetime.now())
-		db.session.add(transaction)
-		db.session.commit()
-		wallet_one = WalletDB.query.filter_by(address=approving_party).first()
-		wallet_two = WalletDB.query.filter_by(address=second_party).first()
-		wallet_one.swap_debt_balance -= s.notional
-		db.session.commit()
-		return redirect('/swap/market')
+		approving_password = request.form['approving_password']
+		iden = Swap.query.filter_by(id=swap_id).first()
+		duo_one = DualFactor.query.filter_by(username=approving_party,identifier=iden.receipt).first()#.all()[-1]
+		duo_two = DualFactor.query.filter_by(username=second_party,identifier=iden.receipt).first()#all()[-1]
+		dual_one = request.form['dual_one']
+		dual_two = request.form['dual_two']
+		
+		print('1\t',duo_one.dual_factor_signature,'\n2\t',dual_one,'\n3\t',dual_two,'\n4\t',duo_two.dual_factor_signature)
+
+		if duo_one.dual_factor_signature == dual_one and duo_two.dual_factor_signature == dual_two :#approving_password == user_check.password:
+			s = Swap.query.filter_by(id=swap_id).first()
+			s.status = 'Approved'
+			db.session.commit()
+			db.session.delete(duo_one)
+			db.session.delete(duo_two)
+			db.session.commit()
+			transaction = SwapTransaction(id=s.id,swap_id=swap_id,receipt=s.receipt,
+									sender=s.counterparty_a,receiver=s.counterparty_b,
+									amount=s.amount,status='approved',timestamp=datetime.now())
+			db.session.add(transaction)
+			db.session.commit()
+			wallet_one = WalletDB.query.filter_by(address=approving_party).first()
+			wallet_two = WalletDB.query.filter_by(address=second_party).first()
+			wallet_one.swap_debt_balance -= s.notional
+			db.session.commit()
+			return redirect('/swap/market')
 	return render_template('approve_swap.html')
+
 
 @app.route('/swaps/reject', methods=['POST','GET'])
 def reject_swap():
@@ -248,34 +468,6 @@ def reject_swap():
 		return redirect('/swap/market')
 	return render_template('reject_swap.html')
 
-
-
-@app.route('/swaps/transaction', methods=['POST', 'GET'])
-def transact_swap():
-	if request.method == 'POST':
-		# Validate and retrieve form data
-		swap_id = request.form.get('swap_id')
-		transaction_party = request.form.get('sender')
-		second_party = request.form.get('destination')
-
-
-		# Fetch swap and wallet details
-		s = Swap.query.filter_by(id=swap_id).first()
-		wallet_one = WalletDB.query.filter_by(address=transaction_party).first()
-		wallet_two = WalletDB.query.filter_by(address=second_party).first()
-
-		# Fetch historical data and calculate return
-		ticker = yf.Ticker(s.equity.upper())
-		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
-		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])
-		print(ret)
-		if s.status   == 'Approved':
-			wallet_one.swap_debt_balance += (s.notional * (s.fixed_rate)) # / s.amount
-			wallet_two.swap_credit_balance += s.notional * (abs(ret)) #/ s.amount)
-			db.session.commit()
-
-			return redirect('/swap/market')
-	return render_template('transact_swap.html')
 
 @app.route('/swap/market')
 def swap_marketplace():
@@ -495,46 +687,47 @@ def change_value_update():
 		db.session.commit()
 	
 def update():
-    """
-    Update investment data, including market price, time_float, tokenized price, and coins.
-    """
-    recalculate()
-    change_value_update()
-    invests = InvestmentDatabase.query.all()
+	"""
+	Update investment data, including market price, time_float, tokenized price, and coins.
+	"""
+	print("Update")
+	recalculate()
+	change_value_update()
+	invests = InvestmentDatabase.query.all()
 
-    for i in invests:
-        try:
-            # Fetch current market data
-            t = yf.Ticker(i.investment_name.upper())
-            prices_vector = t.history(period='5d', interval='1m')
-            price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
-            
-            # Update market price
-            i.market_price = price
+	for i in invests:
+		try:
+			# Fetch current market data
+			t = yf.Ticker(i.investment_name.upper())
+			prices_vector = t.history(period='5d', interval='1m')
+			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
+			
+			# Update market price
+			i.market_price = price
 
-            # Calculate time difference since the last update
-            current_time = datetime.now()
-            time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
+			# Calculate time difference since the last update
+			current_time = datetime.now()
+			time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
 
-            # Update time_float (time remaining until maturity)
-            i.time_float -= time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
+			# Update time_float (time remaining until maturity)
+			i.time_float -= time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
 
-            # Update timestamp to the current time
-            i.timestamp = current_time
+			# Update timestamp to the current time
+			i.timestamp = current_time
 
-            # Calculate tokenized price and coins
-            i.tokenized_price = i.market_price / i.quantity  # Simplified for now
-            i.coins = i.tokenized_price * (1 + i.spread) ** i.time_float
+			# Calculate tokenized price and coins
+			i.tokenized_price = i.market_price / i.quantity  # Simplified for now
+			i.coins = i.tokenized_price * (1 + i.spread) ** i.time_float
 
-            # Commit changes to the database
-            db.session.commit()
+			# Commit changes to the database
+			db.session.commit()
 
-        except Exception as e:
-            # Log the exception for debugging
-            print(f"Error updating investment {i.investment_name}: {e}")
-            db.session.rollback()  # Rollback in case of errors
+		except Exception as e:
+			# Log the exception for debugging
+			print(f"Error updating investment {i.investment_name}: {e}")
+			db.session.rollback()  # Rollback in case of errors
 
-    return 0
+	return 0
 
 @app.route('/long_task')
 def long_task():
@@ -705,9 +898,10 @@ def signup():
 		password = request.values.get("password")
 		username = request.values.get("username")
 		email = request.values.get("email")
+		cell_number = request.values.get("cell_number")
 		unique_address = os.urandom(10).hex()
 		hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-		new_user = Users(username=username, email=email, 
+		new_user = Users(username=username, email=email,cell_number=cell_number, 
 				   password=hashed_password,
 				   personal_token=os.urandom(10).hex(),
 				   private_token=unique_address)
@@ -749,7 +943,6 @@ def login():
 @app.route('/get/users', methods=['GET'])
 @login_required
 def get_users():
-#	new_transaction = TransactionDatabase()
 	users = Users.query.all()
 	users_list = [{'id': user.id, 'username': user.username,'publicKey':str(user.personal_token)} for user in users]
 	return jsonify(users_list)
@@ -772,6 +965,23 @@ def signup_val():
 		else:
 			pass
 	return render_template("signup-val.html")
+
+
+@app.route('/investments', methods=['GET'])
+def get_investments():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template(
+        'investments.html',
+        investments=investments,
+        page=investments.page,
+        total_pages=investments.pages,
+        has_next=investments.has_next,
+        has_prev=investments.has_prev
+    )
 
 @app.route('/get/vals')
 def get_vals():
@@ -1145,7 +1355,7 @@ def get_user_wallet():
 def html_wallet():
 	user = current_user
 	wallet = WalletDB.query.filter_by(address=user.username).first()
-	return render_template("mywallet.html",wallet=wallet)
+	return render_template("wallet.html",wallet=wallet)
 
 
 @app.route('/bc/receipts',methods=['GET'])
@@ -1512,7 +1722,7 @@ def invest():
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
 		if password == wal.password:
 			if inv.quantity >= 0:
-				if (wal.coins >= staked_coins) and (inv.quantity > 0):
+				if (wal.coins >= staked_coins) and (inv.quantity >= staked_coins): # and (inv.coins_value >= staked_coins):
 					inv.quantity -= staked_coins
 					db.session.commit()
 					total_value = inv.tokenized_price * staked_coins
@@ -3384,8 +3594,19 @@ def token_parameters(id):
 	except Exception as e:
 		return str(e), 500
 
+
+schedule.every(1).minutes.do(update)
+
+
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
-		PendingTransactionDatabase.genisis()
+		PendingTransactionDatabase.genisis() 
+	def run_scheduler():
+		while True:
+			with app.app_context():
+				schedule.run_pending()
+				time.sleep(1)  #
+	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
+	schedule_thread.start()
 	app.run(host="0.0.0.0",port=8080)
