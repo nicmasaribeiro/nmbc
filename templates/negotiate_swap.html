@@ -71,13 +71,16 @@
 
     <div class="container">
         <h1>Negotiate Swap Terms</h1>
-        <form action="{{ url_for('negotiate_swap') }}" method="post">
+        <form action="/swaps/negotiate" method="POST">
             <label for="swap_id">Swap ID:</label>
             <input type="text" id="swap_id" name="swap_id" required>
 
-            <label for="party">Party:</label>
+            <label for="party">Requesting Party:</label>
             <input type="text" id="party" name="party" required>
 
+            <label for="signature">Approval Party Signature:</label>
+            <input type="text" id="signature" name="signature" required>
+            
             <label for="notional">Notional Amount:</label>
             <input type="number" id="notional" name="notional" step="0.01" required>
 

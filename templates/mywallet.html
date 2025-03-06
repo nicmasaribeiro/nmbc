@@ -5,47 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wallet Dashboard</title>
     <style>
+        /* General Styles */
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
+            font-family: 'Poppins', sans-serif;
+            background-color: #eef2f7;
             margin: 0;
             padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
-        h1, h3 {
-            color: #333;
+
+        /* Wallet Container */
+        .wallet-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 450px;
+            width: 100%;
             text-align: center;
+            transition: transform 0.3s ease-in-out;
         }
+
+        .wallet-container:hover {
+            transform: scale(1.03);
+        }
+
+        /* Title */
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        /* Wallet Info */
         .wallet-info {
-            background-color: #a5b0c2;
+            background: #f9f9f9;
+            padding: 15px;
             border-radius: 10px;
-            padding: 20px;
-            margin: 20px auto;
-            max-width: 500px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+            text-align: left;
         }
+
         .wallet-info h3 {
-            margin: 10px 0;
-            font-weight: normal;
-        }
-        .wallet-info .value {
+            font-size: 16px;
             color: #555;
+            margin: 10px 0;
+        }
+
+        .value {
+            color: #1a73e8;
             font-weight: bold;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 500px) {
+            .wallet-container {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    {% extends "base.html" %}
+    {% extends "index_base.html" %}
     {% block content %}
-    <div class="wallet-info">
-        <h1>Welcome to your wallet, {{user}}</h1>
-        <h3>Wallet ID: <span class="value">{{wallet.id}}</span></h3>
-        <h3>Wallet Address: <span class="value">{{wallet.address}}</span></h3>
-        <h3>Wallet Balance: <span class="value">{{wallet.balance}}</span></h3>
-        <h3>Wallet Coins: <span class="value">{{wallet.coins}}</span></h3>
-        <h3>Wallet Token: <span class="value">{{wallet.token}}</span></h3>
-        <h3>Swap Debt: <span class="value">{{wallet.swap_debt_balance}}</span></h3>
-        <h3>Swap Credit: <span class="value">{{wallet.swap_credit_balance}}</span></h3>
-        
+    <div class="wallet-container">
+        <h1>Welcome to Your Wallet, {{ user }}</h1>
+        <div class="wallet-info">
+            <h3>Wallet ID: <span class="value">{{ wallet.id }}</span></h3>
+            <h3>Wallet Address: <span class="value">{{ wallet.address }}</span></h3>
+            <h3>Wallet Balance: <span class="value">{{ wallet.balance }}</span></h3>
+            <h3>Wallet Coins: <span class="value">{{ wallet.coins }}</span></h3>
+            <h3>Wallet Token: <span class="value">{{ wallet.token }}</span></h3>
+            <h3>Swap Debt: <span class="value">{{ wallet.swap_debt_balance }}</span></h3>
+            <h3>Swap Credit: <span class="value">{{ wallet.swap_credit_balance }}</span></h3>
+        </div>
     </div>
     {% endblock %}
 </body>

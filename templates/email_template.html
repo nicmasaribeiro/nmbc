@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Email Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: auto;
+        }
+        .header {
+            background-color: #007bff;
+            padding: 10px;
+            color: white;
+            text-align: center;
+            font-size: 20px;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            padding: 20px;
+            color: #333;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            {{ subject }}
+        </div>
+        <div class="content">
+            <p>Hello {{ recipient_name }},</p>
+            <p>{{ message }}</p>
+            <a href="{{ action_url }}" class="button">Take Action</a>
+        </div>
+        <div class="footer">
+            &copy; 2025 Your Company. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

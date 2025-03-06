@@ -49,6 +49,7 @@
             <th>Counterparty B</th>
             <th>Status</th>
             <th>Equity</th>
+            <th>Identifier Receipt</th>
         </tr>
         {% for swap in swaps %}
         <tr>
@@ -60,6 +61,7 @@
             <td>{{ swap.counterparty_b }}</td>
             <td>{{ swap.status }}</td>
             <td>{{ swap.equity }}</td>
+            <td>{{ swap.receipt }}</td>
 <!--        <td>-->
 <!--            <form action="/swaps/approve" method="POST">-->
 <!--                <button class="approve-btn">Approve</button>-->
