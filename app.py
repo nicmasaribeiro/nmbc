@@ -69,6 +69,7 @@ import logging
 import schedule # apscheduler.schedulers.background import BackgroundScheduler
 import threading
 from twilio.rest import Client
+from flask import session
 
 
 
@@ -275,9 +276,6 @@ def pending_swap():
 	s = Swap.query.all()
 	return render_template('pending_swaps.html', swaps=s)
 
-import random
-import string
-from flask import session
 
 # def request_negotiation():
 @app.route('/swaps/negotiate', methods=['POST', 'GET'])
@@ -336,89 +334,6 @@ def negotiate_swap():
 
 	return render_template('negotiate_swap.html')
 
-
-# @app.route('/swaps/negotiate', methods=['POST', 'GET'])
-# def negotiate_swap():
-# 	if request.method == 'GET':
-# 		# Generate a random signature and store it in session
-# 		session['negotiation_signature'] = str(random.randint(0,1_000_000)) #''.join(random.choices(string.ascii_letters + string.digits, k=16))
-# 		print(session['negotiation_signature'])
-# 		account_sid = 'ACbdc55c104aec01f8aae7df05d05966fb'
-# 		auth_token = '467316527e47db772e74d8e716fcf16c'
-# 		client = Client(account_sid, auth_token)
-# 		message = client.messages.create(
-# 			from_='+16205228999',
-# 			body=session['negotiation_signature'],
-# 			to='+5511994441328'
-# 		)
-
-# 		return render_template('negotiate_swap.html')#, signature=session['negotiation_signature'])
-
-# 	elif request.method == 'POST':
-# 		swap_id = request.form['swap_id']
-# 		party = request.form['party']
-# 		sig = request.form['signature']
-# 		updated_terms = {
-# 			'notional': float(request.form['notional']),
-# 			'fixed_rate': float(request.form['fixed_rate']),
-# 			'floating_rate_spread': float(request.form['floating_rate_spread']),
-# 		}
-
-# 		# Retrieve the existing swap
-# 		swap = Swap.query.filter_by(id=swap_id).first()
-		
-# 		# Update swap terms
-# 		swap.notional = updated_terms['notional']
-# 		swap.fixed_rate = updated_terms['fixed_rate']
-# 		swap.floating_rate_spread = updated_terms['floating_rate_spread']
-# 		# Commit changes to the database
-# 		db.session.commit()
-# 		# Clear the signature after successful negotiation
-# 		session.pop('negotiation_signature', None)
-# 		return redirect('/')
-
-# 	return render_template('negotiate_swap.html')
-
-
-# @app.route('/swaps/negotiate', methods=['POST', 'GET'])	
-# def negotiate_swap():
-# 	if request.method == 'POST':
-# 		swap_id = request.form['swap_id']
-# 		party = request.form['party']
-# 		sig = request.form['signature']
-# 		updated_terms = {
-# 			'notional': float(request.form['notional']),
-# 			'fixed_rate': float(request.form['fixed_rate']),
-# 			'floating_rate_spread': float(request.form['floating_rate_spread']),
-# 		}
-
-# 		# Retrieve the existing swap
-# 		swap = Swap.query.filter_by(id=swap_id).first()
-		
-# 		if not swap:
-# 			flash("Swap not found!", "error")
-# 			return redirect('/')
-
-# 		# Check if the party is authorized to negotiate
-# 		if party not in [swap.counterparty_a, swap.counterparty_b]:
-# 			flash("Unauthorized negotiation attempt!", "error")
-# 			return redirect('/')
-		
-# # 
-# 		# if sig == singnature:
-# 			# Update swap terms
-# 		swap.notional = updated_terms['notional']
-# 		swap.fixed_rate = updated_terms['fixed_rate']
-# 		swap.floating_rate_spread = updated_terms['floating_rate_spread']
-# 		# swap.status = 'Negotiating'
-
-# 		# Commit changes to the database
-# 		db.session.commit()
-
-# 		flash("Swap terms successfully negotiated!", "success")
-# 		return redirect('/')
-
-# 	return render_template('negotiate_swap.html')
 
 
 
@@ -970,7 +885,7 @@ def signup_val():
 @app.route('/investments', methods=['GET'])
 def get_investments():
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = 5
 
     investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
 
@@ -1518,6 +1433,7 @@ def buy_or_sell():
 			return "<h3>Invalid ticker symbol</h3>"
 		
 		price = history['Close'][-1]
+		# black_scholes()
 		option = black_scholes(price, target_price, maturity, .05, np.std(history['Close'].pct_change()[1:])*np.sqrt(525960),option_type)
 		
 		def sech(x):
@@ -1525,7 +1441,7 @@ def buy_or_sell():
 		Px = lambda t: np.exp(-t)*np.sqrt(((t**3-3*t**2*(1-t))*(1-((t**3-3*t**2*(1-t))/sech(t))))**2)
 		
 		stoch = stoch_price(0.003968253968, maturity, risk_neutral, spread, reversion, price, target_price, option_type)
-		token_price = option #max(0, option + derivative_price(history['Close'], risk_neutral ,reversion, spread)) + C(coins)
+		token_price = max(0, option + derivative_price(history['Close'], risk_neutral , reversion, spread)) + C(coins)
 		
 		
 		wal = WalletDB.query.filter_by(address=user).first()
@@ -1722,7 +1638,7 @@ def invest():
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
 		if password == wal.password:
 			if inv.quantity >= 0:
-				if (wal.coins >= staked_coins) and (inv.quantity >= staked_coins): # and (inv.coins_value >= staked_coins):
+				if (wal.coins >= staked_coins) and (inv.quantity > staked_coins): # and (inv.coins_value >= staked_coins):
 					inv.quantity -= staked_coins
 					db.session.commit()
 					total_value = inv.tokenized_price * staked_coins
@@ -1732,6 +1648,7 @@ def invest():
 					db.session.commit()
 					new_value = 0.8 * total_value
 					wal.coins -= total_value
+					inv.tokenized_price += new_value
 					inv.coins_value += new_value
 					db.session.commit()
 					new_transaction = TransactionDatabase(
