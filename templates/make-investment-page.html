@@ -124,9 +124,9 @@
             <input type="text" id="ticker" name="ticker" placeholder="Enter the investment name">
             
             <label for="coins">Coins Staked
-                <div class="info-popup">Specify the number of coins you have staked.</div>
+                <div class="info-popup">Specify the number of tokens you want to create.</div>
             </label>
-            <input type="float" step="0.01" id="coins" min="0.1" name="coins" placeholder="Enter the number of staked coins">
+            <input type="float" step="0.01" id="coins" min="0.1" name="coins" placeholder="The number of tokens you want to create">
             
             <label for="maturity">Maturity
                 <div class="info-popup">Enter the maturity period in years.</div>
@@ -138,13 +138,13 @@
             </label>
             <input type="float" step="0.01" id="target_price" name="target_price" placeholder="Enter the target price">
             
-            <label for="sigma">Forward Rate
-                <div class="info-popup">Enter the forward rate</div>
+            <label for="sigma">Mu-Sigma Volatility Rate
+                <div class="info-popup">Enter the Volatility rate</div>
             </label>
             <input type="float" step="0.01" id="sigma" name="sigma" placeholder="Enter the spread coefficient">
             
-            <label for="mu">Reversion Coefficient (or, Dividend Spread)
-                <div class="info-popup">Specify the reversion coefficient, or the dividend spread.</div>
+            <label for="mu">Reversion Coefficient (or, Drift Coefficient)
+                <div class="info-popup">Specify the reversion coefficient, or the Mu-Sigma Drift Coefficient.</div>
             </label>
             <input type="float" step="0.01" id="mu" name="mu" placeholder="Enter the reversion coefficient">
             

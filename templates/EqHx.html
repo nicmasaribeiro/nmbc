@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathematical Computation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            background: #fff;
+            padding: 20px;
+            margin: auto;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background: #e9ecef;
+            border-left: 5px solid #007BFF;
+            text-align: left;
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+        function S(x, y, s0, k0, r0) {
+            return s0 * Math.exp(r0 * x) - k0 * Math.exp(-r0 * y);
+        }
+
+        function d_H(x, h0) {
+            return h0 * (1 / Math.cosh(x)) * x;
+        }
+
+        function d_Q(y, q0) {
+            return y * q0 * normalPDF(y);
+        }
+
+        function normalPDF(x) {
+            return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+        }
+
+        function integrand(x, y, s0, k0, r0, h0, q0) {
+            return x * y * S(x, y, s0, k0, r0) * d_H(x, h0) * d_Q(y, q0);
+        }
+
+        function computeDoubleIntegral(T, s0, k0, r0, h0, q0, steps = 100) {
+            let sum = 0;
+            let dx = T / steps;
+            let dy = T / steps;
+
+            for (let x = 0; x <= T; x += dx) {
+                for (let y = 0; y <= T; y += dy) {
+                    sum += integrand(x, y, s0, k0, r0, h0, q0) * dx * dy;
+                }
+            }
+
+            return sum;
+        }
+
+        function derivative(f, variable, x, y, h, s0, k0, r0, h0, q0) {
+            if (variable === "x") {
+                return (f(x + h, y, s0, k0, r0, h0, q0) - f(x - h, y, s0, k0, r0, h0, q0)) / (2 * h);
+            } else if (variable === "y") {
+                return (f(x, y + h, s0, k0, r0, h0, q0) - f(x, y - h, s0, k0, r0, h0, q0)) / (2 * h);
+            }
+        }
+
+        function computeValues() {
+            let s0 = parseFloat(document.getElementById("s0").value);
+            let k0 = parseFloat(document.getElementById("k0").value);
+            let r0 = parseFloat(document.getElementById("r0").value);
+            let h0 = parseFloat(document.getElementById("h0").value);
+            let q0 = parseFloat(document.getElementById("q0").value);
+            let T = parseFloat(document.getElementById("T").value);
+
+            let a = parseFloat(document.getElementById("a").value);
+            let b = parseFloat(document.getElementById("b").value);
+
+            let integralResult = computeDoubleIntegral(T, s0, k0, r0, h0, q0);
+            let integrandResult = integrand(a, b, s0, k0, r0, h0, q0);
+            let dEqH_dx = derivative(integrand, "x", a, b, 1e-5, s0, k0, r0, h0, q0);
+            let dEqH_dy = derivative(integrand, "y", a, b, 1e-5, s0, k0, r0, h0, q0);
+
+            document.getElementById("result").innerHTML = `
+                <b>Double Integral:</b> EqH(x,y)(0, ${T}) = ${integralResult.toFixed(6)}<br>
+                <b>Integrand:</b> EqH(${b}, ${a}) = ${integrandResult.toFixed(6)}<br>
+                <b>Partial Derivatives:</b><br>
+                ∂EqH(${a}, ${b})/∂x = ${dEqH_dx.toFixed(6)}<br>
+                ∂EqH(${a}, ${b})/∂y = ${dEqH_dy.toFixed(6)}
+            `;
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Mathematical Computation</h1>
+        <div class="input-group">
+            <label for="s0">Stock Value:</label>
+            <input type="number" id="s0" value="10">
+        </div>
+        <div class="input-group">
+            <label for="k0">Strike Value:</label>
+            <input type="number" id="k0" value="10">
+        </div>
+        <div class="input-group">
+            <label for="r0">Risk Free Rate:</label>
+            <input type="number" id="r0" value="0.041" step="0.001">
+        </div>
+        <div class="input-group">
+            <label for="h0">Risk Neutral Metric:</label>
+            <input type="number" id="h0" value="1.7270776218546757" step="0.001">
+        </div>
+        <div class="input-group">
+            <label for="q0">Risk Spread Metric:</label>
+            <input type="number" id="q0" value="0.46136879646565093" step="0.001">
+        </div>
+        <div class="input-group">
+            <label for="T">T (Upper Limit):</label>
+            <input type="number" id="T" value="3">
+        </div>
+        <div class="input-group">
+            <label for="a">a:</label>
+            <input type="number" id="a" value="1.92817751838545">
+        </div>
+        <div class="input-group">
+            <label for="b">b:</label>
+            <input type="number" id="b" value="3.685285593002497">
+        </div>
+        <button onclick="computeValues()">Compute</button>
+        <p id="result">Click "Compute" to see results.</p>
+    </div>
+</body>
+</html>
