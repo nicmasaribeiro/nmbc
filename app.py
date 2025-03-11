@@ -4,6 +4,7 @@ from flask_caching import Cache
 import asyncio
 import socket
 import os
+import statsmodels.api as sm
 from quart import Quart
 from web3 import Web3
 import os
@@ -70,8 +71,7 @@ import schedule # apscheduler.schedulers.background import BackgroundScheduler
 import threading
 from twilio.rest import Client
 from flask import session
-
-
+from arch import arch_model
 
 
 logging.basicConfig(level=logging.INFO)
@@ -106,39 +106,13 @@ PORT = random.randint(5000,6000)
 def shutdown_session(exception=None):
     Session.remove()
 
-@app.route('/my_portfolio', methods=['GET'])
+
+@app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
-def portfolio():
+def portfolio(name):
 	user = current_user
-	portfolio = Portfolio.query.filter_by(username=user.username).all()
+	portfolio = Portfolio.query.filter_by(username=user.username,name=name).all()
 	return render_template('portfolio.html', portfolio=portfolio)
-
-@app.route('/swaps/transaction', methods=['POST', 'GET'])
-def transact_swap():
-	if request.method == 'POST':
-		# Validate and retrieve form data
-		swap_id = request.form.get('swap_id')
-		transaction_party = request.form.get('sender')
-		second_party = request.form.get('destination')
-
-
-		# Fetch swap and wallet details
-		s = Swap.query.filter_by(id=swap_id).first()
-		wallet_one = WalletDB.query.filter_by(address=transaction_party).first()
-		wallet_two = WalletDB.query.filter_by(address=second_party).first()
-
-		# Fetch historical data and calculate return
-		ticker = yf.Ticker(s.equity.upper())
-		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
-		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])
-		print(ret)
-		if (s.status   == 'Approved') and (s.total_amount >= 0):
-			s.total_amount -= (s.notional * s.maturity)/s.amount
-			wallet_one.swap_debt_balance += (s.notional * (s.fixed_rate)) # / s.amount
-			wallet_two.swap_credit_balance += s.notional * (abs(ret)) #/ s.amount)
-			db.session.commit()
-			return redirect('/swap/market')
-	return render_template('transact_swap.html')
 
 def execute_swap():
 	"""Executes swap transactions at scheduled intervals"""
@@ -1146,26 +1120,23 @@ def get_block(id):
 	block = Block.query.get_or_404(id)
 	return render_template("html-block.html",block=block)
 
-
-
 @app.route('/add/portfolio',methods=['POST','GET'])
 def add_portfolio():
 	if request.method == 'POST':
 		ticker = request.form.get('name').upper()
+		name = request.form.get('pname').lower()
 		price = yf.Ticker(ticker).history(period='ytd',interval='1d')['Close']
 		mean = np.mean(price)
 		std = np.std(price)
 		weight = float(request.form.get('weight'))
 		user = request.form.get("username")
 		u = Users.query.filter_by(username=user).first()
-		prt = Portfolio(mean=mean,std=std,weight=weight,price=price[-1],username=user,
+		prt = Portfolio(name=name,mean=mean,std=std,weight=weight,price=price[-1],username=user,
 				token_name=ticker.upper(),token_address=os.urandom(10),user_address=u.personal_token,transaction_receipt=os.urandom(10))
 		db.session.add(prt)
 		db.session.commit()
 		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>Portfolio {ticker}"""
 	return render_template("add_port.html")
-
-
 
 
 @app.route('/holdings', methods=['GET'])
@@ -1416,12 +1387,6 @@ def buy_or_sell():
 		reversion = float(request.values.get("mu"))
 		option_type = request.values.get("option_type").lower()
 		user_db = Users.query.filter_by(username=user).first()
-		
-		# if coins < .1:
-		# 	return "<h3>Invalid Leverage Value</h3>"
-		
-		# if risk_neutral > 1.1 or risk_neutral < 0 :
-		# 	return "Wrong Neutral Measure"
 		
 		if not user_db:
 			return "<h3>User not found</h3>"
@@ -1903,7 +1868,51 @@ def allowed_file(filename):
 	from models import ALLOWED_EXTENSIONS
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'txt', 'html','py','pdf'}
 
-@app.route("/risk-neutral-measure",methods=['GET','POST'])
+import math
+@app.route("/neutral-measure",methods=['GET','POST'])
+def neutral_measure():
+	if request.method == 'POST':
+		company = request.values.get('ticker').upper()
+		interval = request.values.get("interval")
+		period = request.values.get("period")
+		
+		def risk_neutral_probability(r, u, d, delta_t=1/252):
+			risk_free_growth = math.exp(r * delta_t)
+			q = (risk_free_growth - d) / (u - d)
+			return q
+
+		def bin_stats_df(t,period='1d',interval='1m',rf=.05,dt=1/252):
+			ticker = yf.Ticker(t.upper())
+			history = ticker.history(period=period,interval=interval)
+			df = history[['Close','Open']]
+			up = []
+			down = []
+			for i in range(0, len(df)):
+				direction = df["Close"][i] - df['Open'][i]
+				if direction > 0:
+					up.append(direction)
+				else:
+					down.append(direction)
+					
+			prob_up = len(up)/(len(up)+len(down))
+			mean_up = np.mean(up)
+			std_up = np.std(up)
+			prob_down = len(down)/(len(up)+len(down))
+			mean_down = np.mean(down)
+			std_down = np.std(down)
+			
+			def risk_neutral_probability(r, u, d, delta_t=dt):
+				risk_free_growth = math.exp(rf * delta_t)
+				q = (risk_free_growth - d) / (u - d)
+				return q
+			
+			result = risk_neutral_probability(rf, 1+mean_up, 1+mean_down, dt)
+			return result #pd.DataFrame({'rnp':[result],'prob_up':[prob_up],'up_factor':[1 + mean_up], 'prob_down': [prob_down], 'down_factor': [1 + mean_down]},index=[t])
+		res = bin_stats_df(company,period=period,interval=interval,)
+		return render_template('neutral_measure.html',risk_neutral=res)
+	return render_template('neutral_measure.html')
+
+@app.route("/indicator-measure",methods=['GET','POST'])
 def risk_neutral_measure():
 	if request.method == 'POST':
 		def indicator(x, threshold):
@@ -2871,7 +2880,7 @@ def graph_forecast_1d():
 		initial_price = hist[-1]
 		ret = hist.pct_change()[1:]
 		drift = np.mean(ret)*np.sqrt(256)
-		volatility = np.std(hist)#*np.sqrt(256)
+		volatility = np.std(hist)
 		dt = 1/7
 		T = 2
 		price_paths = []
@@ -3166,7 +3175,7 @@ def prodist():
 
 @app.route('/stats/binom',methods=['GET','POST'])
 def stats_binom():
-	from bin_stats_df import bin_stats_df#(ticker, period, interval)
+	from bin_stats_df import bin_stats_df
 	if request.method == "POST":
 		t = request.values.get('ticker')
 		p = request.values.get('perido')
@@ -3369,6 +3378,11 @@ def reverse_bs():
 def reverse_bs2():
 	return render_template("reverse_bs2.html")
 
+
+@app.route("/EqHx", methods=["GET","POST"])
+def EqHx():
+	return render_template("EqHx.html")
+
 from option_pricing import compute_stock_price_from_option
 @app.route("/options/pricing",methods=["GET","POST"])
 def options_pricing():
@@ -3480,6 +3494,53 @@ def paramatize():
 
     return render_template("parameter-form.html")
 
+@app.route("/test")
+def test():
+    # Create a sample Plotly figure
+	t = yf.Ticker('AAPL').history()["Close"]
+	tp = np.linspace(0,len(t),len(t))
+	fig = px.line(x=t.index, y=t, title="Interactive Line Chart")
+
+	# Convert figure to JSON
+	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+	# Pass JSON data to template
+	return render_template("test.html",graph_json=graph_json)
+
+
+@app.route("/kappa",methods=["GET", "POST"])
+def kappa():
+	if request.method == "POST":
+		# Create a sample Plotly figure
+		# Define parameters
+		ticker = request.values.get("ticker").upper()  # Replace with any stock ticker
+
+		stock_data = yf.Ticker(ticker).history(period='max', interval='1d')
+
+		# Compute log prices
+		stock_data["Log Price"] = np.log(stock_data["Close"])
+
+		# Compute log price differences (dX_t)
+		stock_data["dX_t"] = stock_data["Log Price"].diff()
+
+		# Compute lagged log price (X_t-1)
+		stock_data["Lagged Log Price"] = stock_data["Log Price"].shift(1)
+
+		# Drop NaN values
+		stock_data.dropna(inplace=True)
+
+		# Run OLS regression: dX_t = θ(μ - X_t-1) + noise
+		X = stock_data["Lagged Log Price"]
+		y = stock_data["dX_t"]
+
+		X = sm.add_constant(X)  # Add constant for μ
+		model = sm.OLS(y, X).fit()
+		theta = -model.params[1]  # Negative coefficient gives mean reversion speed
+		mu = model.params[0] / theta  # Long-term mean level
+
+		return render_template("kappa.html", theta=theta, mu=mu)
+	return render_template("kappa.html")
+
 
 @app.route('/token-parameters/<int:id>')
 def token_parameters(id):
@@ -3512,7 +3573,7 @@ def token_parameters(id):
 		return str(e), 500
 
 
-schedule.every(1).minutes.do(update)
+# schedule.every(1).hours.do(update)
 
 
 if __name__ == '__main__':
@@ -3523,7 +3584,7 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
-				time.sleep(1)  #
+				time.sleep(3600)  #
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	schedule_thread.start()
 	app.run(host="0.0.0.0",port=8080)

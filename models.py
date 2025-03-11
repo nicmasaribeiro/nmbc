@@ -333,6 +333,7 @@ class Portfolio(db.Model):
     __tablename__ = 'portfolio'
     
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(1024))
     username = db.Column(db.String(1024),unique=False)
     token_name = db.Column(db.String(1024),unique=False)
     token_address = db.Column(db.String(1024), unique=False)
