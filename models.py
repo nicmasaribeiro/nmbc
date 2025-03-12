@@ -135,13 +135,17 @@ class Users(UserMixin, db.Model):
 
 class TransactionType(enum.Enum):
     send = "send"
-    receive = "receive"
+    receive = "RECEIVE"
     internal_wallet = "internal_wallet"
-    intra = "intra"
-    investment = "investment"
-    liquidation = 'liquidation'
-    information_exchange = 'info-exchange'
-    swap = 'swap'
+    swap = "swap"
+    investment = "investment"   # <-- Add this if needed
+
+class TransactionTypeTwo(enum.Enum):
+    send = "send"
+    receive = "RECEIVE"
+    internal_wallet = "internal_wallet"
+    swap = "swap"
+    investment = "investment"  # <-- Add this if needed
 
 class DualFactor(db.Model):
     __tablename__ = 'dual_factor'
@@ -165,10 +169,9 @@ class TransactionDatabase(db.Model):
     from_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)  # Ensure Not NULL
     to_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     type = db.Column(db.Enum(TransactionType), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     signature = db.Column(db.String(1024))
-
     from_wallet = db.relationship('WalletDB', foreign_keys=[from_address])
     to_wallet = db.relationship('WalletDB', foreign_keys=[to_address])
 
