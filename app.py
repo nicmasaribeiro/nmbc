@@ -1366,16 +1366,11 @@ def mine():
 
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
-	from pricing_algo import derivative_price
-	from bs import black_scholes
-	from algo import stoch_price
-	from scipy.stats import norm
 	def normal_pdf(x, mean=0, std_dev=1):
 		return norm.pdf(x, loc=mean, scale=std_dev)
 	def C(s):
 		K = s**3-3*s**2*(1-s)
 		return (s*(s-1/K))**(1/s)*normal_pdf(s)
-	update.delay()
 	if request.method == "POST":
 		user = request.values.get('name')
 		invest_name = request.values.get('ticker').upper()
