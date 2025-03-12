@@ -18,7 +18,7 @@
 
         .container {
             background-color: white;
-            padding: 20px;
+            padding: 50px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             width: 400px;
@@ -78,6 +78,15 @@
         li {
             margin-bottom: 5px;
         }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
     </style>
 </head>
 <body>
@@ -89,8 +98,9 @@
             <label for="file_name">Optimization File Name:</label>
             <input type="text" name="file_name" id="file_name" placeholder="Enter file name">
 
-            <label for="ticker">Stock Ticker:</label>
-            <input type="text" name="ticker" id="ticker" placeholder="Enter stock ticker">
+            <label for="description">File Description:</label>
+            <textarea id="description" name="description" rows="5" cols="50" placeholder="Type your message here..."></textarea>
+            <br>
 
             <label for="file">Upload Optimization File:</label>
             <input type="file" name="file" id="file">

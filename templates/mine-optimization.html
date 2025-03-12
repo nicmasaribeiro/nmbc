@@ -21,13 +21,15 @@
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            width: 90%;
+            max-width: 450px;
         }
 
         h1 {
             text-align: center;
             font-size: 24px;
             margin-bottom: 20px;
+            color: #333;
         }
 
         form {
@@ -35,13 +37,35 @@
             flex-direction: column;
         }
 
-        input[type="file"], input[type="text"], input[type="numeric"] {
-            padding: 10px;
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            padding: 12px;
             margin-bottom: 15px;
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 5px;
             width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: #28a745;
+            outline: none;
+            box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
         }
 
         button {
@@ -52,15 +76,22 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.2s;
         }
 
         button:hover {
             background-color: #218838;
+            transform: scale(1.02);
         }
 
         input[type="file"] {
-            padding: 5px;
+            padding: 8px;
+        }
+
+        @media (max-width: 500px) {
+            .form-container {
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -69,21 +100,19 @@
     <div class="form-container">
         <h1>Mine Optimization</h1>
         <form action="/mine/optimization" method="POST" enctype="multipart/form-data">
-            <label for="file">Upload File:</label>
+            
+            <label for="file">Output Data File:</label>
             <input type="file" name="file" id="file">
 
             <label for="receipt">Receipt:</label>
             <input type="text" name="receipt" id="receipt" placeholder="Enter receipt">
-
-            <label for="ticker">Company Ticker:</label>
-            <input type="text" name="ticker" id="ticker" placeholder="Enter company ticker">
-
-            <label for="score">Optimization Score:</label>
-            <input type="numeric" name="score" id="score" placeholder="Enter score of optimization">
-
-            <label for="optimal_value">Target Optimization Result:</label>
-            <input type="numeric" name="optimal_value" id="optimal_value" placeholder="Enter result of optimization">
-
+            
+            <label for="grade">Grade:</label>
+            <input type="text" name="grade" id="grade" placeholder="Enter the grade you give the file (1 - 10)">
+            
+            <label for="description">File Description:</label>
+            <textarea id="description" name="description" placeholder="Type your message here..."></textarea>
+            
             <button type="submit">Submit</button>
         </form>
     </div>

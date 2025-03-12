@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        /* General Styling */
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #eef2f3;
+            background: linear-gradient(135deg, #eef2f3, #dfe9f3);
             margin: 0;
             padding: 0;
             display: flex;
@@ -17,15 +18,17 @@
             align-items: center;
             min-height: 100vh;
         }
+
         .container {
             background-color: #fff;
-            padding: 40px;
+            padding: 35px;
             border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             max-width: 450px;
-            width: 100%;
+            width: 90%;
             animation: fadeIn 0.8s ease-in-out;
         }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -36,46 +39,75 @@
                 transform: translateY(0);
             }
         }
+
         h1 {
             text-align: center;
             color: #34495e;
             margin-bottom: 20px;
             font-size: 1.8rem;
+            font-weight: bold;
         }
+
         form {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
         }
-        input[type="text"], input[type="number"] {
+
+        /* Input Fields */
+        input[type="text"], 
+        input[type="number"], 
+        input[type="file"] {
             padding: 14px;
             border: 1px solid #ccc;
             border-radius: 8px;
             font-size: 15px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
         }
-        input[type="text"]:focus, input[type="number"]:focus {
+
+        input[type="text"]:focus, 
+        input[type="number"]:focus {
             border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
         }
-        input[type="file"] {
-            display: none;
-        }
-        label[for="file-upload"] {
-            display: inline-block;
-            padding: 14px 20px;
-            background-color: #3498db;
-            color: #fff;
+
+        /* File Upload Styling */
+        .file-upload-wrapper {
+            position: relative;
             text-align: center;
+        }
+
+        .file-upload-wrapper label {
+            display: inline-block;
+            padding: 12px 18px;
+            background-color: #3498db;
+            color: white;
             border-radius: 8px;
             font-size: 15px;
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.3s;
+            width: 100%;
+            text-align: center;
         }
-        label[for="file-upload"]:hover {
+
+        .file-upload-wrapper label:hover {
             background-color: #1e7fb6;
         }
+
+        .file-upload-wrapper input {
+            display: none;
+        }
+
+        #file-name {
+            font-size: 14px;
+            color: #555;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        /* Submit Button */
         input[type="submit"] {
             background-color: #2ecc71;
             color: #fff;
@@ -87,12 +119,21 @@
             cursor: pointer;
             transition: background-color 0.3s, transform 0.2s;
         }
+
         input[type="submit"]:hover {
             background-color: #27ae60;
-            transform: translateY(-2px);
+            transform: scale(1.02);
         }
+
         input[type="submit"]:active {
-            transform: translateY(0);
+            transform: scale(1);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 500px) {
+            .container {
+                padding: 25px;
+            }
         }
     </style>
 </head>
@@ -106,13 +147,25 @@
             <input type="number" step="any" name="wacc" placeholder="WACC" required>
             <input type="number" step="any" name="roe" placeholder="Cost of Equity" required>
             <input type="number" step="any" name="rd" placeholder="Cost of Debt" required>
-            <input type="number" step="any" name="price" placeholder="Price You Want to Charge" required>
-            <label for="file-upload">
-                <i class="fas fa-cloud-upload-alt"></i> Choose File
-            </label>
-            <input type="file" id="file-upload" name="file" required>
+            <!-- Improved File Upload -->
+            <div class="file-upload-wrapper">
+                <label for="file-upload">
+                    <i class="fas fa-cloud-upload-alt"></i> Choose File
+                </label>
+                <input type="file" id="file-upload" name="file" required>
+                <div id="file-name">No file selected</div>
+            </div>
+
             <input type="submit" value="Submit">
         </form>
     </div>
+
+    <script>
+        // Show selected file name
+        document.getElementById('file-upload').addEventListener('change', function() {
+            let fileName = this.files.length > 0 ? this.files[0].name : "No file selected";
+            document.getElementById('file-name').textContent = fileName;
+        });
+    </script>
 </body>
 </html>
