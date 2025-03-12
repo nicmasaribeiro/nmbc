@@ -72,7 +72,8 @@ import threading
 from twilio.rest import Client
 from flask import session
 from arch import arch_model
-
+from celery import Celery
+import ssl
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -100,12 +101,23 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
+app.config['CELERY_BROKER_URL'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
+app.config['CELERY_RESULT_BACKEND'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 
+# Ensure Celery accepts SSL options
+celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
+celery.conf.update(
+    broker_use_ssl={
+        'ssl_cert_reqs': ssl.CERT_REQUIRED  # Use ssl.CERT_REQUIRED for production
+    },
+    result_backend_use_ssl={
+        'ssl_cert_reqs': ssl.CERT_REQUIRED
+    }
+)
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     Session.remove()
-
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -155,7 +167,7 @@ def execute_swap():
 
 	print("All swaps scheduled successfully.")
 # Run the function every 10 seconds (for testing purposes)
-schedule.every(3600).seconds.do(execute_swap)
+schedule.every(100).seconds.do(execute_swap)
 
 
 @app.route('/notifications/send', methods=['GET','POST'])
@@ -180,23 +192,13 @@ def send_notification():
 	return render_template("send_note.html")
 
 @app.route('/get/notes', methods=['GET','POST'])
+@login_required
 def get_notifications():
 	if request.method == 'POST':
 		u = request.form['user']
 		notifications = Notification.query.filter_by(receiver_id=u).order_by(Notification.timestamp.desc()).all()
 		return render_template("my_notes.html",notes=notifications)
 	return render_template("get_notes.html")
-
-@app.route('/notifications/read/<int:notification_id>', methods=['POST'])
-@login_required
-def mark_notification_as_read(notification_id):
-    notification = Notification.query.get_or_404(notification_id)
-    if notification.receiver_id != current_user.id:
-        return jsonify({"error": "Unauthorized"}), 403
-
-    notification.is_read = True
-    db.session.commit()
-    return jsonify({"message": "Notification marked as read"}), 200
 
 
 @app.route('/duo-factor/requests', methods=['GET'])
@@ -317,7 +319,7 @@ def approve_swap():
 		swap_id = request.form['swap_id']
 		approving_party = request.form['approving_party']
 		second_party = request.form['destination']
-		approving_password = request.form['approving_password']
+		# approving_password = request.form['approving_password']
 		iden = Swap.query.filter_by(id=swap_id).first()
 		duo_one = DualFactor.query.filter_by(username=approving_party,identifier=iden.receipt).first()#.all()[-1]
 		duo_two = DualFactor.query.filter_by(username=second_party,identifier=iden.receipt).first()#all()[-1]
@@ -326,7 +328,7 @@ def approve_swap():
 		
 		print('1\t',duo_one.dual_factor_signature,'\n2\t',dual_one,'\n3\t',dual_two,'\n4\t',duo_two.dual_factor_signature)
 
-		if duo_one.dual_factor_signature == dual_one and duo_two.dual_factor_signature == dual_two :#approving_password == user_check.password:
+		if duo_one.dual_factor_signature == dual_one and duo_two.dual_factor_signature == dual_two :
 			s = Swap.query.filter_by(id=swap_id).first()
 			s.status = 'Approved'
 			db.session.commit()
@@ -574,7 +576,7 @@ def change_value_update():
 		change = np.log(price) - np.log(i.starting_price)
 		i.change_value = change
 		db.session.commit()
-	
+@celery.task	
 def update():
 	"""
 	Update investment data, including market price, time_float, tokenized price, and coins.
@@ -625,7 +627,7 @@ def long_task():
 
 @login_manager.user_loader
 def load_user(user_id):
-	update()
+	update.delay()
 	coin_db = CoinDB()
 	db.session.add(coin_db)
 	db.session.commit()
@@ -1084,7 +1086,7 @@ def html_trans_database():
 
 @app.route('/mine/investments',methods=['GET','POST'])
 def mine_investments():
-	update()
+	update.delay()
 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 
 
@@ -1142,7 +1144,7 @@ def add_portfolio():
 @app.route('/holdings', methods=['GET'])
 @login_required
 def get_user_wallet():
-	update()
+	update.delay()
 	user = current_user
 	
 	# Fetch the user's wallet
@@ -1373,7 +1375,7 @@ def buy_or_sell():
 	def C(s):
 		K = s**3-3*s**2*(1-s)
 		return (s*(s-1/K))**(1/s)*normal_pdf(s)
-	update()
+	update.delay()
 	if request.method == "POST":
 		user = request.values.get('name')
 		invest_name = request.values.get('ticker').upper()
@@ -1591,7 +1593,7 @@ def search(receipt):
 @app.route('/invest/asset',methods=['GET','POST'])
 @login_required
 def invest():
-	update()
+	update.delay()
 	if request.method =="POST":
 		user = request.values.get('name')
 		receipt = request.values.get('address')
@@ -1671,7 +1673,7 @@ def invest():
 
 @app.route('/asset/info/<int:id>')
 def info_assets(id):
-	update()
+	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
 	return render_template("asset-info.html", asset=asset)
 
@@ -1813,9 +1815,9 @@ def html_my_assets():
 	
 @app.route('/sell/asset',methods=['GET','POST'])
 def sell_asset():
-	update()
+	update.delay()
 	if request.method =="POST":
-		update()
+		update.delay()
 		address = request.values.get('address')
 		user = request.values.get('user')
 		password = request.values.get('password')
@@ -1825,7 +1827,7 @@ def sell_asset():
 		user_token = user_db.personal_token 
 		asset_token = AssetToken.query.filter_by(transaction_receipt = address).first()
 		if (asset_token != None) and (invest.investors > 1) and (invest != None):
-				update()
+				update.delay()
 				close_position = ((1+invest.change_value)*asset_token.quantity)*invest.tokenized_price
 				wal.coins += close_position
 				invest.investors -= 1
@@ -2051,7 +2053,7 @@ def submit_valuation():
 		roe = float(request.values.get('roe'))
 		rd = float(request.values.get('rd'))
 		change = float(request.values.get("change"))
-		price = float(request.values.get("price"))
+		price = 0 # float(request.values.get("price"))
 		file = request.files['file']
 		name = request.values.get("file_name")
 		file_data = file.read()
@@ -2079,11 +2081,11 @@ def track_valuation():
 		wal = WalletDB.query.filter_by(address=user.username).first()
 		receipt = request.values.get("receipt")
 		val = ValuationDatabase.query.filter_by(receipt=receipt).first()
-		wal2 = User.query.filter_by(username=val.owner).first()
+		wal2 = Users.query.filter_by(username=val.owner).first()
 		if val.price <= wal.coins:
-			wal-= val.price
-			wal2+= val.price
-			db.session.commit()
+			# wal.coins -= val.price
+			# wal2.wallet.coins += val.price
+			# db.session.commit()
 			name = val.target_company
 			data = val.valuation_model
 			f = open('local/{name}','wb')
@@ -2114,7 +2116,7 @@ def submit_optimization():
 		receipt = os.urandom(10).hex()
 		file = request.files['file']
 		name = request.values.get("file_name")
-		ticker = request.values.get("ticker")
+		description = request.values.get("description")
 		price = request.values.get("price")
 		file_data = file.read()
 		pending = PendingTransactionDatabase(
@@ -2132,7 +2134,7 @@ def submit_optimization():
 		optimization = Optimization(
 							   price=price,
 							   filename=name,
-							   target=ticker,
+							   description=description,
 							   created_at = dt.datetime.now(),
 							   file_data=file_data,
 							   receipt=receipt)
@@ -2170,10 +2172,8 @@ def mine_optimization():
 		wal.coins += 50
 		db.session.commit()
 		receipt = request.values.get("receipt")
-		ticker = request.values.get("ticker")
-		score = float(request.values.get("score"))
-		optimal_value = float(request.values.get("optimal_value"))
-		description = float(request.values.get("description"))
+		description = (request.values.get("description"))
+		grade = int((request.values.get("grade")))
 
 		# Ensure the receipt exists in the query
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
@@ -2183,10 +2183,8 @@ def mine_optimization():
 		output_data = f.read()
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
-							target = ticker,
-							score = score,
-							optimal_value=optimal_value,
 							receipt=receipt,
+							grade=grade,
 							output_data=output_data,
 							filename=optmimization.filename,
 							created_at=dt.datetime.now(),
@@ -3573,7 +3571,7 @@ def token_parameters(id):
 		return str(e), 500
 
 
-# schedule.every(1).hours.do(update)
+schedule.every(5).minutes.do(update)
 
 
 if __name__ == '__main__':

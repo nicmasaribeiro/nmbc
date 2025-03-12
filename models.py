@@ -518,11 +518,9 @@ class OptimizationToken(db.Model):
     __tablename__ = 'optimization_token'
     
     id = db.Column(db.Integer, primary_key=True)
-    target = db.Column(db.String)
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
     receipt = db.Column(db.String)
-    score = db.Column(db.Float)
-    optimal_value = db.Column(db.Float)
+    grade = db.Column(db.Integer, default=0)
     output_data = db.Column(db.LargeBinary, nullable=False)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
@@ -534,7 +532,7 @@ class Optimization(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
-    target = db.Column(db.String)
+    description = db.Column(db.String)
     receipt = db.Column(db.String)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
