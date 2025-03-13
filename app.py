@@ -75,14 +75,7 @@ from arch import arch_model
 from celery import Celery
 import ssl
 from flask_login import LoginManager
-
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = "login"  # Redirects to login page if unauthorized
-
-@login_manager.user_loader
-def load_user(user_id):
-	return Users.query.get(int(user_id))
+import redis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -112,11 +105,12 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
+r = redis.Redis.from_url("rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379", ssl=True)
+
 app.config['CELERY_BROKER_URL'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 app.config['CELERY_RESULT_BACKEND'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 
-
-
+#
 #app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
 #app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
