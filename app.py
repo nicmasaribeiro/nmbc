@@ -83,9 +83,11 @@ logger = logging.getLogger(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()  # Change to a strong secret
 app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
-app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_REDIS'] = redis.StrictRedis(host='redis-server', port=6379)
+
 cache = Cache(app)
 executor = Executor(app)
 
@@ -123,11 +125,11 @@ celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
 #		'ssl_cert_reqs': ssl.CERT_REQUIRED
 #	}
 #)
-
-
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-	Session.remove()
+#
+#
+#@app.teardown_appcontext
+#def shutdown_session(exception=None):
+#	Session.remove()
 
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
@@ -640,13 +642,13 @@ def long_task():
 
 @login_manager.user_loader
 def load_user(user_id):
-	update.delay()
-	coin_db = CoinDB()
-	db.session.add(coin_db)
-	db.session.commit()
-	betting_house = BettingHouse()
-	db.session.add(betting_house)
-	db.session.commit()
+#	update.delay()
+#	coin_db = CoinDB()
+#	db.session.add(coin_db)
+#	db.session.commit()
+#	betting_house = BettingHouse()
+#	db.session.add(betting_house)
+#	db.session.commit()
 	return Users.query.get(int(user_id))
 
 @app.route('/chat', methods=['GET','POST'])
