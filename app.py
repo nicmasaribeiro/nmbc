@@ -84,7 +84,6 @@ cache = Cache(app)
 executor = Executor(app)
 Session = scoped_session(sessionmaker(bind=engine))
 
-
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
@@ -104,20 +103,16 @@ PORT = random.randint(5000,6000)
 app.config['CELERY_BROKER_URL'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 app.config['CELERY_RESULT_BACKEND'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 
-# Ensure Celery accepts SSL options
-celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
-celery.conf.update(
-    broker_use_ssl={
-        'ssl_cert_reqs': ssl.CERT_REQUIRED  # Use ssl.CERT_REQUIRED for production
-    },
-    result_backend_use_ssl={
-        'ssl_cert_reqs': ssl.CERT_REQUIRED
-    }
-)
+#app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+#app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    Session.remove()
+celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
+celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
+
+#@app.teardown_appcontext
+#def shutdown_session(exception=None):
+#   Session.remove()
+
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -194,11 +189,12 @@ def send_notification():
 @app.route('/get/notes', methods=['GET','POST'])
 @login_required
 def get_notifications():
-	if request.method == 'POST':
-		u = request.form['user']
-		notifications = Notification.query.filter_by(receiver_id=u).order_by(Notification.timestamp.desc()).all()
-		return render_template("my_notes.html",notes=notifications)
-	return render_template("get_notes.html")
+	# if request.method == 'POST':
+	u = current_user
+	user = Users.query.filter_by(username=u.username).first()
+	notifications = Notification.query.filter_by(receiver_id=u.username).order_by(Notification.timestamp.desc()).all()
+	return render_template("my_notes.html",notes=notifications)
+	# return render_template("get_nstes.html")
 
 
 @app.route('/duo-factor/requests', methods=['GET'])
@@ -1123,18 +1119,19 @@ def get_block(id):
 	return render_template("html-block.html",block=block)
 
 @app.route('/add/portfolio',methods=['POST','GET'])
+@login_required
 def add_portfolio():
 	if request.method == 'POST':
 		ticker = request.form.get('name').upper()
+		password = request.form.get('password')
 		name = request.form.get('pname').lower()
 		price = yf.Ticker(ticker).history(period='ytd',interval='1d')['Close']
 		mean = np.mean(price)
 		std = np.std(price)
 		weight = float(request.form.get('weight'))
-		user = request.form.get("username")
-		u = Users.query.filter_by(username=user).first()
-		prt = Portfolio(name=name,mean=mean,std=std,weight=weight,price=price[-1],username=user,
-				token_name=ticker.upper(),token_address=os.urandom(10),user_address=u.personal_token,transaction_receipt=os.urandom(10))
+		user = current_user
+		prt = Portfolio(name=name,mean=mean,std=std,weight=weight,price=price[-1],username=user.username,
+				token_name=ticker.upper(),token_address=os.urandom(10),user_address=user.personal_token,transaction_receipt=os.urandom(10))
 		db.session.add(prt)
 		db.session.commit()
 		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>Portfolio {ticker}"""
@@ -3589,7 +3586,7 @@ def token_parameters(id):
 		return str(e), 500
 
 
-schedule.every(5).minutes.do(update)
+schedule.every(5).minutes.do(update.delay)
 
 
 if __name__ == '__main__':
@@ -3600,7 +3597,7 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
-				time.sleep(3600)  #
+				time.sleep(1)  #
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	schedule_thread.start()
 	app.run(host="0.0.0.0",port=8080)
