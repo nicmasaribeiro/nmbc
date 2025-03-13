@@ -105,10 +105,12 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-r = redis.Redis.from_url("rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379", ssl=True)
+#r = redis.Redis.from_url("rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379", ssl=True)
 
-app.config['CELERY_BROKER_URL'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
+app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+#'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+#'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 
 #
 #app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
