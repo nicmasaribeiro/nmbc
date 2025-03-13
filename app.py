@@ -74,15 +74,27 @@ from flask import session
 from arch import arch_model
 from celery import Celery
 import ssl
+from flask_login import LoginManager
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"  # Redirects to login page if unauthorized
+
+@login_manager.user_loader
+def load_user(user_id):
+	return Users.query.get(int(user_id))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+app.config['SECRET_KEY'] = os.urandom(32).hex()  # Change to a strong secret
 app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # Cache timeout (in seconds)
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
 cache = Cache(app)
 executor = Executor(app)
-Session = scoped_session(sessionmaker(bind=engine))
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
@@ -103,15 +115,28 @@ PORT = random.randint(5000,6000)
 app.config['CELERY_BROKER_URL'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 app.config['CELERY_RESULT_BACKEND'] = 'rediss://red-cv8uqftumphs738vdlb0:cfUOo7EcybRJpEkjPt5Fa0RkqpZA3lSg@oregon-keyvalue.render.com:6379'
 
+
+
 #app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
 #app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
 
-#@app.teardown_appcontext
-#def shutdown_session(exception=None):
-#   Session.remove()
+celery.conf.update(
+	result_backend=app.config['CELERY_RESULT_BACKEND'],
+	broker_use_ssl={
+		'ssl_cert_reqs': ssl.CERT_REQUIRED  # Change to 'CERT_REQUIRED' if using valid CA certs
+	},
+	redis_backend_use_ssl={
+		'ssl_cert_reqs': ssl.CERT_REQUIRED
+	}
+)
+
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+	Session.remove()
 
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
@@ -161,6 +186,7 @@ def execute_swap():
 		schedule.every(int(execution_interval)).days.do(logic)
 
 	print("All swaps scheduled successfully.")
+
 # Run the function every 10 seconds (for testing purposes)
 schedule.every(100).seconds.do(execute_swap)
 
@@ -814,18 +840,23 @@ def create_wallet():
 				return jsonify({'message': 'Wallet Created!'}), 201
 	return render_template("signup-wallet.html")
 
-@app.route('/login', methods=['POST','GET'])
+@app.route('/login', methods=['POST', 'GET'])
 def login():
 	if request.method == "POST":
 		username = request.values.get("username")
 		password = request.values.get("password")
+		
 		user = Users.query.filter_by(username=username).first()
+		
 		if user and bcrypt.check_password_hash(user.password, password):
-			login_user(user)
+			login_user(user, remember=True)  # <-- Ensure "remember=True" for session persistence
 			return redirect('/')
 		else:
-			return redirect('/signup')
+			flash("Invalid username or password. Please try again.", "danger")
+			return redirect('/login')
+		
 	return render_template("login.html")
+
 
 @app.route('/get/users', methods=['GET'])
 @login_required
