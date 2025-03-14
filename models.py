@@ -37,7 +37,6 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
-# Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 bcrypt = Bcrypt(app)
@@ -176,7 +175,7 @@ class Blog(db.Model):
     
     id = db.Column(db.Integer,unique=True ,primary_key=True)
     title = db.Column(db.String)
-    content = db.Column(db.String)
+    content = db.Column(db.Text)
     f = db.Column(db.LargeBinary)
     thread = db.Column(db.String)
 
@@ -518,6 +517,7 @@ class OptimizationToken(db.Model):
     receipt = db.Column(db.String)
     grade = db.Column(db.Integer, default=0)
     output_data = db.Column(db.LargeBinary, nullable=False)
+    string_data = db.Column(db.Text(), nullable=False)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     description = db.Column(db.String())

@@ -4,6 +4,8 @@ from flask_caching import Cache
 import asyncio
 import socket
 import os
+import html
+import os
 import statsmodels.api as sm
 from quart import Quart
 from web3 import Web3
@@ -14,7 +16,6 @@ import subprocess as sp
 import xml.etree.ElementTree as ET
 from flask_executor import Executor
 import xml.dom.minidom
-import yfinance
 import pandas as pd
 import numpy as np
 from bokeh.plotting import figure, output_file, save
@@ -76,6 +77,8 @@ from celery import Celery
 import ssl
 from flask_login import LoginManager
 import redis
+from sklearn.decomposition import PCA
+import subprocess
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -107,11 +110,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-#app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-#app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -139,6 +142,7 @@ def portfolio(name):
 	portfolio = Portfolio.query.filter_by(username=user.username,name=name).all()
 	return render_template('portfolio.html', portfolio=portfolio)
 
+@celery.task
 def execute_swap():
 	"""Executes swap transactions at scheduled intervals"""
 	swaps = Swap.query.all()  # Get all swaps from the database
@@ -181,7 +185,7 @@ def execute_swap():
 	print("All swaps scheduled successfully.")
 
 # Run the function every 10 seconds (for testing purposes)
-schedule.every(100).seconds.do(execute_swap)
+schedule.every(10).seconds.do(execute_swap.delay)
 
 
 @app.route('/notifications/send', methods=['GET','POST'])
@@ -208,7 +212,6 @@ def send_notification():
 @app.route('/get/notes', methods=['GET','POST'])
 @login_required
 def get_notifications():
-	# if request.method == 'POST':
 	u = current_user
 	user = Users.query.filter_by(username=u.username).first()
 	notifications = Notification.query.filter_by(receiver_id=u.username).order_by(Notification.timestamp.desc()).all()
@@ -241,11 +244,11 @@ def request_swap():
 		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=periods,receipt=receipt,
 			 floating_rate_spread=floating_rate_spread,
 			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)
-		# trans =  TransactionDatabase(txid=os.urandom(10).hex(),username=requesting_party,
-							#    from_address=requesting_party,to_address=counterparty_b,amount=0,
-							#    timestamp=datetime.utcnow,type='swap',signature=os.urandom(10).hex())
-		# swp_trans = SwapTransaction(swap_id=id,receipt=os.urandom(10).hex(),
-							#   sender=counterparty_a,receiver=counterparty_b,amount=periods,timestamp=dt.datetime.utcnow())
+		trans =  TransactionDatabase(txid=os.urandom(10).hex(),username=requesting_party,
+							   from_address=requesting_party,to_address=counterparty_b,amount=0,
+							   timestamp=datetime.utcnow,type='swap',signature=os.urandom(10).hex())
+		swp_trans = SwapTransaction(swap_id=id,receipt=os.urandom(10).hex(),
+							  sender=counterparty_a,receiver=counterparty_b,amount=periods,timestamp=dt.datetime.utcnow())
 		
 		duo_factor_one = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_a,
 							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
@@ -254,8 +257,8 @@ def request_swap():
 							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
 		db.session.add(duo_factor_one)
 		db.session.add(duo_factor_two)
-		# db.session.add(swp_trans)
-		# db.session.add(trans)		
+		db.session.add(swp_trans)
+		db.session.add(trans)		
 		db.session.add(sdb)
 		db.session.commit()
 	return render_template('request_swap.html')
@@ -635,10 +638,7 @@ def update():
 
 	return 0
 
-@app.route('/long_task')
-def long_task():
-    executor.submit(update)
-    return "Task started"
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1728,9 +1728,9 @@ def get_asset(id):
 @app.route('/price',methods=['GET','POST'])
 def price():
 	if request.method =="POST":
-		username = request.values.get('username')
-		password = request.values.get('password')
-		stake = float(request.values.get("stake"))
+		# username = request.values.get('username')
+		# password = request.values.get('password')
+		# stake = float(request.values.get("stake"))
 		S = float(request.form['S'])
 		K = float(request.form['K'])
 		T = float(request.form['T'])
@@ -1738,7 +1738,7 @@ def price():
 		sigma = float(request.form['sigma'])
 		option_type = request.form['option_type']
 		price = black_scholes(S, K, T, r, sigma)
-		return f"{price}"
+		return render_template("options-pricing.html",price=price)
 	return render_template("options-pricing.html")
 
 @app.route('/greeks',methods=['GET','POST'])
@@ -2135,6 +2135,19 @@ def track_valuation():
 			return "<h1><a href='/'>Home</a></h1><h2>Insufficient Coins in WALLET</h2>"
 	return render_template("track-valuation.html")
 
+import io
+@app.route("/view/valuation",methods=["GET", "POST"])
+def view_valuation():
+	if request.method == "POST":
+		receipt_address = request.values.get('receipt_address')
+		vals = ValuationDatabase.query.filter_by(receipt=receipt_address).first()
+		binary = vals.valuation_model
+		df = pd.read_excel(io.BytesIO(binary))
+		df = df.fillna("")
+		table_html = df.to_html(classes="styled-table", index=False, escape=False)
+		return render_template("view_excel.html",table_html=table_html,company=vals.target_company,val=vals)
+	return render_template("valuation_view.html")
+
 @app.route("/ledger/valuation")
 def valuation_ledger():
 	vals = ValuationDatabase.query.all()
@@ -2247,12 +2260,27 @@ def optimizatoin_token_ledger():
 	opts = OptimizationToken.query.all()
 	return render_template("opt-token-ledger.html",invs=opts)
 
+
 @app.route('/process/optimization', methods=['GET', 'POST'])
 def process_optimization():
 	if request.method == 'POST':
 		receipt_address = request.values.get('receipt')
-		return receipt_address
+		target = Optimization.query.filter_by(receipt=receipt_address).first()
+		data = target.file_data
+		command = data.decode('utf-8')
+		f = open('local/command_file.py','w')
+		f.write(command)
+		f.flush()
+		f.close()
+		cmd = """cd local\npython3 command_file.py > output.txt"""
+		os.system(cmd)
+		output = open("local/output.txt",'r').read()
+		print("\nOUTPUT\n",output)
+		safe_html = html.escape(output).replace("\n", "<br>")  # Preserve line breaks
+		html_output = f"<html><body><p>{safe_html}</p></body></html>"
+		return html_output
 	return render_template('process-optimization.html')
+
 
 @app.route('/ledger/optimizations')
 def opt_ledger():
@@ -3415,6 +3443,28 @@ def reverse_bs():
 def reverse_bs2():
 	return render_template("reverse_bs2.html")
 
+@app.route("/pca", methods=["GET","POST"])
+def pca_one():
+	if request.method == "POST":
+		t = request.values.get("tickers").upper()
+		t = t.replace(',', ' ')
+		tickers = yf.Tickers(t)
+		df = tickers.history(period='max',interval='1d')["Close"]
+		returns = df.pct_change()[1:]
+		ret = returns.dropna().to_numpy()#.reshape(-1,1)
+		print("\nreturn array\n",ret)
+		pca = PCA()
+		pca.fit(ret)
+		explained_variance = pca.explained_variance_ratio_
+		components = pca.components_
+		print("\ncomponents\n",components)
+		market = explained_variance[0]
+		sector = explained_variance[1]
+		firm = sum(explained_variance[2:])
+		return render_template("pca.html",market=market,sector=sector,firm=firm)
+	return render_template("pca.html")
+
+
 
 @app.route("/EqHx", methods=["GET","POST"])
 def EqHx():
@@ -3531,18 +3581,18 @@ def paramatize():
 
     return render_template("parameter-form.html")
 
-@app.route("/test")
+@app.route("/test", methods=["GET", "POST"])
 def test():
-    # Create a sample Plotly figure
-	t = yf.Ticker('AAPL').history()["Close"]
-	tp = np.linspace(0,len(t),len(t))
-	fig = px.line(x=t.index, y=t, title="Interactive Line Chart")
+	if request.method == "POST":
+		tickers = request.form.get("tickers").upper().replace(',', ' ')
+		tickers = yf.Tickers(tickers)
+		data = tickers.history()["Close"]
+		normalized_data = (data - data.mean()) / data.std()
+		fig = px.line(normalized_data, x=normalized_data.index, y=normalized_data.columns, title="Normalized Stock Price Trends")
+		graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+		return render_template("test.html", graph_json=graph_json)
+	return render_template("test_input.html")
 
-	# Convert figure to JSON
-	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
-	# Pass JSON data to template
-	return render_template("test.html",graph_json=graph_json)
 
 
 @app.route("/kappa",methods=["GET", "POST"])
@@ -3610,7 +3660,7 @@ def token_parameters(id):
 		return str(e), 500
 
 
-schedule.every(5).minutes.do(update.delay)
+schedule.every(1).minutes.do(update.delay)
 
 
 if __name__ == '__main__':

@@ -94,3 +94,4 @@ def get_dps(ticker):
 	
 	return data["historical"][0]['adjDividend']
 
+print(get_dps('AAPL'))
