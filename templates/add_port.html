@@ -80,12 +80,15 @@
             <label for="weight">Weight (%):</label>
             <input type="number" id="weight" name="weight" step="0.01" required>
 
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-
             <button type="submit">Add Portfolio</button>
+            <button onclick="search()" type="submit">View Portfolio</button>
         </form>
     </div>
-
 </body>
+<script>
+    function search(){
+        var p = prompt('Portfolio Name:');
+        window.location='/my_portfolio/'+ p;
+    }
+</script>
 </html>

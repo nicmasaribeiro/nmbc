@@ -6,43 +6,88 @@
     <title>Optimization Token Ledger</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
+            font-family: 'Arial', sans-serif;
+            background-color: #eef2f7;
             margin: 0;
             padding: 20px;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        li {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        li:last-child {
-            border-bottom: none;
-        }
-        h2 {
-            color: #333;
             text-align: center;
+            color: #333;
+        }
+        
+        h2 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .ledger-entry {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease-in-out;
+            text-align: left;
+        }
+
+        .ledger-entry:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .ledger-entry strong {
+            color: #34495e;
+            font-size: 16px;
+        }
+
+        .ledger-entry p {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
 
     <h2>Optimization Token Ledger</h2>
-    {% for i in invs %}
-    <ul>
-        <li><strong>ID:</strong> {{i.id}}</li>
-        <li><strong>Receipt:</strong> {{i.receipt}}</li>
-        <li><strong>File Name:</strong> {{i.filename}}</li>
-        <li><strong>File Description:</strong> {{i.filename}}</li>
-    </ul>
-    {% endfor %}
-</body>
+    <div class="container">
+        {% for i in invs %}
+        <div class="ledger-entry">
+            <p><strong>ID:</strong> {{ i.id }}</p>
+            <p><strong>Receipt:</strong> {{ i.receipt }}</p>
+            <p><strong>File Name:</strong> {{ i.filename }}</p>
+            <p><strong>Description:</strong> {{ i.description }}</p>
+            <p><strong>Grade:</strong> {{ i.grade }}</p>
+            <p><strong>Output Data:</strong> {{ i.output_data}}</p>
+            <p id="decodedText">Loading...</p>
+            <button onclick="decode()">Decode</button>
+
+        </div>
+        
+        <script>
+            
+            function decode () {
+                prompt("Decoding Data");
+                // Get encoded data from Flask
+                var encodedData = "{{ i.output_data }}";
+                
+                // Decode Base64 data
+                var decodedData = atob(encodedData);  
+                
+                // Display decoded text
+                document.getElementById("decodedText").innerText = decodedData;
+            }
+            
+        </script>
+
+        {% endfor %}
+    </div>
+    </body>
 </html>

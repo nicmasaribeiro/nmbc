@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>NMCYBC</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
   
   <!-- Icons and Manifest -->
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='crawler.png') }}">
@@ -19,115 +20,107 @@
 
   <!-- Consolidated CSS -->
   <style>
+    /* General Styling */
+    .btn:hover {
+      transform: scale(1.05);
+    }
+
     body {
-      background-color: #2c3e50;
-      color: #ecf0f1;
-      font-family: Arial, sans-serif;
+      background-color: #1e272e;
+      color: #d2dae2;
+      font-family: 'Poppins', sans-serif;
       margin: 0;
-      padding-bottom: 500px; /* Adjusted for footer height */
+      padding-bottom: 100px;
       box-sizing: border-box;
     }
     
+    /* Navbar */
     .navbar {
-      background-color: #34495e;
+      background-color: #2f3542;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
     }
     
     .navbar-brand {
       font-weight: bold;
-      color: #3498db !important;
-    }
-    
-    .navbar-brand img {
-      margin-right: 10px;
+      color: #ffdd59 !important;
     }
     
     .nav-link {
-      color: white !important;
+      color: #ffffff !important;
+      transition: color 0.3s ease-in-out;
     }
     
-    .nav-link:hover,
-    .nav-link:focus {
-      color: #f1c40f !important;
+    .nav-link:hover {
+      color: #ffdd59 !important;
     }
     
-    h2 {
-      color: #f1c40f;
-      font-weight: bold;
-    }
-    
+    /* Buttons */
     .btn-lg {
-      margin-top: 20px;
       font-weight: bold;
       border-radius: 8px;
+      padding: 12px 18px;
+      transition: all 0.3s ease-in-out;
     }
     
     .btn-primary {
-      background-color: #3498db;
+      background: linear-gradient(to right, #3498db, #2980b9);
       border: none;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
     }
     
     .btn-primary:hover {
-      background-color: #2980b9;
+      background: linear-gradient(to right, #2980b9, #1e5799);
     }
     
     .btn-secondary {
-      background-color: #95a5a6;
+      background: linear-gradient(to right, #95a5a6, #7f8c8d);
       border: none;
     }
     
     .btn-secondary:hover {
-      background-color: #7f8c8d;
+      background: linear-gradient(to right, #7f8c8d, #6c7a89);
     }
     
     .btn-info {
-      background-color: #16a085;
+      background: linear-gradient(to right, #16a085, #1abc9c);
       border: none;
     }
     
     .btn-info:hover {
-      background-color: #1abc9c;
+      background: linear-gradient(to right, #1abc9c, #16a085);
     }
     
-    /* Footer styling */
+    /* Footer */
     .footer {
-      background-color: #34495e;
-      color: #ecf0f1;
+      background-color: #2f3542;
+      color: #ffffff;
       padding: 20px;
       text-align: center;
-      box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
       position: fixed;
       bottom: 0;
       width: 100%;
-      box-sizing: border-box;
+      box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
     }
     
     .footer a {
-      color: black;
-      margin-right: 15px;
+      color: #ffdd59;
+      margin: 0 10px;
       text-decoration: none;
+      transition: color 0.3s ease-in-out;
     }
     
     .footer a:hover {
       color: #f1c40f;
     }
     
-    .footer a.active {
-      color: #f1c40f;
-      font-weight: bold;
-    }
-    
-    /* Responsive adjustments */
-    @media (min-width: 992px) {
-      body {
-        padding-top: 80px;
-      }
-    }
-    
+    /* Mobile Responsiveness */
     @media (max-width: 576px) {
       .btn-lg {
         margin-top: 10px;
+        font-size: 14px;
       }
     }
+
   </style>
   
   <!-- Service Worker Registration -->
@@ -145,6 +138,8 @@
   <!-- Optional: Adjust or remove the iframe if not needed -->
   <iframe src="https://www.desmos.com/calculator/rrmno6qntd?embed" width="5" height="5" 
           style="border: 0" frameborder="0"></iframe>
+  <iframe src="https://www.desmos.com/calculator/jxeuhywetq?embed" width="5" height="5" 
+    style="border: 0" frameborder="0"></iframe>
   
   <!-- Navigation Bar -->
   <!-- Navigation Bar -->
@@ -178,6 +173,9 @@
               <li><a class="dropdown-item" href="/get/users">Users</a></li>
               <li><a class="dropdown-item" href="/get/vals">Validators</a></li>
               <li><a class="dropdown-item" href="/get/wallets">Wallets</a></li>
+              <li><a class="dropdown-item" href="/add/portfolio">Portfolio</a></li>
+              <li><a class="dropdown-item" href="/get/notes">Notifications</a></li>
+              <li><a class="dropdown-item" href="/duo-factor/requests">Dual-Factor</a></li>
               <li><a class="dropdown-item" href="/get/blocks">Blocks</a></li>
               <li><a class="dropdown-item" href="/bc/receipts">Blockchain Receipts</a></li>
             </ul>
@@ -207,6 +205,8 @@
               <li><a class="dropdown-item" href="/signup/val">Validator</a></li>
               <li><a class="dropdown-item" href="/signup/wallet">Wallet</a></li>
               <li><a class="dropdown-item" href="/make/block">Block</a></li>
+              <li><a class="dropdown-item" href="/add/portfolio">Portfolio</a></li>
+
             </ul>
           </li>
   
@@ -216,7 +216,7 @@
               Investments
             </a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="/html/investment/ledger">Asset Ledger</a></li>
+              <li><a class="dropdown-item" href="/investments">Asset Ledger</a></li>
               <li><a class="dropdown-item" href="/option/greeks">Greeks Ledger</a></li>
               <li><a class="dropdown-item" href="/stoch/greeks">Stochastic Greeks</a></li>
               <li><a class="dropdown-item" href="/create/investment">Create Asset</a></li>
@@ -243,7 +243,8 @@
               Swaps
             </a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="/swap/market">Swaps</a></li>
+              <li><a class="dropdown-item" href="/swap/market">Managment</a></li>
+              <li><a class="dropdown-item" href="/all/swaps">Ledger</a></li>
             </ul>
           </li>
   
@@ -282,6 +283,7 @@
               <li><a class="dropdown-item" href="/submit/valuation">Submit Valuation</a></li>
               <li><a class="dropdown-item" href="/track/valuation">Track Valuation</a></li>
               <li><a class="dropdown-item" href="/valuation/statistics">Valuation Statistics</a></li>
+              <li><a class="dropdown-item" href="/view/valuation">Valuation Expanded View</a></li>
             </ul>
           </li>
   
@@ -366,6 +368,13 @@
   
   <!-- Footer -->
   <footer class="footer">
+    <div id="notifications">
+      <a class="dropdown-item" href="/notifications/send">Send Notifications</a>
+      <ul id="notification-list"></ul>
+    </div>
+    
+    
+
     <a href="/login" class="btn btn-link"><i class="fas fa-sign-in-alt"></i> Login</a>
     <a href="/signup" class="btn btn-link"><i class="fas fa-user-plus"></i> Register</a>
     <a href="/dash" class="btn btn-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>

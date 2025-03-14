@@ -6,14 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Dashboard</title>
     <style>
-        /* Body and general layout */
         <style>
-        /* Body and general layout */
+        /* General Layout */
         body {
-            font-family: 'Roboto', sans-serif;
+            font-family: sans-serif;
             background-color: #e5e9f0;
             margin: 0;
-            padding-top: 100px;
+            padding-top: 50px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -25,99 +24,80 @@
             max-width: 1200px;
             padding: 40px 20px;
             text-align: center;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
             background-color: #fff;
-            border-radius: 20px;
-        }
-        
-        a{
-            font-family: sans-serif;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease-in-out;
         }
         
         h1 {
             font-size: 2.5rem;
             color: #333;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
             font-weight: 700;
         }
         
-        /* Dashboard grid styling */
+        /* Dashboard Grid */
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 25px;
-            padding: 0 20px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
         }
         
-        /* General button styling */
+        /* Dashboard Buttons */
         .dashboard a {
-            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 25px;
-            background-color: #007bff;
-            color: #fff;
+            padding: 20px;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
             text-decoration: none;
-            border-radius: 16px;
+            border-radius: 12px;
             font-size: 1.1rem;
             font-weight: 600;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-            transition: all 0.4s ease;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
             text-align: center;
+            position: relative;
             overflow: hidden;
         }
         
         .dashboard a:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
-        }
-        
-        .dashboard a::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: -75%;
-            width: 150%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.2);
-            transform: skewX(-25deg);
-            transition: 0.6s;
-        }
-        
-        .dashboard a:hover::before {
-            left: 100%;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(135deg, #0056b3, #003d82);
         }
         
         .dashboard a i {
             font-size: 2rem;
-            margin-bottom: 15px;
-            color: #e0e0e0;
-            transition: color 0.4s;
+            margin-bottom: 10px;
+            color: #f0f0f0;
+            transition: color 0.3s;
         }
         
         .dashboard a:hover i {
             color: #fff;
         }
         
-        /* Tooltip styling */
+        /* Tooltip Styling */
         .tooltip {
             visibility: hidden;
             width: 200px;
-            background-color: #333;
+            background-color: rgba(0, 0, 0, 0.8);
             color: #fff;
             text-align: center;
-            border-radius: 8px;
-            padding: 10px;
+            border-radius: 6px;
+            padding: 8px;
             position: absolute;
-            z-index: 1;
-            bottom: 125%; /* Position above the button */
+            bottom: 120%;
             left: 50%;
-            margin-left: -100px;
+            transform: translateX(-50%);
             opacity: 0;
-            transition: opacity 0.4s;
-            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+            font-size: 0.9rem;
         }
         
         .dashboard a:hover .tooltip {
@@ -125,27 +105,26 @@
             opacity: 1;
         }
         
-        /* Tooltip arrow */
         .tooltip::after {
             content: "";
             position: absolute;
             top: 100%;
             left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
+            margin-left: -6px;
+            border-width: 6px;
             border-style: solid;
-            border-color: #333 transparent transparent transparent;
+            border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
         }
         
-        /* Search bar styling */
+        /* Search Bar */
         #search-bar {
             width: 80%;
             max-width: 600px;
-            margin: 20px auto 40px;
-            padding: 15px 20px;
+            margin: 30px auto;
+            padding: 12px 15px;
             font-size: 1rem;
             border: 2px solid #ddd;
-            border-radius: 30px;
+            border-radius: 25px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             outline: none;
             transition: all 0.3s ease;
@@ -156,10 +135,10 @@
             box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
         }
         
-        /* Responsive design */
+        /* Responsive Design */
         @media (max-width: 768px) {
             .dashboard {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
                 gap: 15px;
             }
             
@@ -169,7 +148,7 @@
             
             .dashboard a {
                 font-size: 1rem;
-                padding: 20px;
+                padding: 15px;
             }
             
             .dashboard a i {
@@ -183,7 +162,7 @@
             }
         }
     </style>
-    <!-- FontAwesome for icons -->
+    
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
 
@@ -211,6 +190,10 @@
             <a href="/yc">
                 <i class="fas fa-chart-bar"></i> Simple Yield Curve Prediction
                 <span class="tooltip">Generate simple yield curve predictions using historical data.</span>
+            </a>
+            <a href="/test">
+                <i class="fas fa-chart-bar"></i> Normalized Data Trends
+                <span class="tooltip">Generate graph that compares normalized series of a portfolio of stocks</span>
             </a>
             <a href="stoch/yc-stoch-filt">
                 <i class="fas fa-chart-bar"></i> Yield Curve Stochastic
@@ -258,7 +241,7 @@
                 <span class="tooltip">Calibrate spread coefficients for a single stock.</span>
             </a>
             <a href="/single-stock-risk-neutral">
-                <i class="fas fa-superscript"></i> Stock Risk Neutral Coefficient
+                <i class="fas fa-superscript"></i> Stock Risk Neutral Coefficient 2
                 <span class="tooltip">Calculate the risk-neutral coefficient for individual stocks.</span>
             </a>
             <a href="/mu-sigma">
@@ -269,6 +252,12 @@
                 <i class="fas fa-superscript"></i> Stochastic Price Simulation
                 <span class="tooltip">Simulate stock prices using stochastic models.</span>
             </a>
+            
+            <a href="/pca">
+                <i class="fas fa-superscript"></i> Portfolio Risk Breakdown Analysis
+                <span class="tooltip">PCA of portfolio to discover the risk breakdown</span>
+            </a>
+            
             <a href="/equity-risk-premium">
                 <i class="fas fa-superscript"></i> Implied Equity Risk Premium
                 <span class="tooltip">Determine the implied equity risk premium for investments.</span>

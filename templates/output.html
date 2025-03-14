@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload & Run Python Script</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        form {
+            margin: 20px;
+        }
+        textarea {
+            width: 80%;
+            height: 200px;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h2>Upload a Python Script to Run</h2>
+    <form action="/" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".py" required>
+        <br><br>
+        <button type="submit">Upload & Run</button>
+    </form>
+
+    {% if output %}
+        <h3>Output:</h3>
+        <textarea readonly>{{ output }}</textarea>
+    {% endif %}
+
+    {% if error %}
+        <h3 class="error">Error:</h3>
+        <textarea readonly>{{ error }}</textarea>
+    {% endif %}
+</body>
+</html>

@@ -1,47 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Risk Neutral</title>
+    <title>Stock Portfolio Risk Analysis</title>
+    
     <style>
         /* General Page Styling */
         body {
             font-family: 'Arial', sans-serif;
             background-color: #f8f9fa;
-            margin: 0;
-            padding: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            margin: 0;
+            padding: 20px;
         }
 
+        /* Container Styling */
         .container {
             background: white;
-            padding: 50px;
-            border-radius: 12px;
+            padding: 25px;
+            border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             width: 90%;
             max-width: 400px;
             text-align: center;
         }
 
-        h1 {
-            font-size: 24px;
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        h4 a {
+        /* Back Link Styling */
+        h1 a {
             text-decoration: none;
-            color: #007bff;
-            font-size: 16px;
+            color: #28a745;
+            font-size: 18px;
             font-weight: bold;
         }
 
-        h4 a:hover {
+        h1 a:hover {
             text-decoration: underline;
         }
 
@@ -49,97 +46,97 @@
         .form {
             display: flex;
             flex-direction: column;
-            font-size: 16px;
+            font-size: 18px;
         }
 
         label {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-weight: bold;
             color: #333;
-            text-align: left;
+            font-size: 16px;
         }
 
-        input[type="text"], input[type="numeric"] {
+        input[type="text"] {
             margin-bottom: 15px;
             padding: 12px;
             font-size: 1em;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
             width: 100%;
             transition: border 0.3s;
         }
 
-        input[type="text"]:focus, input[type="numeric"]:focus {
-            border-color: #007bff;
+        input[type="text"]:focus {
+            border: 1px solid #28a745;
             outline: none;
         }
 
-        /* Submit Button */
+        /* Submit Button Styling */
         input[type="submit"] {
             padding: 12px;
             font-size: 1em;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             background-color: #28a745;
             color: white;
             cursor: pointer;
-            transition: background 0.3s ease-in-out;
+            transition: background 0.3s, transform 0.2s;
         }
 
         input[type="submit"]:hover {
             background-color: #218838;
+            transform: scale(1.05);
         }
 
-        /* Result Section */
+        /* Results Section Styling */
         .result-container {
             margin-top: 20px;
             background: white;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-            width: 90%;
-            max-width: 400px;
             text-align: center;
+            width: 90%;
+            max-width: 500px;
         }
 
-        .result-container h3 {
-            font-size: 18px;
+        .result-container h2 {
             color: #333;
-            margin-bottom: 8px;
+            font-size: 20px;
+            margin-bottom: 10px;
         }
 
         .risk-value {
             font-size: 22px;
             font-weight: bold;
             color: #007bff;
+            margin-bottom: 10px;
         }
     </style>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
 
-    <h4><a href="/">← Back</a></h4>
-
     <div class="container">
-        <h1>Risk Neutral Calculation</h1>
-
-        <form class="form" method="POST">
-            <label>Enter Ticker</label>
-            <input type="text" name="ticker" placeholder="Enter stock ticker">
-
-            <label>Enter Period</label>
-            <input type="text" name="period" placeholder="e.g., 1mo, 3mo, 1y, 2y, 3y, 5y">
-
-            <label>Enter Interval</label>
-            <input type="text" name="interval" placeholder="e.g., 1d, 1wk, 1mo, 3mo">
-
-            <input type="submit" value="Calculate">
+        <h1><a href="/">← Back</a></h1>
+        <form class="form" action="/pca" method="POST">
+            <label for="tickers">Enter Stock Tickers</label>
+            <input type="text" id="tickers" name="tickers" placeholder="AAPL, IBM, MSFT, TSLA">
+            <input type="submit" value="Analyze">
         </form>
     </div>
 
-    <!-- Result Section -->
+    <!-- Results Section -->
     <div class="result-container">
-        <h3>The Risk Neutral Coefficient is:</h3>
-        <p class="risk-value">{{ risk_neutral }}</p>
+        <h2>Market Risk of Portfolio</h2>
+        <p class="risk-value">{{ market }}</p>
+
+        <h2>Sector Risk of Portfolio</h2>
+        <p class="risk-value">{{ sector }}</p>
+
+        <h2>Specific Risk of Portfolio</h2>
+        <p class="risk-value">{{ firm }}</p>
     </div>
 
 </body>

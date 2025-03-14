@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ company }} Data Table</title>
+    <style>
+        /* General Page Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        /* Table Containers */
+        .table-container, .table-container-two {
+            width: 85%;
+            margin: auto;
+            overflow-x: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-container-two {
+            margin-bottom: 30px;
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px;
+            min-width: 600px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #e9ecef;
+            transition: 0.3s;
+        }
+
+        /* Responsive Design */
+        @media screen and (max-width: 768px) {
+            .table-container, .table-container-two {
+                width: 95%;
+                padding: 15px;
+            }
+
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>{{ company }} Data Table</h2>
+
+    <!-- First Table -->
+    <div class="table-container-two">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Price Forecast</th>
+                    <th>WACC</th>
+                    <th>ROE</th>
+                    <th>RD</th>
+                    <th>Expected ∂P/∂t</th>
+                    <th>Current Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ val.id }}</td>
+                    <td>{{ val.forecast }}</td>
+                    <td>{{ val.wacc }}%</td>
+                    <td>{{ val.roe }}%</td>
+                    <td>{{ val.rd }}%</td>
+                    <td>{{ val.change_value }}%</td>
+                    <td>{{ val.price }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Second Table -->
+    <div class="table-container">
+        {{ table_html | safe }}
+    </div>
+
+</body>
+</html>
