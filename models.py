@@ -136,6 +136,7 @@ class Users(UserMixin, db.Model):
 
 class TransactionType(enum.Enum):
     send = "send"
+    SEND = "SEND"
     receive = "receive"
     internal_wallet = "internal_wallet"
     swap = "swap"
@@ -243,7 +244,6 @@ class Notification(db.Model):
     message = db.Column(db.String(512), nullable=False)
     is_read = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
     sender = db.relationship('Users', foreign_keys=[sender_id])
     receiver = db.relationship('Users', foreign_keys=[receiver_id])
 

@@ -110,30 +110,20 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
-
-#celery.conf.update(
-#	result_backend=app.config['CELERY_RESULT_BACKEND'],
-#	broker_use_ssl={
-#		'ssl_cert_reqs': ssl.CERT_REQUIRED  # Change to 'CERT_REQUIRED' if using valid CA certs
-#	},
-#	redis_backend_use_ssl={
-#		'ssl_cert_reqs': ssl.CERT_REQUIRED
-#	}
-#)
-#
-#
-#@app.teardown_appcontext
-#def shutdown_session(exception=None):
-#	Session.remove()
-
+celery.conf.beat_schedule = {
+    'run-every-minute': {
+        'task': 'tasks.my_periodic_task',
+        'schedule': 60.0,  # Run every 60 seconds
+    },
+}
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -172,8 +162,12 @@ def execute_swap():
 
 		def logic():
 			if s.status == 'Approved' and s.total_amount >= 0:
-				wallet_one.swap_debt_balance += s.notional * s.fixed_rate
-				wallet_two.swap_credit_balance += s.notional * abs(ret)
+				fixed_leg = s.notional * s.fixed_rate
+				wallet_one.swap_debt_balance += fixed_leg
+				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
+				wallet_two.swap_credit_balance += floating_leg
+				net_cash_flow = fixed_leg - floating_leg 
+				wallet_one.swap_credit_balance += net_cash_flow
 				s.total_amount -= (s.notional * maturity)/periods
 				db.session.commit()  # Commit transaction
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
@@ -243,22 +237,13 @@ def request_swap():
 		id = len(Swap.query.all()) + 1 #r#andom.randint(0,1_000_000_000_000)
 		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=periods,receipt=receipt,
 			 floating_rate_spread=floating_rate_spread,
-			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)
-		trans =  TransactionDatabase(txid=os.urandom(10).hex(),username=requesting_party,
-							   from_address=requesting_party,to_address=counterparty_b,amount=0,
-							   timestamp=datetime.utcnow,type='swap',signature=os.urandom(10).hex())
-		swp_trans = SwapTransaction(swap_id=id,receipt=os.urandom(10).hex(),
-							  sender=counterparty_a,receiver=counterparty_b,amount=periods,timestamp=dt.datetime.utcnow())
-		
+			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)	
 		duo_factor_one = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_a,
 							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
-		
 		duo_factor_two = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_b,
 							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
 		db.session.add(duo_factor_one)
 		db.session.add(duo_factor_two)
-		db.session.add(swp_trans)
-		db.session.add(trans)		
 		db.session.add(sdb)
 		db.session.commit()
 	return render_template('request_swap.html')
@@ -585,6 +570,15 @@ def recalculate():
 		except:
 			pass
 
+def update_portfolio():
+	portfolio = Portfolio.query.all()
+	for i in portfolio:
+		t = yf.Ticker(i.token_name.upper())
+		prices_vector = t.history(period='5d',interval='1m')
+		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+		i.price = price
+		db.session.commit()
+
 def change_value_update():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
@@ -594,6 +588,51 @@ def change_value_update():
 		change = np.log(price) - np.log(i.starting_price)
 		i.change_value = change
 		db.session.commit()
+
+def update_prices():
+	"""
+	Update investment data, including market price, time_float, tokenized price, and coins.
+	"""
+	print("Update")
+	recalculate()
+	change_value_update()
+	update_portfolio()
+	invests = InvestmentDatabase.query.all()
+
+	for i in invests:
+		try:
+			# Fetch current market data
+			t = yf.Ticker(i.investment_name.upper())
+			prices_vector = t.history(period='5d', interval='1m')
+			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
+			
+			# Update market price
+			i.market_price = price
+
+			# Calculate time difference since the last update
+			current_time = datetime.now()
+			time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
+
+			# Update time_float (time remaining until maturity)
+			i.time_float -= time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
+
+			# Update timestamp to the current time
+			i.timestamp = current_time
+
+			# Calculate tokenized price and coins
+			i.tokenized_price = i.market_price / i.quantity  # Simplified for now
+			i.coins = i.tokenized_price * (1 + i.spread) ** i.time_float
+
+			# Commit changes to the database
+			db.session.commit()
+
+		except Exception as e:
+			# Log the exception for debugging
+			print(f"Error updating investment {i.investment_name}: {e}")
+			db.session.rollback()  # Rollback in case of errors
+
+	return 0
+
 @celery.task	
 def update():
 	"""
@@ -602,6 +641,7 @@ def update():
 	print("Update")
 	recalculate()
 	change_value_update()
+	update_portfolio()
 	invests = InvestmentDatabase.query.all()
 
 	for i in invests:
@@ -1008,11 +1048,11 @@ def create_transact():
 										 signature=os.urandom(10).hex(),
 										 to_address = to_addrs,
 										 amount = value, 
-										 type='SEND')
+										 type='send')
 			db.session.add(new_transaction)
 			db.session.commit()
 			coin_db = CoinDB.query.get_or_404(1)
-			# coin_db.gas(blockchain,6)
+			coin_db.gas(blockchain,6)
 			return  """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 	return render_template("trans.html")
 
@@ -1106,14 +1146,14 @@ def html_trans_database():
 
 @app.route('/mine/investments',methods=['GET','POST'])
 def mine_investments():
-	update.delay()
+	update()
 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 
 
 @login_required
 @app.route('/html/investment/ledger',methods=['GET'])
 def html_investment_ledger():
-	# update()
+	update()
 	t = InvestmentDatabase.query.all()
 	return render_template("html-invest-ledger.html", invs=t)
 
@@ -1385,17 +1425,6 @@ def mine():
 		return f"<h1><a href='/'> Home </a></h1><h3>Success</h3>You've mined {value} coins"
 	return render_template('mine.html')
 
-from flask import request, render_template
-import numpy as np
-import datetime as dt
-import os
-from hashlib import sha256
-import yfinance as yf
-from pricing_algo import derivative_price
-from bs import black_scholes
-from algo import stoch_price
-from models import Users, WalletDB, TransactionDatabase, AssetToken, InvestmentDatabase, PendingTransactionDatabase, Block, db
-import scipy
 
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
@@ -1644,7 +1673,7 @@ def invest():
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
 		if password == wal.password:
 			if inv.quantity >= 0:
-				if (wal.coins >= staked_coins) and (inv.quantity > staked_coins): # and (inv.coins_value >= staked_coins):
+				if (wal.coins >= staked_coins): #and (inv.quantity > staked_coins): # and (inv.coins_value >= staked_coins):
 					inv.quantity -= staked_coins
 					db.session.commit()
 					total_value = inv.tokenized_price * staked_coins
@@ -1709,6 +1738,16 @@ def invest():
 					return "<h3>Insufficient coins in wallet</h3>"
 	return render_template("invest-in-asset.html")
 
+@app.route('/profile')
+@login_required
+def profile():
+	user = current_user
+	notifications = Notification.query.filter_by(receiver_id=user.username).order_by(Notification.timestamp.desc()).all()
+	wallet = WalletDB.query.filter_by(address=user.username).first()
+	portfolio = Portfolio.query.filter_by(username=user.username).all()
+
+	investments = InvestmentDatabase.query.filter_by(owner=user.username).all()
+	return render_template("nmbc_profile.html",user=user.username.upper(),notifications=notifications,wallet=wallet,portfolio=portfolio,investments=investments)
 
 @app.route('/asset/info/<int:id>')
 def info_assets(id):
@@ -2027,6 +2066,11 @@ def valuation_stats():
 def blog_view():
     blogs = Blog.query.all()
     return render_template("blog-view.html", blogs=blogs)
+# Custom 404 error handler
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("404.html"), 404
 
 @app.route("/blog/<thread>")
 def blog_thread(thread):
@@ -2142,7 +2186,8 @@ def view_valuation():
 		receipt_address = request.values.get('receipt_address')
 		vals = ValuationDatabase.query.filter_by(receipt=receipt_address).first()
 		binary = vals.valuation_model
-		df = pd.read_excel(io.BytesIO(binary))
+		xlsx = io.BytesIO(binary)
+		df = pd.read_excel(xlsx)
 		df = df.fillna("")
 		table_html = df.to_html(classes="styled-table", index=False, escape=False)
 		return render_template("view_excel.html",table_html=table_html,company=vals.target_company,val=vals)
@@ -2723,7 +2768,7 @@ def live():
 
 @app.route("/generate/dcf-xlsx-template")
 def generate_dcf_csv():
-	return send_file('local/valuation-template.xlsx', mimetype='text/xlsx', download_name='dcf.xlsx',as_attachment=True)
+	return send_file('local/valuation_template.xlsx', mimetype='text/xlsx', download_name='dcf.xlsx',as_attachment=True)
 
 @app.route('/fundamentals', methods=['GET','POST'])
 def get_fundamentals():
@@ -3629,6 +3674,76 @@ def kappa():
 	return render_template("kappa.html")
 
 
+@app.route("/option-density-model", methods=["GET", "POST"])
+def option_density():
+    if request.method == "POST":
+        from generate_binomial_matrix import generate_binomial_matrix
+        import numpy as np
+        import scipy.stats as sp
+
+        # Convert inputs to float/int
+        S0 = float(request.values.get("S0", 0))
+        u = float(request.values.get("u", 0))
+        d = float(request.values.get("d", 0))
+        r = float(request.values.get("r", 0))
+        T = float(request.values.get("T", 0))
+        n = int(request.values.get("n", 0))
+        dt = float(request.values.get("dt", 0))
+        m = int(request.values.get("m", 0))
+        K = float(request.values.get("K", 0))
+        rf = float(request.values.get("rf", 0))
+        sigma = float(request.values.get("sigma", 0))
+
+        # Generate binomial matrix
+        B = generate_binomial_matrix(S0, u, d, r, T, n)
+
+        # Simulating Brownian motion
+        steps = int(T / dt) + 1  # Total number of time steps
+        time = np.linspace(0, T, steps)
+        dW_independent = np.random.normal(0, np.sqrt(dt), (n, steps - 1))
+        W_independent = np.zeros((n, steps))
+        W_independent[:, 1:] = np.cumsum(dW_independent, axis=1)
+        dWi = W_independent
+
+        # Cholesky decomposition of the correlation matrix
+        L = np.linalg.cholesky(np.cov(dWi))
+
+        # Apply correlation to independent Brownian motions
+        W_correlated = np.dot(L, dWi)
+        dWt = W_correlated
+
+        # Compute density
+        Density_dWt2 = dWt @ dWt.T
+        Density_dWt2 /= Density_dWt2.sum(axis=0)
+        Density_dWt2 /= np.trace(Density_dWt2)
+
+        # Discretizing price states
+        Y = np.random.rand(n, m)
+        price_bins = np.linspace(Y.min(), Y.max(), n + 1)
+        price_states = 0.5 * (price_bins[:-1] + price_bins[1:])
+
+        # Compute empirical probabilities
+        Y_histogram = np.histogram(Y, bins=price_bins, density=True)[0]
+        Y_empirical_probabilities = Y_histogram / np.sum(Y_histogram)
+
+        # Payoff and Expected Value
+        Y_payoff = np.array([-4, -3, -2, -0.9, 1.1, 2.3, 3, 4, 5, 8]).reshape(-1, 1)
+        EdBt = (np.matrix(Y_empirical_probabilities) @ Density_dWt2) @ np.matrix(Y_empirical_probabilities).T
+
+        # Compute option value using Black-Scholes formula
+        d1 = (np.log(S0 / K) + (rf + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d2 = d1 - sigma * np.sqrt(T)
+        option_value = S0 * np.exp(EdBt.item() * T) * sp.norm.cdf(d1) - (K * np.exp(-rf * T) * sp.norm.cdf(d2))
+
+        print("Option Value:\t", option_value)
+
+        return render_template("option_density.html", option_value=option_value)
+
+    return render_template("option_density.html")
+
+
+
+
 @app.route('/token-parameters/<int:id>')
 def token_parameters(id):
 	try:
@@ -3659,9 +3774,9 @@ def token_parameters(id):
 	except Exception as e:
 		return str(e), 500
 
-
+update.delay()
 schedule.every(1).minutes.do(update.delay)
-
+schedule.every(10).seconds.do(update_prices)
 
 if __name__ == '__main__':
 	with app.app_context():
