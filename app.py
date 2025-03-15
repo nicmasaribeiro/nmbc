@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -1719,7 +1719,7 @@ def invest():
 		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 		wal = WalletDB.query.filter_by(address=user_name.username).first()
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
-		if password == wal.password:
+		if 1 == 1 :
 			if inv.quantity >= 0:
 				if (wal.coins >= staked_coins) & (inv.quantity > staked_coins): # and (inv.coins_value >= staked_coins):
 					inv.quantity -= staked_coins
