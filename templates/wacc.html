@@ -1,40 +1,109 @@
+<style>
+    /* General Styles */
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f0f2f5;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+    
+    /* Container Styling */
+    .container {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        width: 400px;
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .container:hover {
+        transform: scale(1.02);
+    }
+    
+    /* Header Styling */
+    h1 {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: bold;
+    }
+    
+    /* Input Fields */
+    .input-field {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+    }
+
+    .input-field:focus {
+        border-color: #007bff;
+        outline: none;
+    }
+    
+    /* Submit Button */
+    .submit-button {
+        width: 100%;
+        padding: 14px;
+        background-color: #007bff;
+        border: none;
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.2s;
+    }
+    
+    .submit-button:hover {
+        background-color: #0056b3;
+        transform: scale(1.05);
+    }
+    
+    /* Labels */
+    label {
+        font-weight: bold;
+        color: #444;
+        text-align: left;
+        display: block;
+        margin-top: 10px;
+    }
+</style>
 
 
-
-
-{% extends "base.html" %}
-
-{% block title %}Rates Model{% endblock %}
-
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-<h1>Rates</h1>
 <div class="container">
+    <h1>Rates</h1>
     <form method="POST">
-    
-    <label for="ticker">Debt</label><br>
-    <input type="text" id="debt" name="debt" class="input-field"><br><br>
+        <label for="debt">Debt</label>
+        <input type="text" id="debt" name="debt" class="input-field">
 
-    <label for="K">Equity</label><br>
-    <input type="text" id="equity" name="equity" class="input-field"><br><br>
+        <label for="equity">Equity</label>
+        <input type="text" id="equity" name="equity" class="input-field">
 
-    <label for="T">Taxes</label><br>
-    <input type="text" id="taxes" name="taxes" class="input-field"><br><br>
+        <label for="taxes">Taxes</label>
+        <input type="text" id="taxes" name="taxes" class="input-field">
 
-    <label for="ticker">Regression Beta</label><br>
-    <input type="text" id="rg" name="rg" class="input-field"><br><br>
+        <label for="rg">Regression Beta</label>
+        <input type="text" id="rg" name="rg" class="input-field">
+
+        <label for="rf">Risk Free</label>
+        <input type="text" id="rf" name="rf" class="input-field">
+
+        <label for="erp">Equity Risk Premium</label>
+        <input type="text" id="erp" name="erp" class="input-field">
+
+        <label for="cs">Credit Spread</label>
+        <input type="text" id="cs" name="cs" class="input-field">
     
-    <label for="ticker">Risk Free</label><br>
-    <input type="text" id="rf" name="rf" class="input-field"><br><br>
-        
-    <label for="ticker">Equity Risk Premium</label><br>
-    <input type="text" id="erp" name="erp" class="input-field"><br><br>
-    
-    <label for="K">Credit Spread</label><br>
-    <input type="text" id="cs" name="cs" class="input-field"><br><br>
-    
-    <input type="submit" value="Calculate" class="submit-button">
-</form>
+        <input type="submit" value="Calculate" class="submit-button">
+    </form>
 </div>
-
-{% endblock %}

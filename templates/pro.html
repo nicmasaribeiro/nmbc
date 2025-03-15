@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Page</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            margin: auto;
+            padding: 20px 0;
+        }
+
+        /* Header */
+        .header {
+            background: #2c3e50;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* Section Styles */
+        .section {
+            background: #ffffff;
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Notification Style */
+        .notifications {
+            background: #ffcc00;
+            padding: 15px;
+            font-weight: bold;
+            border-left: 5px solid #ff9900;
+        }
+
+        /* Wallet & Investments Sections */
+        .wallet {
+            background: #2ecc71;
+            color: white;
+        }
+        .investments {
+            background: #3498db;
+            color: white;
+        }
+        .portfolio {
+            background: #9b59b6;
+            color: white;
+        }
+
+        /* List Styling */
+        .section ul {
+            list-style: none;
+            padding: 0;
+        }
+        .section ul li {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .section ul li:last-child {
+            border-bottom: none;
+        }
+
+        /* Portfolio & Investments Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .grid div {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ user }}'s Profile</h1>
+    </div>
+
+    <div class="container">
+        <!-- Notifications -->
+        <div class="section notifications">
+            <h2>Notifications</h2>
+            <ul>
+                {% for notification in notifications %}
+                <li>{{notification.sender_id.upper()}} : {{ notification.message }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Wallet Section -->
+        <div class="section wallet">
+            <h2>Wallet</h2>
+            <p><strong>Coin Balance:</strong> ${{ wallet.coins }}</p>
+            <p><strong>Cash Balance:</strong> ${{ wallet.balance }}</p>
+            <p><strong>Swap Debt:</strong> ${{ wallet.swap_debt_balance }}</p>
+            <p><strong>Swap Credit:</strong> ${{ wallet.swap_credit_balance }}</p>
+        </div>
+
+        <!-- Investments Section -->
+        <div class="section investments">
+            <h2>Investments</h2>
+            <div class="grid">
+                {% for investment in investments %}
+                <div>{{ investment.investment_name }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+
+        <!-- Portfolio Section -->
+        <div class="section portfolio">
+            <h2>Portfolio</h2>
+            <div class="grid">
+                {% for item in portfolio %}
+                <div><strong>{{ item.token_name }}</strong></div>
+                <div>${{ item.price }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

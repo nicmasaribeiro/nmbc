@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Density Model</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">Option Density Model</h2>
+        <form action="/option-density-model" method="POST" class="mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="S0" class="form-label">Initial Stock Price (S0):</label>
+                    <input type="number" step="0.01" class="form-control" id="S0" name="S0" required>
+
+                    <label for="u" class="form-label mt-2">Up Factor (u):</label>
+                    <input type="number" step="0.01" class="form-control" id="u" name="u" required>
+
+                    <label for="d" class="form-label mt-2">Down Factor (d):</label>
+                    <input type="number" step="0.01" class="form-control" id="d" name="d" required>
+
+                    <label for="r" class="form-label mt-2">Risk-Free Rate (r):</label>
+                    <input type="number" step="0.01" class="form-control" id="r" name="r" required>
+
+                    <label for="T" class="form-label mt-2">Time to Maturity (T in years):</label>
+                    <input type="number" step="0.01" class="form-control" id="T" name="T" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="n" class="form-label">Number of Steps (n):</label>
+                    <input type="number" class="form-control" id="n" name="n" required>
+
+                    <label for="dt" class="form-label mt-2">Time Step (dt):</label>
+                    <input type="number" step="0.01" class="form-control" id="dt" name="dt" required>
+
+                    <label for="m" class="form-label mt-2">Monte Carlo Simulations (m):</label>
+                    <input type="number" class="form-control" id="m" name="m" required>
+
+                    <label for="K" class="form-label mt-2">Strike Price (K):</label>
+                    <input type="number" step="0.01" class="form-control" id="K" name="K" required>
+
+                    <label for="rf" class="form-label mt-2">Risk-Free Interest Rate (rf):</label>
+                    <input type="number" step="0.01" class="form-control" id="rf" name="rf" required>
+
+                    <label for="sigma" class="form-label mt-2">Volatility (sigma):</label>
+                    <input type="number" step="0.01" class="form-control" id="sigma" name="sigma" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary mt-3 w-100">Calculate Option Value</button>
+        </form>
+
+        {% if option_value %}
+            <div class="alert alert-success mt-4">
+                <h4>Computed Option Value:</h4>
+                <p><strong>{{ option_value }}</strong></p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
