@@ -14,6 +14,7 @@ import csv
 import random
 import subprocess as sp
 import xml.etree.ElementTree as ET
+import scipy
 from flask_executor import Executor
 import xml.dom.minidom
 import pandas as pd
@@ -132,6 +133,52 @@ def portfolio(name):
 	portfolio = Portfolio.query.filter_by(username=user.username,name=name).all()
 	return render_template('portfolio.html', portfolio=portfolio)
 
+def execute_swap_double_check():
+	"""Executes swap transactions at scheduled intervals"""
+	swaps = Swap.query.all()  # Get all swaps from the database
+
+	for s in swaps:
+		periods = s.amount
+		maturity = s.maturity
+		time_total = maturity * 365  # Convert years to days
+
+		# Fetch historical stock data
+		ticker = yf.Ticker(s.equity.upper())
+		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+
+		if len(historical_data) < 2:
+			print(f"Not enough historical data for {s.equity}")
+			continue  # Skip if data is insufficient
+
+		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])  # Log return
+		print(f"Return for {s.equity}: {ret}")
+
+		wallet_one = WalletDB.query.filter_by(address=s.counterparty_a).first()
+		wallet_two = WalletDB.query.filter_by(address=s.counterparty_b).first()
+
+		if not wallet_one or not wallet_two:
+			print(f"Wallets not found for {s.counterparty_a} or {s.counterparty_b}")
+			continue  # Skip if wallets are missing
+
+		def logic():
+			if s.status == 'Approved' and s.total_amount >= 0:
+				fixed_leg = s.notional * s.fixed_rate
+				wallet_one.swap_debt_balance += fixed_leg
+				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
+				wallet_two.swap_credit_balance += floating_leg
+				net_cash_flow = fixed_leg - floating_leg 
+				wallet_one.swap_credit_balance += net_cash_flow
+				s.total_amount -= (s.notional * maturity)/periods
+				db.session.commit()  # Commit transaction
+				print(f"Executed swap for {s.id}: Debt Balance Updated")
+
+		# Schedule swap execution at defined intervals
+		execution_interval = time_total / periods  # Calculate days per execution
+		schedule.every(int(execution_interval)).days.do(logic)
+
+	print("All swaps scheduled successfully.")
+schedule.every(10).seconds.do(execute_swap_double_check)
+
 @celery.task
 def execute_swap():
 	"""Executes swap transactions at scheduled intervals"""
@@ -179,7 +226,7 @@ def execute_swap():
 	print("All swaps scheduled successfully.")
 
 # Run the function every 10 seconds (for testing purposes)
-schedule.every(10).seconds.do(execute_swap.delay)
+execute_swap.delay()
 
 
 @app.route('/notifications/send', methods=['GET','POST'])
