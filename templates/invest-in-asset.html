@@ -91,7 +91,7 @@
 
     <div class="container">
         <h1>Invest in Asset</h1>
-        <form method="POST" action="/invest/asset">
+        <form method="POST" >
             <label for="name">Username</label>
             <input type="text" id="name" name="name" placeholder="Enter your username" required>
 
@@ -101,7 +101,7 @@
             <hr>
 
             <label for="amount">Shares Asset Coins to Buy</label>
-            <input type="number" step="0.01" id="amount" name="amount" placeholder="Enter the investment amount" required>
+            <input type="float" step="0.01" id="amount" name="amount" placeholder="Enter the investment amount" required>
 
             <hr>
 
