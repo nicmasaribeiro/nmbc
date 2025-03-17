@@ -1710,32 +1710,34 @@ def search(receipt):
     return render_template('search.html',asset=asset)
 
 
-@app.route('/invest',methods=['GET','POST'])
+@app.route('/invest',methods=['GET'])
 @login_required
-def invest_double_check():
-	# update.delay()
-	# update()
-	if request.method =="POST":
-		receipt = request.values.get('address')
-		staked_coins = float(request.values.get('amount'))
-		user = Users.query.filter_by(username=current_user.username).first()
-		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-		wal = WalletDB.query.filter_by(address=user.username).first()
-		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
-		inv.quantity -= staked_coins
-		db.session.commit()
-		total_value = inv.tokenized_price * staked_coins
-		house = BettingHouse.query.get_or_404(1)
-		house.coin_fee(0.1 * total_value)
-		owner_wallet.coins += 0.1 * total_value
-		db.session.commit()
-		new_value = 0.8 * total_value
-		wal.coins -= total_value
-		inv.tokenized_price += new_value
-		inv.coins_value += new_value
-		db.session.commit()
-		return jsonify({"message": "Investment successful"}), 200
+def invest_double_check_get():
+	# update_prices()
 	return render_template("invest.html")
+
+
+@app.route('/invest',methods=['POST'])
+def invest_double_check_post():
+	receipt = request.values.get('address')
+	staked_coins = float(request.values.get('amount'))
+	user = Users.query.filter_by(username=current_user.username).first()
+	inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
+	wal = WalletDB.query.filter_by(address=user.username).first()
+	owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
+	inv.quantity -= staked_coins
+	total_value = inv.tokenized_price * staked_coins
+	house = BettingHouse.query.get_or_404(1)
+	house.coin_fee(0.1 * total_value)
+	owner_wallet.coins += 0.1 * total_value
+	new_value = 0.8 * total_value
+	wal.coins -= total_value
+	inv.tokenized_price += new_value
+	inv.coins_value += new_value
+	inv.add_investor()
+	db.session.commit()
+	return jsonify({"message": "Investment successful"}), 200
+	# return render_template("invest.html")
 
 
 
