@@ -1717,15 +1717,25 @@ def invest_double_check_get():
 	return render_template("invest.html")
 
 
-@app.route('/invest',methods=['POST'])
-@login_required
+@app.route('/invest/complete',methods=['POST'])
 def invest_double_check_post():
+	user = request.values.get('name')
 	receipt = request.values.get('address')
-	staked_coins = float(request.values.get('amount'))
-	user = Users.query.filter_by(username=current_user.username).first()
+	staked_coins = request.values.get('amount')
+	password = request.values.get('password')
+ 
+	
+	user = Users.query.filter_by(username=user).first()
 	inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-	wal = WalletDB.query.filter_by(address=user.username).first()
+	wal = WalletDB.query.filter_by(address=user).first()
 	owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
+
+	#  # Check sufficient coins and investment availability
+	# if wal.coins < staked_coins:
+	# 	return jsonify({"error": "Insufficient coins in wallet"}), 400
+	# if inv.quantity < staked_coins:
+	# 	return jsonify({"error": "Not enough investment quantity available"}), 400
+	
 	inv.quantity -= staked_coins
 	total_value = inv.tokenized_price * staked_coins
 	house = BettingHouse.query.get_or_404(1)
@@ -1742,135 +1752,84 @@ def invest_double_check_post():
 
 
 
-@app.route('/invest/asset', methods=['GET', 'POST'])
+@app.route('/invest/asset',methods=['GET','POST'])
 @login_required
 def invest():
-    if request.method == "POST":
-        user = request.values.get('name')
-        receipt = request.values.get('address')
-        staked_coins = request.values.get('amount')
-        password = request.values.get('password')
-
-        # Input validation
-        if not user or not receipt or not staked_coins or not password:
-            return jsonify({"error": "Missing required fields"}), 400
-
-        try:
-            staked_coins = float(staked_coins)
-        except ValueError:
-            return jsonify({"error": "Invalid amount"}), 400
-
-        # Fetch user, investment, and wallets
-        user_name = Users.query.filter_by(username=user).first()
-        if not user_name:
-            return jsonify({"error": "User not found"}), 400
-
-        inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-        if not inv:
-            return jsonify({"error": "Investment not found"}), 400
-
-        wal = WalletDB.query.filter_by(address=user_name.username).first()
-        if not wal:
-            return jsonify({"error": "Wallet not found"}), 400
-
-        owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
-        if not owner_wallet:
-            return jsonify({"error": "Owner wallet not found"}), 400
-
-        # Check sufficient coins and investment availability
-        if wal.coins < staked_coins:
-            return jsonify({"error": "Insufficient coins in wallet"}), 400
-        if inv.quantity < staked_coins:
-            return jsonify({"error": "Not enough investment quantity available"}), 400
-
-        try:
-            # Deduct staked coins and update investment
-            inv.quantity -= staked_coins
-            total_value = inv.tokenized_price * staked_coins
-            house = BettingHouse.query.get_or_404(1)
-            house.coin_fee(0.1 * total_value)
-
-            # Transfer funds
-            owner_wallet.coins += 0.1 * total_value
-            wal.coins -= total_value
-            inv.tokenized_price += 0.8 * total_value
-            inv.coins_value += 0.8 * total_value
-
-            # Record transaction
-            new_transaction = TransactionDatabase(
-                username=user,
-                txid=inv.receipt,
-                from_address=user_name.personal_token,
-                to_address=inv.investment_name,
-                amount=0.8 * total_value,
-                type='investment',
-                signature=os.urandom(10).hex()
-            )
-            db.session.add(new_transaction)
-
-            # Update investment details
-            inv.add_investor()
-            inv.append_investor_token(
-                name=user,
-                address=user_name.personal_token,
-                receipt=inv.receipt,
-                amount=staked_coins,
-                currency='coins'
-            )
-
-            # Create asset token
-            a_tk = AssetToken(
-                username=user,
-                token_name=inv.investment_name,
-                token_address=os.urandom(10).hex(),
-                user_address=user_name.personal_token,
-                transaction_receipt=inv.receipt,
-                quantity=staked_coins,
-                cash=coin.dollar_value * inv.tokenized_price,
-                coins=inv.tokenized_price
-            )
-            db.session.add(a_tk)
-
-            # Track investment
-            track = TrackInvestors(
-                receipt=receipt,
-                tokenized_price=inv.tokenized_price,
-                owner=sha512(str(inv.owner).encode()).hexdigest(),
-                investment_name=inv.investment_name,
-                investor_name=sha512(str(user_name.username).encode()).hexdigest(),
-                investor_token=user_name.personal_token
-            )
-            db.session.add(track)
-
-            # Blockchain transaction
-            previous_block = blockchain.get_latest_block()
-            if not previous_block:
-                return jsonify({"error": "Blockchain not initialized"}), 500
-
-            blockchain.add_transaction({
-                'index': len(blockchain.chain) + 1,
-                "previous_hash": previous_block.encode().hex(),
-                'timestamp': str(dt.date.today()),
-                'data': {
-                    'receipt': receipt,
-                    'tokenized_price': inv.tokenized_price,
-                    'owner': inv.owner,
-                    'investment_name': inv.investment_name,
-                    'investor_name': user_name.username,
-                    'investor_token': user_name.personal_token
-                }
-            })
-
-            # Commit all changes in one transaction
-            db.session.commit()
-
-            return render_template("invest-in-asset.html") 
-        
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": f"Transaction failed: {str(e)}"}), 500
-
-    return render_template("invest-in-asset.html")
+	update.delay()
+	if request.method =="POST":
+		user = request.values.get('name')
+		receipt = request.values.get('address')
+		staked_coins = float(request.values.get('amount'))
+		password = request.values.get('password')
+		user_name = Users.query.filter_by(username=user).first()
+		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
+		wal = WalletDB.query.filter_by(address=user_name.username).first()
+		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
+		if password == wal.password:
+			if inv.quantity >= 0:
+				if wal.coins >= staked_coins:
+					inv.quantity -= staked_coins
+					db.session.commit()
+					total_value = inv.tokenized_price*staked_coins
+					house = BettingHouse.query.get_or_404(1)
+					house.coin_fee(0.1*total_value)
+					owner_wallet.coins += 0.1*total_value
+					db.session.commit()
+					new_value = 0.8*total_value
+					wal.coins -= total_value
+					inv.coins_value += new_value
+					db.session.commit()
+					new_transaction = TransactionDatabase(
+											username=user,
+											txid=inv.receipt,
+											from_address=user_name.personal_token,
+											to_address=inv.investment_name,
+											amount=new_value,
+											type='investment',
+											signature=os.urandom(10).hex())
+					db.session.add(new_transaction)
+					db.session.commit()
+					inv.add_investor()
+					inv.append_investor_token(
+								name=user, 
+								address=user_name.personal_token, 
+								receipt=inv.receipt,
+								amount=staked_coins,
+								currency='coins')
+					a_tk = AssetToken(
+						username=user,
+						token_name=inv.investment_name,
+						token_address=os.urandom(10).hex(),
+						user_address=user_name.personal_token,
+						transaction_receipt=inv.receipt,
+						quantity = staked_coins,
+						cash = coin.dollar_value*inv.tokenized_price,
+						coins = inv.tokenized_price)
+					db.session.add(a_tk)
+					db.session.commit()
+					track = TrackInvestors(
+							receipt=receipt,
+							tokenized_price=inv.tokenized_price,
+							owner = sha512(str(inv.owner).encode()).hexdigest(),
+							investment_name=inv.investment_name,
+							investor_name=sha512(str(user_name.username).encode()).hexdigest(),
+							investor_token=user_name.personal_token)
+					db.session.add(track)
+					db.session.commit()
+					blockchain.add_transaction({
+									'index':len(blockchain.chain)+1,
+									"previous_hash":str(blockchain.get_latest_block()).encode().hex(),
+									'timestamp':str(dt.date.today()),
+									'data':str({'receipt':receipt,
+												'tokenized_price':inv.tokenized_price,
+												'owner':inv.owner,
+												'investment_name':inv.investment_name,
+												'investor_name':user_name.username,
+												'investor_token':user_name.personal_token})})
+					return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {new_value} in {inv.investment_name}"""
+				else:
+					return "<h3>Insufficient coins in wallet</h3>"
+	return render_template("invest-in-asset.html")
 
 
 @app.route('/profile')
