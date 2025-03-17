@@ -1715,22 +1715,10 @@ def invest_double_check():
 	if request.method =="POST":
 		receipt = request.values.get('address')
 		staked_coins = float(request.values.get('amount'))
-		user_name = Users.query.filter_by(username=current_user.username).first()
+		user = Users.query.filter_by(username=current_user.username).first()
 		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-		wal = WalletDB.query.filter_by(address=user_name.username).first()
+		wal = WalletDB.query.filter_by(address=user.username).first()
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
-		
-		if user_name is None:
-			current_app.logger.error("user_name is None - possible authentication issue")
-			return jsonify({"error": "User not found"}), 400
-
-		wal = WalletDB.query.filter_by(address=user_name.username).first()
-		if wal is None:
-			return jsonify({"error": "Wallet not found"}), 404
-
-		# if 1 == 1 :
-		# 	if inv.quantity >= 0:
-		# 		if  1 == 1 : #(wal.coins >= staked_coins) & (inv.quantity > staked_coins): # and (inv.coins_value >= staked_coins):
 		inv.quantity -= staked_coins
 		db.session.commit()
 		total_value = inv.tokenized_price * staked_coins
@@ -1743,59 +1731,11 @@ def invest_double_check():
 		inv.tokenized_price += new_value
 		inv.coins_value += new_value
 		db.session.commit()
-		new_transaction = TransactionDatabase(
-								username=current_user.username,
-								txid=inv.receipt,
-								from_address=user_name.personal_token,
-								to_address=inv.investment_name,
-								amount=new_value,
-								type='investment',
-								signature=os.urandom(10).hex())
-		db.session.add(new_transaction)
-		db.session.commit()
-		inv.add_investor()
-		inv.append_investor_token(
-					name=current_user.username, 
-					address=user_name.personal_token, 
-					receipt=inv.receipt,
-					amount=staked_coins,
-					currency='coins')
-		a_tk = AssetToken(
-			username=current_user.username,
-			token_name=inv.investment_name,
-			token_address=os.urandom(10).hex(),
-			user_address=user_name.personal_token,
-			transaction_receipt=inv.receipt,
-			quantity = staked_coins,
-			cash = coin.dollar_value*inv.tokenized_price,
-			coins = inv.tokenized_price)
-		db.session.add(a_tk)
-		db.session.commit()
-		track = TrackInvestors(
-				receipt=receipt,
-				tokenized_price=inv.tokenized_price,
-				owner = sha512(str(inv.owner).encode()).hexdigest(),
-				investment_name=inv.investment_name,
-				investor_name=sha512(str(user_name.username).encode()).hexdigest(),
-				investor_token=user_name.personal_token)
-		db.session.add(track)
-		db.session.commit()
-		blockchain.add_transaction({
-						'index':len(blockchain.chain)+1,
-						"previous_hash":str(blockchain.get_latest_block()).encode().hex(),
-						'timestamp':str(dt.date.today()),
-						'data':str({'receipt':receipt,
-									'tokenized_price':inv.tokenized_price,
-									'owner':inv.owner,
-									'investment_name':inv.investment_name,
-									'investor_name':user_name.username,
-									'investor_token':user_name.personal_token})})
-		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {new_value} in {inv.investment_name}"""
+		return jsonify({"message": "Investment successful"}), 200
 	return render_template("invest.html")
 
 
 
-from flask import current_app
 @app.route('/invest/asset',methods=['GET','POST'])
 @login_required
 def invest():
