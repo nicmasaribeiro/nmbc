@@ -681,6 +681,9 @@ def update_prices():
 
 	return 0
 
+schedule.every(10).seconds.do(update_prices)
+
+
 @celery.task	
 def update():
 	"""
@@ -1858,8 +1861,7 @@ def invest():
             # Commit all changes in one transaction
             db.session.commit()
 
-            return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3>
-                    <p>You've successfully invested {0.8 * total_value} in {inv.investment_name}."""
+            return render_template("invest-in-asset.html") 
         
         except Exception as e:
             db.session.rollback()
