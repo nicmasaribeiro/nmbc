@@ -1741,54 +1741,7 @@ def invest_double_check_post():
 				wal.coins -= total_value
 				inv.coins_value += new_value
 				db.session.commit()
-				new_transaction = TransactionDatabase(
-										username=user,
-										txid=inv.receipt,
-										from_address=user_name.personal_token,
-										to_address=inv.investment_name,
-										amount=new_value,
-										type='investment',
-										signature=os.urandom(10).hex())
-				db.session.add(new_transaction)
-				db.session.commit()
 				inv.add_investor()
-				inv.append_investor_token(
-							name=user, 
-							address=user_name.personal_token, 
-							receipt=inv.receipt,
-							amount=staked_coins,
-							currency='coins')
-				a_tk = AssetToken(
-					username=user,
-					token_name=inv.investment_name,
-					token_address=os.urandom(10).hex(),
-					user_address=user_name.personal_token,
-					transaction_receipt=inv.receipt,
-					quantity = staked_coins,
-					cash = coin.dollar_value*inv.tokenized_price,
-					coins = inv.tokenized_price)
-				db.session.add(a_tk)
-				db.session.commit()
-				track = TrackInvestors(
-						receipt=receipt,
-						tokenized_price=inv.tokenized_price,
-						owner = sha512(str(inv.owner).encode()).hexdigest(),
-						investment_name=inv.investment_name,
-						investor_name=sha512(str(user_name.username).encode()).hexdigest(),
-						investor_token=user_name.personal_token)
-				db.session.add(track)
-				db.session.commit()
-				blockchain.add_transaction({
-								'index':len(blockchain.chain)+1,
-								"previous_hash":str(blockchain.get_latest_block()).encode().hex(),
-								'timestamp':str(dt.date.today()),
-								'data':str({'receipt':receipt,
-											'tokenized_price':inv.tokenized_price,
-											'owner':inv.owner,
-											'investment_name':inv.investment_name,
-											'investor_name':user_name.username,
-											'investor_token':user_name.personal_token})})
-	
 	return jsonify({"message": "Investment successful"}), 200
 	# return render_template("invest.html")
 
@@ -2204,9 +2157,9 @@ def blog_view():
     return render_template("blog-view.html", blogs=blogs)
 # Custom 404 error handler
 
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template("404.html"), 404
+# @app.errorhandler(404)
+# def page_not_found(e):
+#     return render_template("404.html"), 404
 
 @app.route("/blog/<thread>")
 def blog_thread(thread):
