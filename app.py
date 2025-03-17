@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -1711,13 +1711,11 @@ def search(receipt):
 
 
 @app.route('/invest',methods=['GET'])
-@login_required
 def invest_double_check_get():
-	# update_prices()
 	return render_template("invest.html")
 
 
-@app.route('/invest/complete',methods=['POST'])
+@app.route('/invest',methods=['POST'])
 def invest_double_check_post():
 	user = request.values.get('name')
 	receipt = request.values.get('address')
@@ -1731,19 +1729,21 @@ def invest_double_check_post():
 		if inv.quantity >= 0:
 			if wal.coins >= staked_coins:
 				inv.quantity -= staked_coins
-				db.session.commit()
 				total_value = inv.tokenized_price*staked_coins
-				house = BettingHouse.query.get_or_404(1)
-				house.coin_fee(0.1*total_value)
 				owner_wallet.coins += 0.1*total_value
-				db.session.commit()
 				new_value = 0.8*total_value
 				wal.coins -= total_value
 				inv.coins_value += new_value
 				db.session.commit()
 				inv.add_investor()
-	return jsonify({"message": "Investment successful"}), 200
-	# return render_template("invest.html")
+				return jsonify({"message": "Investment successful"}), 200
+			else:
+				return jsonify({"message": "Insufficient coins"}), 400
+		else:
+			return jsonify({"message": "Insufficient quantity of investment"}), 400
+	else:
+		return jsonify({"message": "Invalid password"}), 400
+	return 200
 
 
 
