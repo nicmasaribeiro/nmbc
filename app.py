@@ -1706,10 +1706,12 @@ def search(receipt):
     asset = InvestmentDatabase.query.filter_by(receipt=receipt).first()
     return render_template('search.html',asset=asset)
 
+from flask import current_app
 @app.route('/invest/asset',methods=['GET','POST'])
 @login_required
 def invest():
-	update.delay()
+	# update.delay()
+	# update()
 	if request.method =="POST":
 		user = request.values.get('name')
 		receipt = request.values.get('address')
@@ -1719,6 +1721,15 @@ def invest():
 		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 		wal = WalletDB.query.filter_by(address=user_name.username).first()
 		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
+		
+		if user_name is None:
+			current_app.logger.error("user_name is None - possible authentication issue")
+			return jsonify({"error": "User not found"}), 400
+
+		wal = WalletDB.query.filter_by(address=user_name.username).first()
+		if wal is None:
+			return jsonify({"error": "Wallet not found"}), 404
+
 		if 1 == 1 :
 			if inv.quantity >= 0:
 				if  1 == 1 : #(wal.coins >= staked_coins) & (inv.quantity > staked_coins): # and (inv.coins_value >= staked_coins):
