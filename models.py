@@ -43,11 +43,7 @@ bcrypt = Bcrypt(app)
 login_manager.login_view = 'login'
 
 engine = create_engine('sqlite:///blockchain.db')
-Session = scoped_session(sessionmaker(bind=engine))
-
-#Session = sessionmaker(bind=engine)()
-#engine = create_engine("""postgresql://nmc:nmc@nmc@us-east-1.d9921bc0-8d4a-4fe9-89ff-faeb65e19681.aws.yugabyte.cloud:5433/ 
-#   yugabyte?ssl=true&sslmode=verify-full&sslrootcert=<ROOT_CERT_PATH>""")
+Session = sessionmaker(bind=engine)
 
 
 class WalletDB(db.Model):
