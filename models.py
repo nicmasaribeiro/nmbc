@@ -30,8 +30,7 @@ ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}
 # Initialize Flask app
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blockchain.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://nmcybc_user:YZKQrYdkUPJRcqXgg93UJxLrxSkybcGq@dpg-cv94hjdumphs73fkn050-a/nmcybc')
 app.config['SECRET_KEY'] = os.urandom(24).hex()
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB limit
 
@@ -42,7 +41,7 @@ login_manager.init_app(app)
 bcrypt = Bcrypt(app)
 login_manager.login_view = 'login'
 
-engine = create_engine('sqlite:///blockchain.db')
+engine = create_engine('postgresql://nmcybc_user:YZKQrYdkUPJRcqXgg93UJxLrxSkybcGq@dpg-cv94hjdumphs73fkn050-a/nmcybc')
 Session = sessionmaker(bind=engine)
 
 
