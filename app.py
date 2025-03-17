@@ -1718,6 +1718,7 @@ def invest_double_check_get():
 
 
 @app.route('/invest',methods=['POST'])
+@login_required
 def invest_double_check_post():
 	receipt = request.values.get('address')
 	staked_coins = float(request.values.get('amount'))
