@@ -1791,7 +1791,7 @@ def invest_double_check():
 									'investor_name':user_name.username,
 									'investor_token':user_name.personal_token})})
 		return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {new_value} in {inv.investment_name}"""
-	return render_template("invest-in-asset.html")
+	return render_template("invest.html")
 
 
 
