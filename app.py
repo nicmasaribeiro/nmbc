@@ -237,8 +237,57 @@ def execute_swap():
 
 # Run the function every 10 seconds (for testing purposes)
 execute_swap.delay()
-schedule.every(10).seconds.do(execute_swap.delay)
+schedule.every(1).minutes.do(execute_swap)
 
+def make_payment():
+	"""Executes swap transactions at scheduled intervals"""
+	swaps = Swap.query.all()  # Get all swaps from the database
+
+	for s in swaps:
+		periods = s.amount
+		maturity = s.maturity
+		time_total = maturity * 365  # Convert years to days
+
+		# Fetch historical stock data
+		ticker = yf.Ticker(s.equity.upper())
+		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+
+		if len(historical_data) < 2:
+			print(f"Not enough historical data for {s.equity}")
+			continue  # Skip if data is insufficient
+
+		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])  # Log return
+		print(f"Return for {s.equity}: {ret}")
+
+		wallet_one = WalletDB.query.filter_by(address=s.counterparty_a).first()
+		wallet_two = WalletDB.query.filter_by(address=s.counterparty_b).first()
+
+		if not wallet_one or not wallet_two:
+			print(f"Wallets not found for {s.counterparty_a} or {s.counterparty_b}")
+			continue  # Skip if wallets are missing
+
+		def logic():
+			if s.status == 'Approved' and s.total_amount >= 0:
+				fixed_leg = s.notional * s.fixed_rate
+				wallet_one.swap_debt_balance += fixed_leg
+				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
+				wallet_two.swap_credit_balance += floating_leg
+				net_cash_flow = fixed_leg - floating_leg
+				if net_cash_flow >= 0:
+					wallet_one.swap_credit_balance += net_cash_flow
+					wallet_two.swap_debt_balance -= net_cash_flow
+				else:
+					wallet_one.swap_debt_balance -= abs(net_cash_flow)
+					wallet_two.swap_credit_balance += abs(net_cash_flow)
+				s.total_amount -= (s.notional * maturity)/periods
+				db.session.commit()  # Commit transaction
+				print(f"Executed swap for {s.id}: Debt Balance Updated")
+
+		# Schedule swap execution at defined intervals
+		execution_interval = time_total / periods  # Calculate days per execution
+		schedule.every(int(execution_interval)).days.do(logic)
+
+	print("All swaps scheduled successfully.")
 
 @app.route('/notifications/send', methods=['GET','POST'])
 @login_required
@@ -1856,7 +1905,6 @@ def invest():
 					return "<h3>Insufficient coins in wallet</h3>"
 	return render_template("invest-in-asset.html")
 
-
 @app.route('/profile')
 @login_required
 def profile():
@@ -1874,30 +1922,327 @@ import plotly.graph_objects as go
 import plotly.utils
 import yfinance as yf
 import pandas as pd
+from scipy.stats import norm
+
+@app.route('/chain/<ticker>')
+def options_chain_pricing(ticker):
+	price = yf.Ticker(ticker).history()['Close'][-1]
+	url = 'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=ticker)
+	r = requests.get(url)
+	data = r.json()
+	df = {'symbol':[],'expiration':[],'strike':[],'last':[],'type':[],'volume':[],'open_interest':[],'implied_volatility':[], 'delta':[], 'gamma':[], 'theta':[], 'vega':[], 'rho':[]}
+	
+	# print(data['data'][0].keys())
+	for i in range(len(data['data'])):
+		target = data['data'][i]
+		df['symbol'].append(target['symbol'])
+		df['type'].append(target['type'])
+		df['expiration'].append(target['expiration'])
+		df['last'].append(target['last'])
+		df['strike'].append(target['strike'])
+		df['volume'].append(target['volume'])
+		df['open_interest'].append(target['open_interest'])
+		df['implied_volatility'].append(target['implied_volatility'])
+		df['delta'].append(target['delta'])
+		df['gamma'].append(target['gamma'])
+		df['theta'].append(target['theta'])
+		df['vega'].append(target['vega'])
+		df['rho'].append(target['rho'])
+
+	dataframe = pd.DataFrame(df)
+		# Load the dataset from the extracted HTML file
+
+	df = dataframe
+	# Clean the data: Convert relevant columns to numeric and handle missing values
+	df[['strike', 'last', 'implied_volatility', 'open_interest', 'delta', 'gamma', 'theta', 'vega', 'rho']] = df[
+		['strike', 'last', 'implied_volatility', 'open_interest', 'delta', 'gamma', 'theta', 'vega', 'rho']
+	].apply(pd.to_numeric, errors='coerce')
+
+	# Remove rows with missing or zero last price
+	df = df[df['last'] > 0]
+
+	# Black-Scholes Model for Option Pricing
+	def black_scholes(S, K, T, r, sigma, option_type):
+		"""
+		Calculate Black-Scholes price for a call or put option.
+		
+		Parameters:
+		S (float): Current stock price
+		K (float): Strike price
+		T (float): Time to expiration (years)
+		r (float): Risk-free rate (assumed 2% for now)
+		sigma (float): Implied volatility
+		option_type (str): 'call' or 'put'
+		
+		Returns:
+		float: Theoretical option price
+		"""
+		d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+		d2 = d1 - sigma * np.sqrt(T)
+		
+		if option_type == "call":
+			price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+		elif option_type == "put":
+			price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+		else:
+			raise ValueError("Invalid option type")
+			
+		return price
+
+	# Assumptions
+	S = price  # Example underlying stock price (adjust as needed)
+	r = 0.05  # Risk-free rate (2% assumed)
+
+	# Calculate theoretical prices for options using Black-Scholes
+	df['T'] = (pd.to_datetime(df['expiration']) - pd.Timestamp.today()).dt.days / 365
+	df['bs_price'] = df.apply(lambda row: black_scholes(S, row['strike'], row['T'], r, row['implied_volatility'], row['type']), axis=1)
+
+	# Adjust pricing strategy based on liquidity and Greeks
+	df['adjusted_price'] = np.where(
+		df['open_interest'] > 50,  # If open interest is high, use market price
+		df['last'],
+		df['bs_price'] * (1 + 0.05 * (df['gamma'] + df['vega']))  # Adjust based on Greek sensitivities
+	)
+	
+	from sklearn.model_selection import train_test_split
+
+	mean_price = df['adjusted_price'].mean()
+	std_price = df['adjusted_price'].std()
+
+	# mean_vars = df.mean(axis=0)
+	# print("MEAN OF ALL VARIABLE\n",mean_vars)
+	dataframe = pd.DataFrame(df)
+	df_corr = dataframe[['last', 'strike','volume','open_interest','adjusted_price','delta', 'gamma', 'theta', 'vega', 'rho']].corr()
+	X = dataframe[['last', 'strike','volume','open_interest','delta', 'gamma', 'theta', 'vega', 'rho']].to_numpy()
+	y = dataframe['adjusted_price'].to_numpy()
+	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+	lr = LinearRegression().fit(X_train, y_train)
+	score = lr.score(X_test, y_test)
+	# print("Score
+	
+	corr_html = df_corr.to_html()
+	html = df.to_html()
+	string =f"""<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Option Chain</title>
+			<style>
+				/* General page styles */
+				body {{
+					font-family: Arial, sans-serif;
+					margin: 20px;
+					background-color: #f4f4f9;
+					color: #333;
+				}}
+
+				h1 a {{
+					text-decoration: none;
+					color: #3498db;
+					font-size: 24px;
+				}}
+
+				h1 a:hover {{
+					text-decoration: underline;
+				}}
+
+				/* Table styles */
+				table {{
+					width: 100%;
+					border-collapse: collapse;
+					margin-top: 20px;
+					background-color: #fff;
+					box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+				}}
+
+				th, td {{
+					border: 1px solid #ddd;
+					padding: 12px;
+					text-align: left;
+				}}
+
+				th {{
+					background-color: #2c3e50;
+					color: white;
+					text-transform: uppercase;
+					letter-spacing: 0.05em;
+				}}
+
+				tr:hover {{
+					background-color: #f1f1f1;
+				}}
+
+				tr:nth-child(even) {{
+					background-color: #f9f9f9;
+				}}
+			</style>
+		</head>
+		<body>
+			<h1><a href="/">Back</a></h1>
+			<div class="container">
+			<h1>Mean Price: {mean_price}</h1>
+			<h1>Standard Deviation Price: {std_price}</h1>
+			<h1>Score: {score}</h1>
+			</div>
+			<div class="correlation">
+			{corr_html}
+			</div>
+			<!-- Insert dynamic HTML content here -->
+			{html} 
+		</body>
+		</html>"""
+	return render_template_string(string, html=html)
+
+
+@app.route('/options/stats/<ticker>')
+def options_stats(ticker):
+	url = 'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=ticker.upper())
+	r = requests.get(url)
+	data = r.json()
+
+	df = {'symbol':[],'expiration':[],'strike':[],'last':[],'type':[],'volume':[],'open_interest':[],'implied_volatility':[], 'delta':[], 'gamma':[], 'theta':[], 'vega':[], 'rho':[]}
+	
+	# print(data['data'][0].keys())
+	for i in range(len(data['data'])):
+		target = data['data'][i]
+		df['symbol'].append(target['symbol'])
+		df['type'].append(target['type'])
+		df['expiration'].append(target['expiration'])
+		df['last'].append(target['last'])
+		df['strike'].append(target['strike'])
+		df['volume'].append(target['volume'])
+		df['open_interest'].append(target['open_interest'])
+		df['implied_volatility'].append(target['implied_volatility'])
+		df['delta'].append(target['delta'])
+		df['gamma'].append(target['gamma'])
+		df['theta'].append(target['theta'])
+		df['vega'].append(target['vega'])
+		df['rho'].append(target['rho'])
+
+	dataframe = pd.DataFrame(df)
+	delta = np.array([float(x) for x in dataframe['delta']])
+	delta = np.mean(delta)
+	gamma = np.array([float(x) for x in dataframe['gamma']])
+	gamma = np.mean(gamma)
+	theta = np.array([float(x) for x in dataframe['theta']])
+	theta = np.mean(theta)
+	vega = np.array([float(x) for x in dataframe['vega']])
+	vega = np.mean(vega)
+	rho = np.array([float(x) for x in dataframe['rho']])
+	rho = np.mean(rho)
+	# delta = dataframe.loc[float(dataframe['delta']) > 1]
+	return f"Success {delta}<br>{gamma}<br>{theta}<br>{vega}<br>{rho}"#.format(delta=delta)
+
+@app.route('/options/chain/<ticker>')
+def options_chain(ticker):
+	url = 'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=ticker)
+	r = requests.get(url)
+	data = r.json()
+
+	df = {'symbol':[],'expiration':[],'strike':[],'last':[],'type':[],'volume':[],'open_interest':[],'implied_volatility':[], 'delta':[], 'gamma':[], 'theta':[], 'vega':[], 'rho':[]}
+	
+	# print(data['data'][0].keys())
+	for i in range(len(data['data'])):
+		target = data['data'][i]
+		df['symbol'].append(target['symbol'])
+		df['type'].append(target['type'])
+		df['expiration'].append(target['expiration'])
+		df['last'].append(target['last'])
+		df['strike'].append(target['strike'])
+		df['volume'].append(target['volume'])
+		df['open_interest'].append(target['open_interest'])
+		df['implied_volatility'].append(target['implied_volatility'])
+		df['delta'].append(target['delta'])
+		df['gamma'].append(target['gamma'])
+		df['theta'].append(target['theta'])
+		df['vega'].append(target['vega'])
+		df['rho'].append(target['rho'])
+
+	dataframe = pd.DataFrame(df)
+	html = dataframe.to_html()
+	string =f"""<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Stochastic Greeks</title>
+			<style>
+				/* General page styles */
+				body {{
+					font-family: Arial, sans-serif;
+					margin: 20px;
+					background-color: #f4f4f9;
+					color: #333;
+				}}
+
+				h1 a {{
+					text-decoration: none;
+					color: #3498db;
+					font-size: 24px;
+				}}
+
+				h1 a:hover {{
+					text-decoration: underline;
+				}}
+
+				/* Table styles */
+				table {{
+					width: 100%;
+					border-collapse: collapse;
+					margin-top: 20px;
+					background-color: #fff;
+					box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+				}}
+
+				th, td {{
+					border: 1px solid #ddd;
+					padding: 12px;
+					text-align: left;
+				}}
+
+				th {{
+					background-color: #2c3e50;
+					color: white;
+					text-transform: uppercase;
+					letter-spacing: 0.05em;
+				}}
+
+				tr:hover {{
+					background-color: #f1f1f1;
+				}}
+
+				tr:nth-child(even) {{
+					background-color: #f9f9f9;
+				}}
+			</style>
+		</head>
+		<body>
+			<h1><a href="/">Back</a></h1>
+			
+			<!-- Insert dynamic HTML content here -->
+			{html} 
+		</body>
+		</html>"""
+	return render_template_string(string, html=html)
 
 @app.route('/info/<int:id>')
 def info(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
 	name = asset.investment_name.upper()
-	url = "https://financialmodelingprep.com/stable/profile?symbol={ticker}&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=name)
-	response = requests.request("GET", url)
-	data = json.loads(response.text)
-	data = data[0]
-	mk = data['marketCap']
-	beta = data['beta']
-	rng = data['range']
-	change = data['change']
-	change_percent = data['changePercentage']
-	volume = data['volume']
-	avg_volume = data['averageVolume']
-	ceo = data['ceo']
-	industry = data['industry']
-	website = data['website']
-	img = data['image']
-	description = data['description']
+	url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=name)
+	r = requests.get(url)
+	data = r.json()
 
-	
+	mk = data['MarketCapitalization']
+	beta = data['Beta']
+	DividendYield = data['DividendYield']
+	industry = data['Sector']
+	website = data['OfficialSite']
+	description = data['Description']
+
 	# res = asset_info(name)
 	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
 	df = df.dropna()
@@ -1923,9 +2268,8 @@ def info(id):
 
 	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-	return render_template("asset-info.html", asset=asset, graph_json=graph_json,mk=mk,
-						beta=beta,rng=rng,change=change,percent_change=change_percent,volume=volume,
-						avg_volume=avg_volume,ceo=ceo,industry=industry,website=website,img=img,description=description)
+	return render_template("asset-info.html", asset=asset, graph_json=graph_json, mk=mk,
+						beta=beta,industry=industry,website=website,description=description,div=DividendYield)
 
 
 @app.route('/asset/info/<int:id>')
