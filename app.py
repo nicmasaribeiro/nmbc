@@ -1876,7 +1876,9 @@ import yfinance as yf
 import pandas as pd
 
 from info import asset_info
+
 @app.route('/asset/info/<int:id>')
+@celery.task
 def info_assets(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
