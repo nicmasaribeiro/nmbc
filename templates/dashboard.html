@@ -161,8 +161,9 @@
                 font-size: 0.9rem;
             }
             
-            button{
+            button {
                 color: blue;
+                background: blue;
             }
         }
     </style>
@@ -342,9 +343,14 @@
             <a href="/dV">
                 <i class="fas fa-superscript"></i> Rates Curvature
             </a>
-                <button onclick="search();">token parameters</button>
+            
+            <button onclick="search();" style="background-color: blue;color: white;">token parameters</button>
                 
-                <button onclick="GetAsset();">Expanded Asset View</button>
+            <button onclick="GetAsset();" style="background-color: blue;color: white;">Expanded Asset View</button>
+            
+            <button onclick="get_options_chain();" style="background-color: blue;color: white;">Simple Options Chain</button>
+            
+            <button onclick="get_chain();" style="background-color: blue;color: white;">Stats Options Chain</button>
             
             <script>
                 function search(){
@@ -354,9 +360,17 @@
                 
                 function GetAsset(){
                     var id = prompt("Enter Asset ID","ID");
-                    window.location.href = '/asset/info/'+ id;
+                    window.location.href = '/info/'+ id;
                 }
-
+                
+                function get_options_chain(){
+                    var ticker = prompt("Enter Asset Ticker","AAPL,IBM,MSFT");
+                    window.location.href = '/options/chain/'+ ticker.toUpperCase();
+                }
+                function get_chain(){
+                    var ticker = prompt("Enter Asset Ticker","AAPL,IBM,MSFT");
+                    window.location.href = '/chain/'+ ticker.toUpperCase();
+                }
             </script>
             
             <a href="/drift&vol">
