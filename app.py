@@ -1875,8 +1875,59 @@ import plotly.utils
 import yfinance as yf
 import pandas as pd
 
-# from info import asset_info
-from asset_info import asset_info
+@app.route('/info/<int:id>')
+def info(id):
+	update.delay()
+	asset = InvestmentDatabase.query.get_or_404(id)
+	name = asset.investment_name.upper()
+	url = "https://financialmodelingprep.com/stable/profile?symbol={ticker}&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=name)
+	response = requests.request("GET", url)
+	data = json.loads(response.text)
+	data = data[0]
+	mk = data['marketCap']
+	beta = data['beta']
+	rng = data['range']
+	change = data['change']
+	change_percent = data['changePercentage']
+	volume = data['volume']
+	avg_volume = data['averageVolume']
+	ceo = data['ceo']
+	industry = data['industry']
+	website = data['website']
+	img = data['image']
+	description = data['description']
+
+	
+	# res = asset_info(name)
+	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
+	df = df.dropna()
+	# Compute rolling mean and standard deviation
+	rolling_window = 20  # Adjust the window size as needed
+	df_mean = df.rolling(window=rolling_window).mean()
+	df_std = df.rolling(window=rolling_window).std()
+	# Compute 95% confidence intervals
+	upper_bound = df_mean + 1.96 * df_std
+	lower_bound = df_mean - 1.96 * df_std
+	# Create figure
+	fig = go.Figure()
+	# Add stock price trend
+	fig.add_trace(go.Scatter(x=df.index, y=df, mode='lines', name=f"{name} Close Price", line=dict(color="blue")))
+	# Add confidence interval as a shaded area
+	fig.add_trace(go.Scatter(x=df.index, y=upper_bound, fill=None, mode='lines', line=dict(color='lightblue'), name="Upper Bound"))
+	fig.add_trace(go.Scatter(x=df.index, y=lower_bound, fill='tonexty', mode='lines', line=dict(color='lightblue'), name="Lower Bound", opacity=0.3))
+
+	# Set title and labels
+	fig.update_layout(title=f"{name} Stock Price Trends with Confidence Interval",
+					xaxis_title="Date", yaxis_title="Stock Price",
+					template="plotly_dark")
+
+	# Convert plot to JSON
+	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+	return render_template("asset-info.html", asset=asset, graph_json=graph_json,mk=mk,
+						beta=beta,rng=rng,change=change,percent_change=change_percent,volume=volume,
+						avg_volume=avg_volume,ceo=ceo,industry=industry,website=website,img=img,description=description)
+
+
 @app.route('/asset/info/<int:id>')
 def info_assets(id):
 	update.delay()
@@ -1899,10 +1950,12 @@ def info_assets(id):
 	# Add confidence interval as a shaded area
 	fig.add_trace(go.Scatter(x=df.index, y=upper_bound, fill=None, mode='lines', line=dict(color='lightblue'), name="Upper Bound"))
 	fig.add_trace(go.Scatter(x=df.index, y=lower_bound, fill='tonexty', mode='lines', line=dict(color='lightblue'), name="Lower Bound", opacity=0.3))
+
 	# Set title and labels
 	fig.update_layout(title=f"{name} Stock Price Trends with Confidence Interval",
 					xaxis_title="Date", yaxis_title="Stock Price",
 					template="plotly_dark")
+
 	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 	return render_template("asset-info.html", asset=asset, graph_json=graph_json,)#mk=res[0],
