@@ -349,7 +349,7 @@
         <button class="btn btn-secondary btn-lg w-100" onclick="mywallet()">My Holdings</button>
       </div>
       <div class="col-md-6">
-        <button class="btn btn-secondary btn-lg w-100" onclick="minerwallet()">Miner Wallet</button>
+        <button class="btn btn-secondary btn-lg w-100" onclick="minerwallet()">View Asset</button>
       </div>
       <div class="col-md-6">
         <button class="btn btn-info btn-lg w-100" onclick="GetAsset()">My Wallet</button>
@@ -408,9 +408,9 @@
     const sell = () => window.location.href = "/invest";
     const mywallet = () => window.location.href = '/holdings';
     const minerwallet = () => {
-      const address = prompt("Enter username/address:");
-      const pass = prompt("Enter password:");
-      window.location.href = '/peer/' + address + '/' + pass;
+        var id = prompt("Enter Asset ID","ID");
+        window.location.href = '/asset/info/'+ id;
+
     };
     const proccess = () => {
       const address = prompt("Enter username/address:");
