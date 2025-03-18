@@ -1,55 +1,87 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset {{asset.id}}</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f9;
+            background-color: #eef2f7;
             color: #333;
         }
         .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 25px;
+            background: #ffffff;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         .header h1 {
-            margin: 0;
-            font-size: 24px;
-            color: #007bff;
+            font-size: 30px;
+            color: #0056b3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
-        .asset-details, .asset-ls {
+        .header img {
+            height: 40px;
+        }
+        .asset-section {
+            background: #f8f9fc;
+            padding: 20px;
+            border-radius: 8px;
             margin-bottom: 20px;
         }
-        .asset-details div, .asset-ls div {
-            margin-bottom: 10px;
-        }
-        .asset-ls div {
+        .asset-section div {
+            padding: 10px;
             border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
         }
         .label {
             font-weight: bold;
             color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #0056b3;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        #plot {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Asset {{asset.id}}</h1>
+            <h1>Asset {{asset.id}} <img src="{{img}}" alt="Asset Image"></h1>
         </div>
-        <div class="asset-details">
+        
+        <div class="asset-section">
             <div><span class="label">Name:</span> {{asset.investment_name}}</div>
             <div><span class="label">Owner:</span> {{asset.owner}}</div>
             <div><span class="label">Quantity:</span> {{asset.quantity}}</div>
@@ -66,11 +98,23 @@
         <div id="plot"></div>
         
         <script>
-            // Load graph JSON from Flask
             var graph = {{ graph_json | safe }};
-            
-            // Render graph
             Plotly.newPlot("plot", graph.data, graph.layout);
         </script>
+        
+        <div class="asset-section">
+            <div><span class="label">Market Cap:</span> {{mk}}</div>
+            <div><span class="label">Beta:</span> {{beta}}</div>
+            <div><span class="label">Range:</span> {{rng}}</div>
+            <div><span class="label">Change:</span> {{change}}</div>
+            <div><span class="label">% Change:</span> {{percent_change}}</div>
+            <div><span class="label">Volume:</span> {{volume}}</div>
+            <div><span class="label">Avg. Volume:</span> {{avg_volume}}</div>
+            <div><span class="label">CEO:</span> {{ceo}}</div>
+            <div><span class="label">Industry:</span> {{industry}}</div>
+            <div><span class="label">Website:</span> <a href="{{website}}" target="_blank">{{website}}</a></div>
+            <div><span class="label">Description:</span> {{description}}</div>
+        </div>
+    </div>
 </body>
 </html>

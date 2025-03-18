@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+	</head>
+	<body>
+		<!-- Create a div for the graph -->
+		<div id="plot"></div>
+		
+		<script>
+			// Load graph JSON from Flask
+			var graph = {{ graph_json | safe }};
+			
+			// Render graph
+			Plotly.newPlot("plot", graph.data, graph.layout);
+		</script>
+	</body>
+</html>
