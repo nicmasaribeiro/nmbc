@@ -6,43 +6,76 @@
     <title>Optimization Ledger</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             background-color: #f4f4f9;
             margin: 0;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        li {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        li:last-child {
-            border-bottom: none;
-        }
+        
         h2 {
             color: #333;
             text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .ledger-container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .ledger-entry {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .ledger-entry:hover {
+            transform: scale(1.02);
+        }
+
+        .ledger-entry strong {
+            color: #333;
+        }
+
+        .ledger-entry ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .ledger-entry li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ledger-entry li:last-child {
+            border-bottom: none;
         }
     </style>
 </head>
 <body>
+
     <h2>Optimization Ledger</h2>
-    {% for i in invs %}
-    <ul>
-        <li><strong>ID:</strong> {{i.id}}</li>
-        <li><strong>Receipt:</strong> {{i.receipt}}</li>
-        <li><strong>File Name:</strong> {{i.filename}}</li>
-        <li><strong>Price:</strong> {{i.price}}</li>
-        <li><strong>Description:</strong> {{i.description}}</li>
-    </ul>
-    {% endfor %}
+    <div class="ledger-container">
+        {% for i in invs %}
+        <div class="ledger-entry">
+            <ul>
+                <li><strong>ID:</strong> {{ i.id }}</li>
+                <li><strong>Receipt:</strong> {{ i.receipt }}</li>
+                <li><strong>File Name:</strong> {{ i.filename }}</li>
+                <li><strong>Price:</strong> NMCY $ {{ i.price }}</li>
+                <li><strong>Description:</strong> {{ i.description }}</li>
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
 </body>
 </html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GF Value vs Price</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="chart"></div>
+
+    <script>
+        var years = [2022, 2023, 2024, 2025, 2026, 2027, 2028];
+        var gfValue = [3, 4.5, 6, 7.5, 9, 10.5, 12];
+        var price = [2.8, 5.2, 5.7, 8.1, 9.4, 10.2, 11.8];
+
+        // Confidence bands
+        var upper_30 = gfValue.map(v => v * 1.3);
+        var upper_10 = gfValue.map(v => v * 1.1);
+        var lower_10 = gfValue.map(v => v * 0.9);
+        var lower_30 = gfValue.map(v => v * 0.7);
+
+        var trace1 = {
+            x: years,
+            y: gfValue,
+            mode: 'lines',
+            name: 'GF Value (USD)',
+            line: { color: 'black', width: 2 }
+        };
+
+        var trace2 = {
+            x: years,
+            y: price,
+            mode: 'lines',
+            name: 'Price (USD)',
+            line: { color: 'blue' }
+        };
+
+        var confidenceBand = {
+            x: [...years, ...years.reverse()],
+            y: [...upper_30, ...lower_30.reverse()],
+            fill: 'toself',
+            fillcolor: 'rgba(0, 255, 0, 0.1)',
+            line: { color: 'transparent' },
+            name: 'Confidence Band (-30% to +30%)'
+        };
+
+        var layout = {
+            title: 'GF Value vs. Price Over Time',
+            xaxis: { title: 'Year' },
+            yaxis: { title: 'Value (USD)' }
+        };
+
+        Plotly.newPlot('chart', [confidenceBand, trace1, trace2], layout);
+    </script>
+</body>
+</html>

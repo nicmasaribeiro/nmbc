@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Asset {{asset.id}}</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -61,6 +62,15 @@
             <div><span class="label">Receipt:</span> {{asset.receipt}}</div>
             <div><span class="label">Tokenized Price:</span> {{asset.tokenized_price}}</div>
         </div>
-
+        
+        <div id="plot"></div>
+        
+        <script>
+            // Load graph JSON from Flask
+            var graph = {{ graph_json | safe }};
+            
+            // Render graph
+            Plotly.newPlot("plot", graph.data, graph.layout);
+        </script>
 </body>
 </html>

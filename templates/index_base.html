@@ -220,7 +220,7 @@
               <li><a class="dropdown-item" href="/option/greeks">Greeks Ledger</a></li>
               <li><a class="dropdown-item" href="/stoch/greeks">Stochastic Greeks</a></li>
               <li><a class="dropdown-item" href="/create/investment">Create Asset</a></li>
-              <li><a class="dropdown-item" href="/invest/asset">Buy Asset</a></li>
+              <li><a class="dropdown-item" href="/invest">Buy Asset</a></li>
               <li><a class="dropdown-item" href="/sell/asset">Sell Asset</a></li>
               <li><a class="dropdown-item" href="/liquidate">Close Asset Position</a></li>
             </ul>
@@ -401,7 +401,7 @@
     
     // Navigation functions
     const buy = () => window.location.href = "/create/investment";
-    const sell = () => window.location.href = "/invest/asset";
+    const sell = () => window.location.href = "/invest";
     const mywallet = () => window.location.href = '/holdings';
     const minerwallet = () => {
       const address = prompt("Enter username/address:");

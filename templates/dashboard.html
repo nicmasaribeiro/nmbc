@@ -160,6 +160,10 @@
                 padding: 10px 15px;
                 font-size: 0.9rem;
             }
+            
+            button{
+                color: blue;
+            }
         }
     </style>
     
@@ -286,6 +290,11 @@
                 <span class="tooltip">Calculate Option Price.</span>
             </a>
             
+            <a href="/binary-search">
+                <i class="fas fa-superscript"></i> Binary Search Model
+                <span class="tooltip">Calculate Stock Price based on option price</span>
+            </a>
+            
             <a href="/multicurve">
                 <i class="fas fa-superscript"></i> Multi-Period Rate to Intermediate Forward Rate
                 <span class="tooltip">Multi-Period Rate to Intermediate Forward Rate.</span>
@@ -329,12 +338,20 @@
                 <i class="fas fa-superscript"></i> Rates Curvature
             </a>
                 <button onclick="search();">token parameters</button>
+                
+                <button onclick="GetAsset();">Expanded Asset View</button>
             
             <script>
                 function search(){
                     var p = prompt();
                     window.location='/token-parameters/'+ p;
                 }
+                
+                function GetAsset(){
+                    var id = prompt("Enter Asset ID","ID");
+                    window.location.href = '/asset/info/'+ id;
+                }
+
             </script>
             
             <a href="/drift&vol">
