@@ -1725,7 +1725,6 @@ def invest_double_check_post():
 	inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 	wal = WalletDB.query.filter_by(address=user_name.username).first()
 	owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
-	house = BettingHouse.query.get_or_404(1)
 	if password == wal.password:
 		if inv.quantity >= 0:
 			if wal.coins >= staked_coins:
@@ -1735,8 +1734,6 @@ def invest_double_check_post():
 				new_value = 0.8 * total_value
 				wal.coins -= total_value
 				inv.coins_value += new_value
-				house.coin_fee(0.1 * total_value)
-
 				# Potentially Problomatic Code 
 				a_tk = AssetToken(
 						username=user,
@@ -1748,18 +1745,6 @@ def invest_double_check_post():
 						cash = coin.dollar_value*inv.tokenized_price,
 						coins = inv.tokenized_price)
 				db.session.add(a_tk)
-				
-				# # Potentially Problomatic Code 
-				# new_transaction = TransactionDatabase(
-				# 							username=user,
-				# 							txid=inv.receipt,
-				# 							from_address=user_name.personal_token,
-				# 							to_address=inv.investment_name,
-				# 							amount=new_value,
-				# 							type='investment',
-				# 							signature=os.urandom(10).hex())
-				# db.session.add(new_transaction)
-
 				db.session.commit()
 				inv.add_investor()
 				return jsonify({"message": "Investment successful"}), 200
