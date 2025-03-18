@@ -53,7 +53,7 @@ class WalletDB(db.Model):
     address = db.Column(db.String, unique=True, nullable=False)
     balance = db.Column(db.Float, default=0)
     password = db.Column(db.String(1024))
-    coins = db.Column(db.Float, default=1000)
+    coins = db.Column(db.Float, default=10000)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     coinbase_wallet = db.Column(db.String)
     token = db.Column(db.String(3072))

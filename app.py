@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -177,7 +177,7 @@ def execute_swap_double_check():
 		schedule.every(int(execution_interval)).days.do(logic)
 
 	print("All swaps scheduled successfully.")
-schedule.every(10).seconds.do(execute_swap_double_check)
+schedule.every(1).minutes.do(execute_swap_double_check)
 
 @celery.task
 def execute_swap():
@@ -1725,17 +1725,19 @@ def invest_double_check_post():
 	inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
 	wal = WalletDB.query.filter_by(address=user_name.username).first()
 	owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
+	house = BettingHouse.query.get_or_404(1)
 	if password == wal.password:
 		if inv.quantity >= 0:
 			if wal.coins >= staked_coins:
 				inv.quantity -= staked_coins
 				total_value = inv.tokenized_price*staked_coins
-				owner_wallet.coins += 0.1*total_value
-				new_value = 0.8*total_value
+				owner_wallet.coins += 0.1 * total_value
+				new_value = 0.8 * total_value
 				wal.coins -= total_value
 				inv.coins_value += new_value
+				house.coin_fee(0.1 * total_value)
 
-				# Remove section token 
+				# Potentially Problomatic Code 
 				a_tk = AssetToken(
 						username=user,
 						token_name=inv.investment_name,
@@ -1746,6 +1748,18 @@ def invest_double_check_post():
 						cash = coin.dollar_value*inv.tokenized_price,
 						coins = inv.tokenized_price)
 				db.session.add(a_tk)
+				
+				# Potentially Problomatic Code 
+				new_transaction = TransactionDatabase(
+											username=user,
+											txid=inv.receipt,
+											from_address=user_name.personal_token,
+											to_address=inv.investment_name,
+											amount=new_value,
+											type='investment',
+											signature=os.urandom(10).hex())
+				db.session.add(new_transaction)
+
 				db.session.commit()
 				inv.add_investor()
 				return jsonify({"message": "Investment successful"}), 200
@@ -1846,7 +1860,6 @@ def profile():
 	notifications = Notification.query.filter_by(receiver_id=user.username).order_by(Notification.timestamp.desc()).all()
 	wallet = WalletDB.query.filter_by(address=user.username).first()
 	portfolio = Portfolio.query.filter_by(username=user.username).all()
-
 	investments = InvestmentDatabase.query.filter_by(owner=user.username).all()
 	return render_template("nmbc_profile.html",user=user.username.upper(),notifications=notifications,wallet=wallet,portfolio=portfolio,investments=investments)
 
@@ -1854,7 +1867,11 @@ def profile():
 def info_assets(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
-	return render_template("asset-info.html", asset=asset)
+	name = asset.investment_name
+	df = yf.Ticker(name.upper()).history(period='2y',interval='1d')["Close"]
+	fig = px.line(df, x=df.index, y=df, title=f"{name} Stock Price Trends")
+	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+	return render_template("asset-info.html", asset=asset,graph_json=graph_json)
 
 @app.route('/get/asset/<int:id>',methods=['GET','POST'])
 def get_asset(id):
@@ -3610,8 +3627,6 @@ def pca_one():
 		return render_template("pca.html",market=market,sector=sector,firm=firm)
 	return render_template("pca.html")
 
-
-
 @app.route("/EqHx", methods=["GET","POST"])
 def EqHx():
 	return render_template("EqHx.html")
@@ -3739,6 +3754,19 @@ def test():
 		return render_template("test.html", graph_json=graph_json)
 	return render_template("test_input.html")
 
+@app.route("/binary-search", methods=["GET", "POST"])
+def binary_search():
+	from binary_search import binary_search_stock_price
+	if request.method == "POST":
+		option_price =float(request.values.get("price"))  # Observed call option price
+		K = float(request.values.get("strike"))             # Strike price
+		T = float(request.values.get("maturity"))                # Time to expiration (1 year)
+		r = float(request.values.get("rf"))             # Risk-free interest rate (5%)
+		sigma = float(request.values.get("sigma"))
+		option_type = request.values.get("type")          # Volatility (20%)
+		price = binary_search_stock_price(option_price, K,T,r,sigma,option_type)
+		return render_template("binary.html",price=price)
+	return render_template("binary.html")
 
 
 @app.route("/kappa",methods=["GET", "POST"])
