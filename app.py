@@ -1749,16 +1749,16 @@ def invest_double_check_post():
 						coins = inv.tokenized_price)
 				db.session.add(a_tk)
 				
-				# Potentially Problomatic Code 
-				new_transaction = TransactionDatabase(
-											username=user,
-											txid=inv.receipt,
-											from_address=user_name.personal_token,
-											to_address=inv.investment_name,
-											amount=new_value,
-											type='investment',
-											signature=os.urandom(10).hex())
-				db.session.add(new_transaction)
+				# # Potentially Problomatic Code 
+				# new_transaction = TransactionDatabase(
+				# 							username=user,
+				# 							txid=inv.receipt,
+				# 							from_address=user_name.personal_token,
+				# 							to_address=inv.investment_name,
+				# 							amount=new_value,
+				# 							type='investment',
+				# 							signature=os.urandom(10).hex())
+				# db.session.add(new_transaction)
 
 				db.session.commit()
 				inv.add_investor()
