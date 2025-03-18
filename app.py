@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -700,7 +700,7 @@ def update_prices():
 
 	return 0
 
-schedule.every(10).seconds.do(update_prices)
+schedule.every(1).minutes.do(update_prices)
 
 
 @celery.task	
@@ -1216,14 +1216,14 @@ def html_trans_database():
 
 @app.route('/mine/investments',methods=['GET','POST'])
 def mine_investments():
-	update()
+	update.delay()
 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 
 
 @login_required
 @app.route('/html/investment/ledger',methods=['GET'])
 def html_investment_ledger():
-	update()
+	update.delay()
 	t = InvestmentDatabase.query.all()
 	return render_template("html-invest-ledger.html", invs=t)
 
@@ -1867,15 +1867,56 @@ def profile():
 	investments = InvestmentDatabase.query.filter_by(owner=user.username).all()
 	return render_template("nmbc_profile.html",user=user.username.upper(),notifications=notifications,wallet=wallet,portfolio=portfolio,investments=investments)
 
+from flask import render_template
+import json
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.utils
+import yfinance as yf
+import pandas as pd
+
+from info import asset_info
 @app.route('/asset/info/<int:id>')
 def info_assets(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
-	name = asset.investment_name
-	df = yf.Ticker(name.upper()).history(period='2y',interval='1d')["Close"]
-	fig = px.line(df, x=df.index, y=df, title=f"{name} Stock Price Trends")
+	name = asset.investment_name.upper()
+	res = asset_info(name.upper())
+	# Fetch historical data
+	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
+	df = df.dropna()
+
+	# Compute rolling mean and standard deviation
+	rolling_window = 20  # Adjust the window size as needed
+	df_mean = df.rolling(window=rolling_window).mean()
+	df_std = df.rolling(window=rolling_window).std()
+
+	# Compute 95% confidence intervals
+	upper_bound = df_mean + 1.96 * df_std
+	lower_bound = df_mean - 1.96 * df_std
+
+	# Create figure
+	fig = go.Figure()
+
+	# Add stock price trend
+	fig.add_trace(go.Scatter(x=df.index, y=df, mode='lines', name=f"{name} Close Price", line=dict(color="blue")))
+
+	# Add confidence interval as a shaded area
+	fig.add_trace(go.Scatter(x=df.index, y=upper_bound, fill=None, mode='lines', line=dict(color='lightblue'), name="Upper Bound"))
+	fig.add_trace(go.Scatter(x=df.index, y=lower_bound, fill='tonexty', mode='lines', line=dict(color='lightblue'), name="Lower Bound", opacity=0.3))
+
+	# Set title and labels
+	fig.update_layout(title=f"{name} Stock Price Trends with Confidence Interval",
+					xaxis_title="Date", yaxis_title="Stock Price",
+					template="plotly_dark")
+
+	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-	return render_template("asset-info.html", asset=asset,graph_json=graph_json)
+
+	return render_template("asset-info.html", asset=asset, graph_json=graph_json,mk=res[0],
+						beta=res[1],rng=res[2],change=res[3],percent_change=res[4],volume=res[5],
+						avg_volume=res[6],ceo=res[7],industry=res[8],website=res[9],img=res[10],description=res[11])
+
 
 @app.route('/get/asset/<int:id>',methods=['GET','POST'])
 def get_asset(id):
@@ -3102,6 +3143,53 @@ def graph_forecast_1m():
 		return html
 	return render_template('graph-forecast.html')
 
+
+@app.route('/max/forecast', methods=['GET', 'POST'])
+def graph_forecast_max():
+    if request.method == 'POST':
+        ticker = request.values.get("asset")
+        if not ticker:
+            return "Error: No ticker provided.", 400
+        
+        ticker = ticker.upper()
+        ticker_data = yf.Ticker(ticker)
+        hist = ticker_data.history(interval='1mo', period='max')['Close']
+
+        if hist.empty:
+            return "Error: No data found for the given ticker.", 400
+
+        initial_price = hist.iloc[-1]
+        ret = hist.pct_change().dropna()
+        drift = np.mean(ret) * 256  # Annualized drift
+        volatility = np.std(ret) * 252
+        dt = 1/12
+        T = 24
+
+        # Simulate multiple price paths
+        num_simulations = 100  # Number of paths to visualize
+        price_paths = []
+        for _ in range(num_simulations):
+            gbm = GeometricBrownianMotion(initial_price, drift, volatility, dt, T)
+            price_paths.append(gbm.prices)
+
+        # Convert data into a DataFrame
+        df = pd.DataFrame(price_paths).T
+        df.columns = [f"Simulation {i+1}" for i in range(num_simulations)]
+        df["Time"] = df.index  # Time steps
+
+        # Reshape DataFrame to long format for Plotly
+        df_long = df.melt(id_vars=["Time"], var_name="Simulation", value_name="Stock Price")
+
+        # Create a multi-line Plotly graph
+        fig = px.line(df_long, x="Time", y="Stock Price", color="Simulation",
+                      title=f"Simulated Stock Price Paths for {ticker}")
+
+        graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+        return render_template("plt.html", graph_json=graph_json)
+
+    return render_template('graph-forecast.html')
+
 @app.route('/1d/forecast', methods=['GET', 'POST'])
 def graph_forecast_1d():
 	if request.method == 'POST':
@@ -3936,19 +4024,19 @@ def token_parameters(id):
 	except Exception as e:
 		return str(e), 500
 
-update.delay()
+# update.delay()
 schedule.every(1).minutes.do(update.delay)
-schedule.every(10).seconds.do(update_prices)
+schedule.every(1).minutes.do(update_prices)
 
-if __name__ == '__main__':
-	with app.app_context():
-		db.create_all()
-		PendingTransactionDatabase.genisis() 
-	def run_scheduler():
-		while True:
-			with app.app_context():
-				schedule.run_pending()
-				time.sleep(1)  #
-	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
-	schedule_thread.start()
-	app.run(host="0.0.0.0",port=8080)
+# if __name__ == '__main__':
+# 	with app.app_context():
+# 		db.create_all()
+# 		PendingTransactionDatabase.genisis() 
+# 	def run_scheduler():
+# 		while True:
+# 			with app.app_context():
+# 				schedule.run_pending()
+# 				time.sleep(1)  #
+# 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
+# 	schedule_thread.start()
+# 	app.run(host="0.0.0.0",port=8080)
