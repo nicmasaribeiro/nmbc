@@ -9,18 +9,18 @@ def asset_info(t):
 		response = requests.request("GET", url)
 		data = json.loads(response.text)
 		return data
-	mk = get_info(t)['marketCap']
-	beta = get_info(t)['beta']
-	rng = get_info(t)['range']
-	change = get_info(t)['change']
-	change_percent = get_info(t)['changePercentage']
-	volume = get_info(t)['volume']
-	avg_volume = get_info(t)['averageVolume']
-	ceo = get_info(t)['ceo']
-	industry = get_info(t)['industry']
-	website = get_info(t)['website']
-	img = get_info(t)['image']
-	description = get_info(t)['description']
+	mk = get_info(t)[0]['marketCap']
+	beta = get_info(t)[0]['beta']
+	rng = get_info(t)[0]['range']
+	change = get_info(t)[0]['change']
+	change_percent = get_info(t)[0]['changePercentage']
+	volume = get_info(t)[0]['volume']
+	avg_volume = get_info(t)[0]['averageVolume']
+	ceo = get_info(t)[0]['ceo']
+	industry = get_info(t)[0]['industry']
+	website = get_info(t)[0]['website']
+	img = get_info(t)[0]['image']
+	description = get_info(t)[0]['description']
 
 	return (mk,beta,rng,change,change_percent,volume,avg_volume,ceo,industry,website,img,description)
-# print(asset_info('AAPL'))
+print(asset_info('AAPL'))
