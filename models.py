@@ -176,6 +176,18 @@ class Blog(db.Model):
     f = db.Column(db.LargeBinary)
     thread = db.Column(db.String)
 
+class Notebook(db.Model):
+    __tablename__ = 'notebook'
+    
+    id = db.Column(db.Integer,unique=True ,primary_key=True)
+    user = db.Column(db.String)
+    title = db.Column(db.String)
+    content = db.Column(db.Text)
+    f = db.Column(db.LargeBinary)
+    thread = db.Column(db.String)
+    receipt = db.Column(db.String) 
+
+
 class Peer(db.Model):
     __tablename__ = 'peers'
     
@@ -238,6 +250,7 @@ class Notification(db.Model):
     sender_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.String(512), nullable=False)
+    receipt = db.Column(db.String)
     is_read = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('Users', foreign_keys=[sender_id])

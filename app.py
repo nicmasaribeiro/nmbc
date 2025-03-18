@@ -144,7 +144,7 @@ def execute_swap_double_check():
 
 		# Fetch historical stock data
 		ticker = yf.Ticker(s.equity.upper())
-		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+		historical_data = ticker.history(period='5d', interval='1m')["Close"]
 
 		if len(historical_data) < 2:
 			print(f"Not enough historical data for {s.equity}")
@@ -166,8 +166,13 @@ def execute_swap_double_check():
 				wallet_one.swap_debt_balance += fixed_leg
 				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
 				wallet_two.swap_credit_balance += floating_leg
-				net_cash_flow = fixed_leg - floating_leg 
-				wallet_one.swap_credit_balance += net_cash_flow
+				net_cash_flow = fixed_leg - floating_leg
+				if net_cash_flow >= 0:
+					wallet_one.swap_credit_balance += net_cash_flow
+					wallet_two.swap_debt_balance -= net_cash_flow
+				else:
+					wallet_one.swap_debt_balance -= abs(net_cash_flow)
+					wallet_two.swap_credit_balance += abs(net_cash_flow)
 				s.total_amount -= (s.notional * maturity)/periods
 				db.session.commit()  # Commit transaction
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
@@ -213,8 +218,13 @@ def execute_swap():
 				wallet_one.swap_debt_balance += fixed_leg
 				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
 				wallet_two.swap_credit_balance += floating_leg
-				net_cash_flow = fixed_leg - floating_leg 
-				wallet_one.swap_credit_balance += net_cash_flow
+				net_cash_flow = fixed_leg - floating_leg
+				if net_cash_flow >= 0:
+					wallet_one.swap_credit_balance += net_cash_flow
+					wallet_two.swap_debt_balance -= net_cash_flow
+				else:
+					wallet_one.swap_debt_balance -= abs(net_cash_flow)
+					wallet_two.swap_credit_balance += abs(net_cash_flow)
 				s.total_amount -= (s.notional * maturity)/periods
 				db.session.commit()  # Commit transaction
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
@@ -244,7 +254,8 @@ def send_notification():
 		notification = Notification(
 			sender_id=sender,
 			receiver_id=receiver_id,
-			message=message
+			message=message,
+			receipt=os.urandom(10).hex()
 		)
 		db.session.add(notification)
 		db.session.commit()
@@ -258,8 +269,16 @@ def get_notifications():
 	user = Users.query.filter_by(username=u.username).first()
 	notifications = Notification.query.filter_by(receiver_id=u.username).order_by(Notification.timestamp.desc()).all()
 	return render_template("my_notes.html",notes=notifications)
-	# return render_template("get_nstes.html")
 
+@app.route('/delete/notification/<receipt>', methods=['GET','POST'])
+@login_required
+def delete_notifications(receipt):
+	notifications = Notification.query.filter_by(receipt=receipt).first()
+	if notifications:
+		db.session.delete(notifications)
+		db.session.commit()
+		return jsonify({"message": "Notification deleted successfully"}), 200
+	return render_template("my_notes.html")
 
 @app.route('/duo-factor/requests', methods=['GET'])
 @login_required
@@ -285,7 +304,7 @@ def request_swap():
 		id = len(Swap.query.all()) + 1 #r#andom.randint(0,1_000_000_000_000)
 		sdb = Swap(id=id,notional=notional,status='Pending',fixed_rate=fixed_rate,equity=equity,amount=periods,receipt=receipt,
 			 floating_rate_spread=floating_rate_spread,
-			 counterparty_a=counterparty_a,counterparty_b=counterparty_b)	
+			 counterparty_a=counterparty_a,counterparty_b=counterparty_b,total_amount=notional)	
 		duo_factor_one = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_a,
 							  from_address=requesting_party,to_address=counterparty_b,amount=periods,timestamp=datetime.utcnow())
 		duo_factor_two = DualFactor(identifier=receipt,dual_factor_signature=os.urandom(10).hex(),username=counterparty_b,
@@ -2038,9 +2057,9 @@ def sell_asset():
 			return f"""<h1>Liquidation Not Possible</h1>"""
 	return render_template("liquidate.html")
 
-@app.route('/bib')
-def bib():
-	return render_template("bib-template.html")
+# @app.route('/bib')
+# def bib():
+# 	return render_template("bib-template.html")
 
 @app.route('/render')
 def render():
@@ -2330,7 +2349,6 @@ def submit_optimization():
 			signature = receipt
 		)
 		db.session.add(pending)
-		db.session.commit()
 		optimization = Optimization(
 							   price=price,
 							   filename=name,
@@ -2369,8 +2387,6 @@ def mine_optimization():
 	user = current_user
 	wal = WalletDB.query.filter_by(address=user.username).first()
 	if request.method == "POST":
-		wal.coins += 50
-		db.session.commit()
 		receipt = request.values.get("receipt")
 		description = (request.values.get("description"))
 		grade = int((request.values.get("grade")))
@@ -2379,6 +2395,7 @@ def mine_optimization():
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
 		if not optmimization:
 			return """<h2>Receipt not found</h2>""", 400
+		
 		f = request.files['file']
 		output_data = f.read()
 		token = OptimizationToken(
@@ -2386,6 +2403,7 @@ def mine_optimization():
 							receipt=receipt,
 							grade=grade,
 							output_data=output_data,
+							string_data=output_data.decode('utf-8'),
 							filename=optmimization.filename,
 							created_at=dt.datetime.now(),
 							description=description)
@@ -3848,15 +3866,45 @@ def option_density():
         d1 = (np.log(S0 / K) + (rf + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
         option_value = S0 * np.exp(EdBt.item() * T) * sp.norm.cdf(d1) - (K * np.exp(-rf * T) * sp.norm.cdf(d2))
-
         print("Option Value:\t", option_value)
-
         return render_template("option_density.html", option_value=option_value)
-
     return render_template("option_density.html")
+########################################################################
+# LKSE PAGES
+########################################################################
+@app.route('/lkse/add/notebook',methods=['POST','GET'])
+@login_required
+def upload_lkse_notebook():
+	if request.method == 'POST':
+		file = request.files['notebook']
+		notebook = Notebook(user=current_user.username)
+		return "Success"
+	return render_template('upload_notebook.html')
 
+@app.route('/lkse/new/notebook',methods=['POST','GET'])
+@login_required
+def lkse_new_notebook():
+    return render_template('lkse_notebook.html')
 
+@app.route('/lkse/my_notebook')
+@login_required
+def lkse_notebook():
+	notebooks = Notebook.query.all()
+	return render_template('my_notebooks.html',notebooks=notebooks)
 
+@app.route('/lkse/bib')
+@login_required
+def lkse_bib():
+    return render_template('lkse_bib.html')
+
+@app.route('/lkse/index')
+@login_required
+def lkse_index():
+    return render_template('lkse_index.html')
+
+########################################################################
+# LKSE PAGES
+########################################################################
 
 @app.route('/token-parameters/<int:id>')
 def token_parameters(id):
