@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>LK Notebook.io</title>
+	
+		<link rel="stylesheet" type="text/css" href="pages-index.css">
+		<script>
+		let myStorage = window.localStorage;
+		
+		</script>
+		<style>
+			body{
+				background-color: #7c7da6;
+			}
+			
+			body {
+				font-family: Arial, sans-serif;
+				background-color: #7c7da6;
+				color: white;
+				text-align: center;
+				margin: 0;
+				padding: 0;
+			}
+			.header {
+				background: #4a4b7a;
+				padding: 20px;
+				font-size: 24px;
+			}
+			.download, button {
+				background: #f8b400;
+				color: black;
+				padding: 10px 20px;
+				margin: 10px;
+				border: none;
+				cursor: pointer;
+				font-size: 16px;
+				border-radius: 5px;
+				text-decoration: none;
+				display: inline-block;
+			}
+			.download:hover, button:hover {
+				background: #e09e00;
+			}
+			.counter {
+				margin: 20px 0;
+				font-size: 24px;
+			}
+			#img_view {
+				background: white;
+				padding: 20px;
+				color: black;
+				border-radius: 10px;
+				margin: 20px auto;
+				max-width: 600px;
+			}
+		</style>
+		
+	</head>
+
+<body id="body">
+	<div class="header">
+		<a href="/lkse/index" style="color: white; text-decoration: none;"><h1>LKSE</h1></a>
+		<p>Welcome to Logknot Exchange</p>
+	</div>
+	
+	<a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" download="page.html" class="download">Download Notebook</a>
+	
+	
+	<div class="counter">
+		<h2>Notebook has <span id="counter">1</span> Pages</h2>
+	</div>
+	<button onclick="add();return true;">
+		CAPTURE
+	</button> 
+	
+	<script>
+		let c = 0;
+		myStorage.setItem('count', c);
+		document.getElementById('counter').innerHTML = myStorage.getItem('count');
+	</script>
+	
+	<script> 
+		
+		var count = c;
+		
+		function add()
+		{ 
+			count = count + 1;
+			myStorage.setItem('count', count);
+			
+			document.getElementById('counter').innerHTML = myStorage.getItem('count');
+			
+			var object = document.getElementById("captured"); 
+			var newObject = document.createElement("div"); 
+			newObject.innerHTML = object.innerHTML; 
+			document.getElementById("body").appendChild(newObject); 
+		} 
+	</script> 
+	
+	<div id="blank_space"></div>
+	
+	<div id="captured">
+		
+		<!-- ======= image frame <======> <input type="file". onchange="openFile(event)"> --> 
+		<div id="img_view">
+			
+			<div><h2> LogKnot <em>RENDER</em></h2> <div id="blank_space"></div> 
+				<form method="post" enctype="multipart/form-data">
+					<input name="file" type="file" accept="/*" onchange="openFile(event)"> 
+				
+				</form> 
+			</div> 
+			
+			<div id="blank_space"></div> 
+			
+			<script>
+				openFile =(event)=> { 
+					var input = event.target; 
+					var reader = new FileReader(); 
+					reader.onload =()=> { 
+						var dataURL = reader.result;
+						var data_count = myStorage.getItem('count');
+						var output = document.getElementById("img"); 
+						output.src = dataURL; }; 
+					let result = reader.readAsDataURL(input.files[0]);
+					localStorage.setItem('buffer', result);}; 
+			</script> 
+			
+			<div id="blank_space"></div>
+			
+			<!-- ======= FILE frame <======> <input type="file". onchange="openFile(event)"> --> 
+			<div> <iframe class="frame" id="img" width="95%" height="1300px" sandbox="allow-scripts"></iframe> </div> 
+			
+			<div id="blank_space"></div> <hr>   
+		</div> 
+		
+	</div>  
+		
+	
+	</body>
+</html>

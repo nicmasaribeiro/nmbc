@@ -44,14 +44,25 @@
             <th>Message</th>
             <th>Sender</th>
             <th>Timestamp</th>
+            <th>Receipt</th>
+            <th>Delete</th>
         </tr>
         {% for n in notes %}
         <tr>
             <td>{{ n.message }}</td>
             <td>{{ n.sender_id }}</td>
             <td>{{ n.timestamp }}</td>
+            <td>{{ n.receipt }}</td>
+            <th><button style="color: red;background-color: blue; width: 100px;align-content: center;" onclick="delete_notification();"> Delete </button></th>
 
         </tr>
+        
+        <script>
+            const delete_notification = () => {
+                const address = prompt("Enter notification receipt:","enter receipt address");
+                window.location.href = '/proccess/' + address;
+            };
+        </script>
         {% endfor %}
     </table>
 </body>

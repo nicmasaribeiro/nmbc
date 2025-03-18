@@ -65,28 +65,8 @@
             <p><strong>File Name:</strong> {{ i.filename }}</p>
             <p><strong>Description:</strong> {{ i.description }}</p>
             <p><strong>Grade:</strong> {{ i.grade }}</p>
-            <p><strong>Output Data:</strong> {{ i.output_data}}</p>
-            <p id="decodedText">Loading...</p>
-            <button onclick="decode()">Decode</button>
-
         </div>
         
-        <script>
-            
-            function decode () {
-                prompt("Decoding Data");
-                // Get encoded data from Flask
-                var encodedData = "{{ i.output_data }}";
-                
-                // Decode Base64 data
-                var decodedData = atob(encodedData);  
-                
-                // Display decoded text
-                document.getElementById("decodedText").innerText = decodedData;
-            }
-            
-        </script>
-
         {% endfor %}
     </div>
     </body>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bib.io</title>
+    <link rel="stylesheet" type="text/css" href="pages-index.css">
+    <link rel="stylesheet" type="text/css" href="styles/styles.css">
+    <style>
+        body {
+            background: grey;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: white;
+        }
+
+        .header {
+            background: #4a4b7a;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .download, button {
+            background: #f8b400;
+            color: black;
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .download:hover, button:hover {
+            background: #e09e00;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: auto auto;
+            background: black;
+            padding: 20px;
+        }
+        .grid-item {
+            padding: 20px;
+            font-size: 18px;
+            text-align: center;
+            color: white;
+        }
+
+        .scroll {
+            background: #038cfc;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            overflow-x: hidden;
+            text-align: justify;
+        }
+        .scroll #note_bubble {
+            background: black;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .scroll #note_bubble:hover {
+            background: #fffcde;
+            color: black;
+            font-size: 20px;
+        }
+
+        #stats {
+            background: #fffcde;
+            padding: 10px;
+            text-align: center;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="../index.html" style="color: white; text-decoration: none;"><h1>LKSE</h1></a>
+        <p>Welcome to Logknot Student Exchange</p>
+    </div>
+
+    <a onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" download="page.html" class="download">Download Bibliography</a>
+    <button onclick="authDoc()">Authorize</button>
+
+    <div class="grid-container">
+        <div class="grid-item" id="aut"></div>
+        <div class="grid-item" id="aud"></div>
+    </div>
+
+    <script>
+        function authDoc() {
+            var author = prompt('Request author', 'id');
+            var audience = prompt('Request audience', 'id');
+            document.getElementById('aut').innerHTML = author;
+            document.getElementById('aud').innerHTML = audience;
+        }
+    </script>
+
+    <div class="scroll" id="note_pad"></div>
+
+    <div id="stats">
+        <h3><em>(# of queries)</em></h3>
+        <h2>∆ count Ω <span id="counter">0</span></h2>
+    </div>
+
+    <form action="#" onsubmit="addNote(); return false;">
+        <textarea id="note" type="text" style="width: 100%; font-size: 20px;" spellcheck="on"></textarea>
+        <input id="notename" type="text">
+        <input type="submit">
+    </form>
+
+    <script>
+        let myStorage = window.localStorage;
+        let noteStorage = window.sessionStorage;
+        let count = parseInt(myStorage.getItem('count')) || 0;
+        document.getElementById('counter').textContent = count;
+
+        function addNote() {
+            count++;
+            myStorage.setItem('count', count);
+            document.getElementById('counter').textContent = count;
+            
+            let noteText = document.getElementById('note').value;
+            let noteName = document.getElementById('notename').value;
+            let notePad = document.getElementById('note_pad');
+            
+            let fullArea = document.createElement('div');
+            fullArea.setAttribute('id', 'full_area');
+            
+            let index = document.createElement('h3');
+            index.textContent = count + ") " + noteName;
+            
+            let noteBubble = document.createElement('div');
+            noteBubble.setAttribute('id', 'note_bubble');
+            noteBubble.textContent = noteText;
+            
+            let textArea = document.createElement('textarea');
+            textArea.textContent = noteText;
+            
+            fullArea.appendChild(index);
+            fullArea.appendChild(noteBubble);
+            fullArea.appendChild(textArea);
+            notePad.appendChild(fullArea);
+            
+            noteStorage.setItem(count, noteText);
+            document.getElementById('note').value = "";
+            document.getElementById('notename').value = "";
+        }
+    </script>
+</body>
+</html>

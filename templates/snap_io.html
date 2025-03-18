@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snap IO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <style>
+    body {
+      background-color: #ebf3ff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    #home_header {
+      background-color: #038cfc;
+      height: 70px;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      color: #fffcde;
+      font-size: 40px;
+      font-family: 'Impact', sans-serif;
+    }
+
+    .sidenav {
+      height: 100%;
+      width: 0;
+      position: fixed;
+      top: 0;
+      right: 0;
+      background-color: #111;
+      overflow-x: hidden;
+      transition: 0.5s;
+      padding-top: 60px;
+    }
+
+    .sidenav a {
+      padding: 10px 20px;
+      text-decoration: none;
+      font-size: 18px;
+      color: #818181;
+      display: block;
+      transition: 0.3s;
+    }
+
+    .sidenav a:hover {
+      color: #f1f1f1;
+    }
+
+    .sidenav .closebtn {
+      position: absolute;
+      top: 0;
+      right: 25px;
+      font-size: 36px;
+    }
+
+    .open-btn {
+      font-size: 20px;
+      cursor: pointer;
+      background-color: #b9cdeb;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      width: 120px;
+      margin: 20px;
+    }
+
+    section {
+      padding: 20px;
+    }
+  </style>
+  
+  <script>
+    let ws = new WebSocket('https://192.168.1.160:8/IMAGES');
+
+    function openNav() {
+      document.getElementById("mySidenav").style.width = "250px";
+    }
+
+    function closeNav() {
+      document.getElementById("mySidenav").style.width = "0";
+    }
+
+    function Open() {
+      let image = document.getElementById("myImage").value;
+      ws.send(JSON.stringify(image));
+    }
+  </script>
+</head>
+<body>
+  <div id="home_header">Snap IO <em>Upload</em></div>
+
+  <div id="mySidenav" class="sidenav">
+    <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+    <a href="/"><em>Chat</em></a>
+    <a href="/">Home</a>
+    <a href="/">WDV</a>
+    <a href="/">SIO <em>View</em></a>
+    <a href='/'>Files</a>
+    <a href='/'>Photos</a>
+    <a href='/'>FTD</a>
+  </div>
+
+  <div class="open-btn" onclick="openNav()"><strong>Open</strong></div>
+
+  <section>
+    <h2>Image <em>Capture</em></h2>
+    <form>
+      <input id='myImage' type="file" accept="image/*" capture="environment">
+      <button type="button" onclick="Open()">Submit</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Image <em>Choose</em></h2>
+    <input type="file" accept="*">
+  </section>
+
+  <div>
+    <iframe src="https://192.168.1.160:8/mobile-FILES" width="400" height="200" style="border: 1px solid"></iframe>
+    <hr>
+    <iframe src="https://192.168.1.160:8/IMAGES" width="400" height="200" style="border: 1px solid"></iframe>
+  </div>
+
+  <div>
+    <iframe src="https://www.desmos.com/calculator/cy8liyegsn?embed" width="20" height="12.4" style="border: 1px solid #ccc"></iframe>
+    <iframe src="https://www.desmos.com/calculator/vqsh72frv3?embed" width="20" height="12.4" style="border: 1px solid #ccc"></iframe>
+  </div>
+</body>
+</html>

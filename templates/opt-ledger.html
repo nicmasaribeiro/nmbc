@@ -58,6 +58,24 @@
         .ledger-entry li:last-child {
             border-bottom: none;
         }
+
+        /* Styling for better readability of the description */
+        .description {
+            font-size: 20px;
+            line-height: 1.5;
+            color: #555;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 10px;
+            white-space: pre-wrap; /* Maintains spacing and line breaks */
+            word-wrap: break-word;
+        }
+        .description:hover{
+            background-color: black;
+            color: white;
+            font-size: 30px;
+            padding: 30px;
+        }
     </style>
 </head>
 <body>
@@ -70,8 +88,10 @@
                 <li><strong>ID:</strong> {{ i.id }}</li>
                 <li><strong>Receipt:</strong> {{ i.receipt }}</li>
                 <li><strong>File Name:</strong> {{ i.filename }}</li>
-                <li><strong>Price:</strong> NMCY $ {{ i.price }}</li>
-                <li><strong>Description:</strong> {{ i.description }}</li>
+                <li><strong>Price:</strong> NMCY$ {{ i.price }}</li>
+                <li><strong>Description:</strong> 
+                    <div class="description">{{ i.description }}</div>
+                </li>
             </ul>
         </div>
         {% endfor %}
