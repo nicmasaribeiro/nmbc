@@ -7,7 +7,7 @@ def get_info(ticker):
 		url = "https://financialmodelingprep.com/stable/profile?symbol={ticker}&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
 		response = requests.request("GET", url)
 		data = json.loads(response.text)
-		return data[-1]
+		return data[0]
 
 def asset_info(t):
 	mk = get_info(t)['marketCap']

@@ -1882,7 +1882,7 @@ def info_assets(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
 	name = asset.investment_name.upper()
-	res = asset_info(name.upper())
+	# res = asset_info(name)
 	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
 	df = df.dropna()
 	# Compute rolling mean and standard deviation
@@ -1899,18 +1899,15 @@ def info_assets(id):
 	# Add confidence interval as a shaded area
 	fig.add_trace(go.Scatter(x=df.index, y=upper_bound, fill=None, mode='lines', line=dict(color='lightblue'), name="Upper Bound"))
 	fig.add_trace(go.Scatter(x=df.index, y=lower_bound, fill='tonexty', mode='lines', line=dict(color='lightblue'), name="Lower Bound", opacity=0.3))
-
 	# Set title and labels
 	fig.update_layout(title=f"{name} Stock Price Trends with Confidence Interval",
 					xaxis_title="Date", yaxis_title="Stock Price",
 					template="plotly_dark")
-
 	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
-	return render_template("asset-info.html", asset=asset, graph_json=graph_json,mk=res[0],
-						beta=res[1],rng=res[2],change=res[3],percent_change=res[4],volume=res[5],
-						avg_volume=res[6],ceo=res[7],industry=res[8],website=res[9],img=res[10],description=res[11])
+	return render_template("asset-info.html", asset=asset, graph_json=graph_json,)#mk=res[0],
+						#beta=res[1],rng=res[2],change=res[3],percent_change=res[4],volume=res[5],
+						#avg_volume=res[6],ceo=res[7],industry=res[8],website=res[9],img=res[10],description=res[11])
 
 
 @app.route('/get/asset/<int:id>',methods=['GET','POST'])
