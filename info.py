@@ -8,7 +8,7 @@ def asset_info(t):
 		url = "https://financialmodelingprep.com/stable/profile?symbol={ticker}&apikey=67824182044bfc7088c8b3ee21824590".format(ticker=ticker)
 		response = requests.request("GET", url)
 		data = json.loads(response.text)
-		return data[0]
+		return data
 	mk = get_info(t)['marketCap']
 	beta = get_info(t)['beta']
 	rng = get_info(t)['range']
@@ -23,3 +23,4 @@ def asset_info(t):
 	description = get_info(t)['description']
 
 	return (mk,beta,rng,change,change_percent,volume,avg_volume,ceo,industry,website,img,description)
+# print(asset_info('AAPL'))
