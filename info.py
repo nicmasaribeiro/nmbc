@@ -23,4 +23,3 @@ def asset_info(t):
 	description = get_info(t)['description']
 
 	return (mk,beta,rng,change,change_percent,volume,avg_volume,ceo,industry,website,img,description)
-#print(asset_info('AAPL'))
