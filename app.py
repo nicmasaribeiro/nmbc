@@ -1875,32 +1875,27 @@ import plotly.utils
 import yfinance as yf
 import pandas as pd
 
-from info import asset_info
+# from info import asset_info
+from asset_info import asset_info
 @app.route('/asset/info/<int:id>')
 def info_assets(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
 	name = asset.investment_name.upper()
 	res = asset_info(name.upper())
-	# Fetch historical data
 	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
 	df = df.dropna()
-
 	# Compute rolling mean and standard deviation
 	rolling_window = 20  # Adjust the window size as needed
 	df_mean = df.rolling(window=rolling_window).mean()
 	df_std = df.rolling(window=rolling_window).std()
-
 	# Compute 95% confidence intervals
 	upper_bound = df_mean + 1.96 * df_std
 	lower_bound = df_mean - 1.96 * df_std
-
 	# Create figure
 	fig = go.Figure()
-
 	# Add stock price trend
 	fig.add_trace(go.Scatter(x=df.index, y=df, mode='lines', name=f"{name} Close Price", line=dict(color="blue")))
-
 	# Add confidence interval as a shaded area
 	fig.add_trace(go.Scatter(x=df.index, y=upper_bound, fill=None, mode='lines', line=dict(color='lightblue'), name="Upper Bound"))
 	fig.add_trace(go.Scatter(x=df.index, y=lower_bound, fill='tonexty', mode='lines', line=dict(color='lightblue'), name="Lower Bound", opacity=0.3))
