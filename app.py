@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -163,26 +163,19 @@ def execute_swap_double_check():
 		def logic():
 			if s.status == 'Approved' and s.total_amount >= 0:
 				fixed_leg = s.notional * s.fixed_rate
-				wallet_one.swap_debt_balance += fixed_leg
+				wallet_one.swap_credit_balance += fixed_leg
 				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
 				wallet_two.swap_credit_balance += floating_leg
-				net_cash_flow = fixed_leg - floating_leg
-				if net_cash_flow >= 0:
-					wallet_one.swap_credit_balance += net_cash_flow
-					wallet_two.swap_debt_balance -= net_cash_flow
-				else:
-					wallet_one.swap_debt_balance -= abs(net_cash_flow)
-					wallet_two.swap_credit_balance += abs(net_cash_flow)
-				s.total_amount -= (s.notional * maturity)/periods
-				db.session.commit()  # Commit transaction
+				s.total_amount -= (floating_leg + fixed_leg)
+				db.session.commit()
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
 
 		# Schedule swap execution at defined intervals
 		execution_interval = time_total / periods  # Calculate days per execution
 		schedule.every(int(execution_interval)).days.do(logic)
-
 	print("All swaps scheduled successfully.")
-schedule.every(1).minutes.do(execute_swap_double_check)
+
+schedule.every(10).seconds.do(execute_swap_double_check)
 
 @celery.task
 def execute_swap():
@@ -196,7 +189,7 @@ def execute_swap():
 
 		# Fetch historical stock data
 		ticker = yf.Ticker(s.equity.upper())
-		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
+		historical_data = ticker.history(period='1d', interval='1m')["Close"]
 
 		if len(historical_data) < 2:
 			print(f"Not enough historical data for {s.equity}")
@@ -215,79 +208,42 @@ def execute_swap():
 		def logic():
 			if s.status == 'Approved' and s.total_amount >= 0:
 				fixed_leg = s.notional * s.fixed_rate
-				wallet_one.swap_debt_balance += fixed_leg
+				wallet_one.swap_credit_balance += fixed_leg
 				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
 				wallet_two.swap_credit_balance += floating_leg
-				net_cash_flow = fixed_leg - floating_leg
-				if net_cash_flow >= 0:
-					wallet_one.swap_credit_balance += net_cash_flow
-					wallet_two.swap_debt_balance -= net_cash_flow
-				else:
-					wallet_one.swap_debt_balance -= abs(net_cash_flow)
-					wallet_two.swap_credit_balance += abs(net_cash_flow)
-				s.total_amount -= (s.notional * maturity)/periods
-				db.session.commit()  # Commit transaction
+				s.total_amount -= (floating_leg + fixed_leg)
+				db.session.commit()
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
-
 		# Schedule swap execution at defined intervals
 		execution_interval = time_total / periods  # Calculate days per execution
 		schedule.every(int(execution_interval)).days.do(logic)
-
 	print("All swaps scheduled successfully.")
 
-# Run the function every 10 seconds (for testing purposes)
 execute_swap.delay()
-schedule.every(1).minutes.do(execute_swap)
 
+# from decimal import Decimals
+@app.route('/payment/swap', methods=['POST', 'GET'])
 def make_payment():
 	"""Executes swap transactions at scheduled intervals"""
-	swaps = Swap.query.all()  # Get all swaps from the database
+	if request.method =='POST':
+		receipt = request.values.get('receipt')
+		swap = Swap.query.filter_by(receipt=receipt).first()  # Get all swaps from the database
+		price = yf.Ticker(swap.equity.upper()).history()["Close"]
+		ret = np.log(price[-1]) - np.log(price[-2])
+		party_a = swap.counterparty_a
+		party_b = swap.counterparty_b
+		wallet_one = WalletDB.query.filter_by(address=party_a).first()
+		wallet_two = WalletDB.query.filter_by(address=party_b).first()
+		if swap.status == 'Approved' and swap.total_amount >= 0:
+			fixed_leg = swap.notional * swap.fixed_rate
+			wallet_one.swap_credit_balance += fixed_leg
+			floating_leg =  swap.notional * max(swap.floating_rate_spread, ret)
+			wallet_two.swap_credit_balance += floating_leg
+			swap.total_amount -= (floating_leg + fixed_leg) #(swap.notional * swap.maturity)/swap.amount
+			db.session.commit()  # Commit transaction
+			return f"<h2>Successful Debt Balance Update</h2>"
+	return render_template('make_payments.html',)
 
-	for s in swaps:
-		periods = s.amount
-		maturity = s.maturity
-		time_total = maturity * 365  # Convert years to days
-
-		# Fetch historical stock data
-		ticker = yf.Ticker(s.equity.upper())
-		historical_data = ticker.history(period='ytd', interval='1d')["Close"]
-
-		if len(historical_data) < 2:
-			print(f"Not enough historical data for {s.equity}")
-			continue  # Skip if data is insufficient
-
-		ret = np.log(historical_data[-1]) - np.log(historical_data[-2])  # Log return
-		print(f"Return for {s.equity}: {ret}")
-
-		wallet_one = WalletDB.query.filter_by(address=s.counterparty_a).first()
-		wallet_two = WalletDB.query.filter_by(address=s.counterparty_b).first()
-
-		if not wallet_one or not wallet_two:
-			print(f"Wallets not found for {s.counterparty_a} or {s.counterparty_b}")
-			continue  # Skip if wallets are missing
-
-		def logic():
-			if s.status == 'Approved' and s.total_amount >= 0:
-				fixed_leg = s.notional * s.fixed_rate
-				wallet_one.swap_debt_balance += fixed_leg
-				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
-				wallet_two.swap_credit_balance += floating_leg
-				net_cash_flow = fixed_leg - floating_leg
-				if net_cash_flow >= 0:
-					wallet_one.swap_credit_balance += net_cash_flow
-					wallet_two.swap_debt_balance -= net_cash_flow
-				else:
-					wallet_one.swap_debt_balance -= abs(net_cash_flow)
-					wallet_two.swap_credit_balance += abs(net_cash_flow)
-				s.total_amount -= (s.notional * maturity)/periods
-				db.session.commit()  # Commit transaction
-				print(f"Executed swap for {s.id}: Debt Balance Updated")
-
-		# Schedule swap execution at defined intervals
-		execution_interval = time_total / periods  # Calculate days per execution
-		schedule.every(int(execution_interval)).days.do(logic)
-
-	print("All swaps scheduled successfully.")
 
 @app.route('/notifications/send', methods=['GET','POST'])
 @login_required
@@ -365,12 +321,17 @@ def request_swap():
 	return render_template('request_swap.html')
 
 
-                           
 @app.route('/all/swaps', methods=['POST', 'GET'])
 def pending_swap():
 	s = Swap.query.all()
 	return render_template('pending_swaps.html', swaps=s)
 
+
+@app.route('/get/swap/<id>', methods=['POST', 'GET'])
+def get_swap(id):
+	s = Swap.query.get_or_404(id)
+	ls = s.total_amount
+	return f"<h1>{ls}</h1>"#r##ender_template('pending_swaps.html', swaps=s)
 
 # def request_negotiation():
 @app.route('/swaps/negotiate', methods=['POST', 'GET'])
@@ -2009,8 +1970,6 @@ def options_chain_pricing(ticker):
 	mean_price = df['adjusted_price'].mean()
 	std_price = df['adjusted_price'].std()
 
-	# mean_vars = df.mean(axis=0)
-	# print("MEAN OF ALL VARIABLE\n",mean_vars)
 	dataframe = pd.DataFrame(df)
 	df_corr = dataframe[['last', 'strike','volume','open_interest','adjusted_price','delta', 'gamma', 'theta', 'vega', 'rho']].corr()
 	X = dataframe[['last', 'strike','volume','open_interest','delta', 'gamma', 'theta', 'vega', 'rho']].to_numpy()
@@ -2019,8 +1978,8 @@ def options_chain_pricing(ticker):
 
 	lr = LinearRegression().fit(X_train, y_train)
 	score = lr.score(X_test, y_test)
-	# print("Score
-	
+	# predictions = lr.predict()
+
 	corr_html = df_corr.to_html()
 	html = df.to_html()
 	string =f"""<!DOCTYPE html>
@@ -2133,7 +2092,7 @@ def options_stats(ticker):
 	rho = np.array([float(x) for x in dataframe['rho']])
 	rho = np.mean(rho)
 	# delta = dataframe.loc[float(dataframe['delta']) > 1]
-	return f"Success {delta}<br>{gamma}<br>{theta}<br>{vega}<br>{rho}"#.format(delta=delta)
+	return f"Success <h1>{delta}</h1><br><h1>{gamma}</h1><br><h1>{theta}</h1><br><h1>{vega}</h1><br><h1>{rho}</ sh1>"#.format(delta=delta)
 
 @app.route('/options/chain/<ticker>')
 def options_chain(ticker):
@@ -2142,8 +2101,7 @@ def options_chain(ticker):
 	data = r.json()
 
 	df = {'symbol':[],'expiration':[],'strike':[],'last':[],'type':[],'volume':[],'open_interest':[],'implied_volatility':[], 'delta':[], 'gamma':[], 'theta':[], 'vega':[], 'rho':[]}
-	
-	# print(data['data'][0].keys())
+
 	for i in range(len(data['data'])):
 		target = data['data'][i]
 		df['symbol'].append(target['symbol'])
@@ -2302,9 +2260,7 @@ def info_assets(id):
 
 	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-	return render_template("asset-info.html", asset=asset, graph_json=graph_json,)#mk=res[0],
-						#beta=res[1],rng=res[2],change=res[3],percent_change=res[4],volume=res[5],
-						#avg_volume=res[6],ceo=res[7],industry=res[8],website=res[9],img=res[10],description=res[11])
+	return render_template("asset-info.html", asset=asset, graph_json=graph_json)
 
 
 @app.route('/get/asset/<int:id>',methods=['GET','POST'])
