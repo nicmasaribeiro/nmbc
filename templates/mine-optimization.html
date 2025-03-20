@@ -101,8 +101,15 @@
         <h1>Mine Optimization</h1>
         <form action="/mine/optimization" method="POST" enctype="multipart/form-data">
             
-            <label for="file">Output Data File:</label>
+            
+            <label for="file">Optimization Output Data File:</label>
             <input type="file" name="file" id="file">
+            
+            <label for="file">Modified Optimization File:</label>
+            <input type="file" name="file_two" id="file_two">
+            
+            <label for="file">Additional File:</label>
+            <input type="file" name="file_three" id="file_three">
 
             <label for="receipt">Receipt:</label>
             <input type="text" name="receipt" id="receipt" placeholder="Enter receipt">

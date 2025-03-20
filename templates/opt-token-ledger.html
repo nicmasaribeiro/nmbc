@@ -52,6 +52,11 @@
             font-size: 14px;
             line-height: 1.6;
         }
+        .script{
+            background-color: gray;
+            overflow: auto;
+            
+        }
     </style>
 </head>
 <body>
@@ -66,7 +71,9 @@
             <p><strong>Description:</strong> {{ i.description }}</p>
             <p><strong>Grade:</strong> {{ i.grade }}</p>
         </div>
-        
+        <div class="script">
+            {{i.string_data}}
+        </div>
         {% endfor %}
     </div>
     </body>

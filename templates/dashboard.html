@@ -100,9 +100,13 @@
             font-size: 0.9rem;
         }
         
-        .dashboard a:hover .tooltip {
+        .dashboard a:hover {
             visibility: visible;
             opacity: 1;
+        }
+        
+        .tooltip:hover{
+            visibility: visible;
         }
         
         .tooltip::after {
@@ -179,6 +183,14 @@
             <a href="/basic/dcf">
                 <i class="fas fa-chart-line"></i> Basic DCF
                 <span class="tooltip">Discounted Cash Flow calculation for fundamental analysis.</span>
+            </a>
+            <a href="/create_options">
+                <i class="fas fa-chart-line"></i> Create Option Chain
+                <span class="tooltip">Create the dataset of options for specified company</span>
+            </a>
+            <a href="/chain/filtered">
+                <i class="fas fa-chart-line"></i> Filtered Option Chain
+                <span class="tooltip">View the dataset of options for specified company</span>
             </a>
             <a href="/admix">
                 <i class="fas fa-chart-line"></i> Forecast Graphs
@@ -346,11 +358,9 @@
 <!--        -->
 <!--        <button onclick="search();" style="background-color: blue;color: white;">token parameters</button>-->
 <!--            -->
-            <button onclick="GetAsset();" style="background-color: blue;color: white;">Expanded Asset View</button>
             
             <button onclick="get_options_chain();" style="background-color: blue;color: white;">Simple Options Chain</button>
             
-            <button onclick="get_chain();" style="background-color: blue;color: white;">Stats Options Chain</button>
             
             <script>
                 function search(){

@@ -1,10 +1,60 @@
-<html>
-        <body>
-            <h2>Upload File</h2>
-            <form action="/lkse/add/notebook" method="POST" enctype="multipart/form-data">
-                <input type="file" name="notebook">
-                <input type="text" name="name">
-                <input type="submit" value="Upload">
-            </form>
-        </body>
-    </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 50px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        input[type="file"], input[type="text"], input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        input[type="submit"] {
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Upload Notebook</h2>
+        <form action="/lkse/add/notebook" method="POST" enctype="multipart/form-data">
+            <input type="file" name="notebook" required>
+            <input type="text" name="name" placeholder="Enter file name" required>
+            <input type="text" id="thread" name="thread" placeholder="Enter file thread">
+            <input type="submit" value="Upload">
+        </form>
+    </div>
+
+</body>
+</html>
