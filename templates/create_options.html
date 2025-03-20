@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				background-color: #f4f4f4;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				height: 100vh;
+				margin: 0;
+			}
+			
+			.form-container {
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+				width: 320px;
+				text-align: center;
+			}
+			
+			h2 {
+				margin-bottom: 15px;
+				color: #333;
+			}
+			
+			label {
+				font-size: 14px;
+				color: #555;
+				font-weight: bold;
+				display: block;
+				margin-bottom: 8px;
+			}
+			
+			input[type="text"] {
+				width: 100%;
+				padding: 10px;
+				margin-bottom: 15px;
+				border: 1px solid #ccc;
+				border-radius: 5px;
+				font-size: 16px;
+				box-sizing: border-box;
+				outline: none;
+			}
+			
+			input[type="text"]:focus {
+				border-color: #007bff;
+				box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+			}
+			
+			input[type="submit"] {
+				background-color: #007bff;
+				color: white;
+				border: none;
+				padding: 10px 15px;
+				font-size: 16px;
+				border-radius: 5px;
+				cursor: pointer;
+				width: 100%;
+				transition: 0.3s ease;
+			}
+			
+			input[type="submit"]:hover {
+				background-color: #0056b3;
+			}
+			
+			.info {
+				font-size: 12px;
+				color: #666;
+				margin-top: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="form-container">
+			<h2>Select Company</h2>
+			<form method="POST" action="/create_options">
+				<label for="year">Enter Company Ticker:</label>
+				<input type="text" id="ticker" name="ticker" placeholder="e.g., AAPL,MSFT,GOOGL" required>
+				<input type="submit" value="Submit">
+			</form>
+		</div>
+	</body>
+</html>

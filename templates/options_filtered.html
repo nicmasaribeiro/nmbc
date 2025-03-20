@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Year</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #007bff, #6610f2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .form-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            width: 350px;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        label {
+            font-size: 14px;
+            color: #444;
+            font-weight: 600;
+            display: block;
+            text-align: left;
+            margin: 12px 0 5px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
+        }
+
+        input[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.3s ease-in-out;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+        }
+
+        .info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <h2>Filter Information</h2>
+        <form method="POST" action="/chain/filtered">
+            <label for="ticker">Enter Company:</label>
+            <input type="text" id="ticker" name="ticker" placeholder="e.g., AAPL, IBM, GOOGL" required>
+            
+            <label for="year">Enter Years:</label>
+            <input type="text" id="year" name="year" placeholder="e.g., 2025, 2026, 2027" required>
+            
+            <label for="columns">Enter Variables:</label>
+            <input type="text" id="columns" name="columns" placeholder="e.g., strike, last, volume, open_interest" required>
+            
+            <label for="option_type">Enter Option Type:</label>
+            <input type="text" id="option_type" name="option_type" placeholder="e.g., call or put" required>
+            
+            <input type="submit" value="Submit">
+        </form>
+
+        <div class="info">
+            <p><strong>Possible Variables:</strong> 'strike', 'last', 'volume', 'open_interest', 'implied_volatility', 'delta', 'gamma', 'theta', 'vega', 'rho', 'T', 'bs_price', 'adjusted_price'</p>
+        </div>
+    </div>
+
+</body>
+</html>

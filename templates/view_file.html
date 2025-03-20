@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        iframe, img, pre {
+            max-width: 80%;
+            margin: auto;
+            display: block;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        iframe {
+            width: 80%;
+            height: 500px;
+        }
+        img {
+            max-height: 500px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 20px;
+            white-space: pre-wrap;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>File Viewer</h2>
+
+    {% if file_extension in ['pdf'] %}
+        <iframe src="{{ file_path }}" frameborder="0"></iframe>
+    
+    {% elif file_extension in ['jpg', 'jpeg', 'png', 'gif'] %}
+        <img src="{{ file_path }}" alt="Image Preview">
+    
+    {% elif file_extension in ['html'] %}
+        <pre>{% include file_path %}</pre>
+    
+    {% elif file_extension in ['py'] %}
+    <pre>{% include file_path %}</pre>
+    
+    {% else %}
+        <p>File type not supported for preview.</p>
+    {% endif %}
+
+</body>
+</html>

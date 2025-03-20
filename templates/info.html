@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<!DOCTYPE html>
+		<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Asset {{asset.id}}</title>
+				<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+				<style>
+					body {
+						font-family: 'Arial', sans-serif;
+						margin: 0;
+						padding: 0;
+						background-color: #eef2f7;
+						color: #333;
+					}
+					.container {
+						max-width: 1000px;
+						margin: 30px auto;
+						padding: 25px;
+						background: #ffffff;
+						box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+						border-radius: 10px;
+					}
+					.header {
+						text-align: center;
+						margin-bottom: 25px;
+					}
+					.header h1 {
+						font-size: 30px;
+						color: #0056b3;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						gap: 10px;
+					}
+					.header img {
+						height: 40px;
+					}
+					.asset-section {
+						background: #f8f9fc;
+						padding: 20px;
+						border-radius: 8px;
+						margin-bottom: 20px;
+					}
+					.asset-section div {
+						padding: 10px;
+						border-bottom: 1px solid #ddd;
+					}
+					.label {
+						font-weight: bold;
+						color: #555;
+					}
+					table {
+						width: 100%;
+						border-collapse: collapse;
+						margin-top: 20px;
+						background: #fff;
+						border-radius: 8px;
+						overflow: hidden;
+					}
+					th, td {
+						border: 1px solid #ddd;
+						padding: 12px;
+						text-align: left;
+					}
+					th {
+						background-color: #0056b3;
+						color: white;
+					}
+					tr:nth-child(even) {
+						background-color: #f2f2f2;
+					}
+					#plot {
+						margin-top: 20px;
+					}
+				</style>
+			</head>
+			<body>
+				<div class="container">
+					<div class="header">
+						<h1>Asset {{asset.id}} </h1>
+					</div>
+					
+					<div class="asset-section">
+						<div><span class="label">Name:</span> {{asset.investment_name}}</div>
+						<div><span class="label">Owner:</span> {{asset.owner}}</div>
+						<div><span class="label">Quantity:</span> {{asset.quantity}}</div>
+						<div><span class="label">Market Cap:</span> {{asset.market_cap}}</div>
+						<div><span class="label">Change Value:</span> {{asset.change_value}}</div>
+						<div><span class="label">Starting Price:</span> {{asset.starting_price}}</div>
+						<div><span class="label">Market Price:</span> {{asset.market_price}}</div>
+						<div><span class="label">Coins Value:</span> {{asset.coins_value}}</div>
+						<div><span class="label">Investors:</span> {{asset.investors}}</div>
+						<div><span class="label">Receipt:</span> {{asset.receipt}}</div>
+						<div><span class="label">Tokenized Price:</span> {{asset.tokenized_price}}</div>
+					</div>
+					
+					<div id="plot"></div>
+					
+					<script>
+						var graph = {{ graph_json | safe }};
+						Plotly.newPlot("plot", graph.data, graph.layout);
+					</script>
+					<div class="asset-section">
+						<div><span class="label">Marketcap:</span> {{mk}}</div>
+						<div><span class="label">Beta:</span> {{beta}}</div>
+						<div><span class="label">Dividend Yield:</span> {{DividendYield}}</div>
+						<div><span class="label">Insustry:</span> {{industry}}</div>
+						<div><span class="label">Website:</span> {{website}}</div>
+						<div><span class="label">Description:</span> {{description}}</div>
+					</div>
+					
+				</div>
+			</body>
+		</html>
+
+	</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<h1>Notebooks</h1>
+		{% for note in notebooks %}
+		
+		<div>
+		<ul>
+			<li>{{notebook.id}}</li>
+			<li>{{notebook.thread}}</li>
+			<li>{{notebook.title}}</li>
+
+		</ul>
+		</div>
+		
+		{% endfor %}
+	</body>
+</html>
