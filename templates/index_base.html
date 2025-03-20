@@ -409,11 +409,11 @@
     
     // Navigation functions
     const buy = () => window.location.href = "/create/investment";
-    const sell = () => window.location.href = "/invest";
+    const sell = () => window.location.href = "/invest/asset";
     const mywallet = () => window.location.href = '/holdings';
     const minerwallet = () => {
         var id = prompt("Enter Asset ID","ID");
-        window.location.href = '/asset/info/'+ id;
+        window.location.href = '/info/'+ id;
 
     };
     const proccess = () => {

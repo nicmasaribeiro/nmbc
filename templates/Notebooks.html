@@ -10,13 +10,16 @@
 		
 		<div>
 		<ul>
-			<li>{{notebook.id}}</li>
-			<li>{{notebook.thread}}</li>
-			<li>{{notebook.title}}</li>
-
+			<li>{{note.id}}</li>
+			<li>{{note.thread}}</li>
+			<li>{{note.title}}</li>
+			<li>{{note.receipt}}</li>
+			
 		</ul>
 		</div>
 		
 		{% endfor %}
+		
+		<iframe src="{{file_path}}"></iframe>
 	</body>
 </html>
