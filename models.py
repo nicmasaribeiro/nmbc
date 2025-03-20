@@ -184,6 +184,7 @@ class Notebook(db.Model):
     title = db.Column(db.String)
     content = db.Column(db.Text)
     f = db.Column(db.LargeBinary)
+    # file_type = db.Column(db.String)
     thread = db.Column(db.String)
     receipt = db.Column(db.String) 
 
@@ -524,8 +525,10 @@ class OptimizationToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
     receipt = db.Column(db.String)
+    modified_data = db.Column(db.LargeBinary, nullable=False)
     grade = db.Column(db.Integer, default=0)
     output_data = db.Column(db.LargeBinary, nullable=False)
+    additional_data = db.Column(db.LargeBinary, nullable=False)
     string_data = db.Column(db.Text(), nullable=False)
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())

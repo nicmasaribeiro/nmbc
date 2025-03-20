@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -140,7 +140,7 @@ def execute_swap_double_check():
 	for s in swaps:
 		periods = s.amount
 		maturity = s.maturity
-		time_total = maturity * 365  # Convert years to days
+		time_total = maturity * 252  # Convert years to days
 
 		# Fetch historical stock data
 		ticker = yf.Ticker(s.equity.upper())
@@ -176,6 +176,8 @@ def execute_swap_double_check():
 	print("All swaps scheduled successfully.")
 
 schedule.every(10).seconds.do(execute_swap_double_check)
+
+
 
 @celery.task
 def execute_swap():
@@ -219,7 +221,7 @@ def execute_swap():
 		schedule.every(int(execution_interval)).days.do(logic)
 	print("All swaps scheduled successfully.")
 
-execute_swap.delay()
+
 
 # from decimal import Decimals
 @app.route('/payment/swap', methods=['POST', 'GET'])
@@ -758,17 +760,17 @@ def update():
 
 	return 0
 
-
+schedule.every(1).seconds.do(update)
 
 @login_manager.user_loader
 def load_user(user_id):
-#	update.delay()
-#	coin_db = CoinDB()
-#	db.session.add(coin_db)
-#	db.session.commit()
-#	betting_house = BettingHouse()
-#	db.session.add(betting_house)
-#	db.session.commit()
+	update.delay()
+	coin_db = CoinDB()
+	db.session.add(coin_db)
+	db.session.commit()
+	betting_house = BettingHouse()
+	db.session.add(betting_house)
+	db.session.commit()
 	return Users.query.get(int(user_id))
 
 @app.route('/chat', methods=['GET','POST'])
@@ -1000,19 +1002,21 @@ def signup_val():
 
 @app.route('/investments', methods=['GET'])
 def get_investments():
-    page = request.args.get('page', 1, type=int)
-    per_page = 5
+	update.delay()
+	# update_prices()
+	page = request.args.get('page', 1, type=int)
+	per_page = 5
 
-    investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
+	investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
 
-    return render_template(
-        'investments.html',
-        investments=investments,
-        page=investments.page,
-        total_pages=investments.pages,
-        has_next=investments.has_next,
-        has_prev=investments.has_prev
-    )
+	return render_template(
+		'investments.html',
+		investments=investments,
+		page=investments.page,
+		total_pages=investments.pages,
+		has_next=investments.has_next,
+		has_prev=investments.has_prev
+	)
 
 @app.route('/get/vals')
 def get_vals():
@@ -1885,6 +1889,183 @@ import yfinance as yf
 import pandas as pd
 from scipy.stats import norm
 
+@app.route('/chain/filtered',methods=['GET', 'POST'])
+def filt_option():
+	if request.method == 'POST':
+		ticker = request.values.get('ticker').upper()
+		try:
+			df = pd.read_csv(f'static/{ticker}_options.csv')
+			df['date'] = pd.to_datetime(df['expiration'])
+			df = df.set_index(df['date'])
+			date = request.values.get('year')
+			vars = request.values.get('columns').split(',') #pattern="^\d{4}(,\d{4})*$"
+			type_option = request.values.get('option_type')
+			df_filt = df.loc[date]
+			df_filt = df_filt[df_filt['type'] == type_option]
+			option_name = type_option.capitalize()
+			df_filt = df_filt[vars]
+			stats_mu = df_filt.mean()
+			stats_sigma = df_filt.std()
+			stats_df = pd.DataFrame({'mu': stats_mu, 'sigma': stats_sigma})
+			stats = stats_df.to_html()
+			html = df_filt.to_html()
+			string =f"""<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Option Chain</title>
+				<style>
+					/* General page styles */
+					body {{
+						font-family: Arial, sans-serif;
+						margin: 20px;
+						background-color: #f4f4f9;
+						color: #333;
+					}}
+
+					h1 a {{
+						text-decoration: none;
+						color: #3498db;
+						font-size: 24px;
+					}}
+
+					h1 a:hover {{
+						text-decoration: underline;
+					}}
+
+					/* Table styles */
+					table {{
+						width: 100%;
+						border-collapse: collapse;
+						margin-top: 20px;
+						background-color: #fff;
+						box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+					}}
+
+					th, td {{
+						border: 1px solid #ddd;
+						padding: 12px;
+						text-align: left;
+					}}
+
+					th {{
+						background-color: #2c3e50;
+						color: white;
+						text-transform: uppercase;
+						letter-spacing: 0.05em;
+					}}
+
+					tr:hover {{
+						background-color: #f1f1f1;
+					}}
+
+					tr:nth-child(even) {{
+						background-color: #f9f9f9;
+					}}
+				</style>
+			</head>
+			<body>
+				<h1><a href="/">Back</a></h1>
+				<div class="container">
+				<h2>{ticker} {option_name} Options Chain</h2>
+				{stats}
+				</div>
+				<!-- Insert dynamic HTML content here -->
+				{html} 
+			</body>
+			</html>"""
+			return render_template_string(string)
+		except Exception as e:
+			return str(e)
+	return render_template("options_filtered.html")
+
+@app.route('/create_options',methods=['GET', 'POST'])
+def create_options():
+	if request.method =='POST':
+		ticker = request.values.get('ticker').upper()
+		price = yf.Ticker(ticker).history()['Close'][-1]
+		url = 'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=ticker)
+		r = requests.get(url)
+		data = r.json()
+		df = {'symbol':[],'expiration':[],'strike':[],'last':[],'type':[],'volume':[],'open_interest':[],'implied_volatility':[], 'delta':[], 'gamma':[], 'theta':[], 'vega':[], 'rho':[]}
+
+		for i in range(len(data['data'])):
+			target = data['data'][i]
+			df['symbol'].append(target['symbol'])
+			df['type'].append(target['type'])
+			df['expiration'].append(target['expiration'])
+			df['last'].append(target['last'])
+			df['strike'].append(target['strike'])
+			df['volume'].append(target['volume'])
+			df['open_interest'].append(target['open_interest'])
+			df['implied_volatility'].append(target['implied_volatility'])
+			df['delta'].append(target['delta'])
+			df['gamma'].append(target['gamma'])
+			df['theta'].append(target['theta'])
+			df['vega'].append(target['vega'])
+			df['rho'].append(target['rho'])
+
+		dataframe = pd.DataFrame(df)
+			# Load the dataset from the extracted HTML file
+
+		df = dataframe
+		# Clean the data: Convert relevant columns to numeric and handle missing values
+		df[['strike', 'last', 'implied_volatility', 'open_interest', 'delta', 'gamma', 'theta', 'vega', 'rho']] = df[
+			['strike', 'last', 'implied_volatility', 'open_interest', 'delta', 'gamma', 'theta', 'vega', 'rho']
+		].apply(pd.to_numeric, errors='coerce')
+
+		# Remove rows with missing or zero last price
+		df = df[df['last'] > 0]
+
+		# Black-Scholes Model for Option Pricing
+		def black_scholes(S, K, T, r, sigma, option_type):
+			"""
+			Calculate Black-Scholes price for a call or put option.
+			
+			Parameters:
+			S (float): Current stock price
+			K (float): Strike price
+			T (float): Time to expiration (years)
+			r (float): Risk-free rate (assumed 2% for now)
+			sigma (float): Implied volatility
+			option_type (str): 'call' or 'put'
+			
+			Returns:
+			float: Theoretical option price
+			"""
+			d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+			d2 = d1 - sigma * np.sqrt(T)
+			
+			if option_type == "call":
+				price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+			elif option_type == "put":
+				price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+			else:
+				raise ValueError("Invalid option type")
+				
+			return price
+
+		# Assumptions
+		S = price  # Example underlying stock price (adjust as needed)
+		r = 0.05  # Risk-free rate (2% assumed)
+
+		# Calculate theoretical prices for options using Black-Scholes
+		df['T'] = (pd.to_datetime(df['expiration']) - pd.Timestamp.today()).dt.days / 365
+		df['bs_price'] = df.apply(lambda row: black_scholes(S, row['strike'], row['T'], r, row['implied_volatility'], row['type']), axis=1)
+
+		# Adjust pricing strategy based on liquidity and Greeks
+		df['adjusted_price'] = np.where(
+			df['open_interest'] > 50,  # If open interest is high, use market price
+			df['last'],
+			df['bs_price'] * (1 + 0.05 * (df['gamma'] + df['vega']))  # Adjust based on Greek sensitivities
+		)
+		df.to_csv(f'static/{ticker}_options.csv')
+		return "SUCCESS"
+	return render_template('create_options.html')
+
+
+
 @app.route('/chain/<ticker>')
 def options_chain_pricing(ticker):
 	price = yf.Ticker(ticker).history()['Close'][-1]
@@ -2226,7 +2407,7 @@ def info(id):
 
 	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-	return render_template("asset-info.html", asset=asset, graph_json=graph_json, mk=mk,
+	return render_template("info.html", asset=asset, graph_json=graph_json, mk=mk,
 						beta=beta,industry=industry,website=website,description=description,div=DividendYield)
 
 
@@ -2383,6 +2564,7 @@ def my_assets():
 
 @app.route("/active/assets")
 def asset_options():
+	update.delay()
 	options = InvestmentDatabase.query.all()
 	return render_template("asset-options.html",invs=options)
 
@@ -2772,6 +2954,7 @@ def get_opts():
 def mine_optimization():
 	user = current_user
 	wal = WalletDB.query.filter_by(address=user.username).first()
+	
 	if request.method == "POST":
 		receipt = request.values.get("receipt")
 		description = (request.values.get("description"))
@@ -2784,10 +2967,14 @@ def mine_optimization():
 		
 		f = request.files['file']
 		output_data = f.read()
+		modified_data = request.files['file_two']
+		additional_data = request.files['file_three']
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
 							receipt=receipt,
 							grade=grade,
+							additional_data=additional_data,
+							modified_data = modified_data,
 							output_data=output_data,
 							string_data=output_data.decode('utf-8'),
 							filename=optmimization.filename,
@@ -4305,14 +4492,58 @@ def option_density():
 ########################################################################
 # LKSE PAGES
 ########################################################################
-@app.route('/lkse/add/notebook',methods=['POST','GET'])
+@app.route('/lkse/add/notebook', methods=['POST', 'GET'])
 @login_required
 def upload_lkse_notebook():
-	if request.method == 'POST':
-		file = request.files['notebook']
-		notebook = Notebook(user=current_user.username)
-		return "Success"
-	return render_template('upload_notebook.html')
+    if request.method == 'POST':
+        file = request.files.get('notebook')
+        name = request.values.get('name')
+
+        if not file or not name:
+            return "Missing file or name", 400
+
+        # Ensure the file has an extension and sanitize filename
+        split_name = name.rsplit('.', 1)
+        if len(split_name) < 2:
+            return "Invalid file name", 400
+
+        file_extension = split_name[1]
+        secure_name = secure_filename(name)  # Prevent directory traversal attacks
+
+        thread = request.values.get('thread')
+        data = file.read()
+
+        try:
+            content = data.decode('utf-8')  # Decode content (only valid for text files)
+        except UnicodeDecodeError:
+            content = None  # Set None if the file is not a text file
+
+        # Generate unique receipt ID for the file
+        receipt = os.urandom(10).hex()
+
+        # Save to the database
+        notebook = Notebook(
+            user=current_user.username,
+            thread=thread,
+            title=name,
+            f=data,  # Storing binary data in DB (not recommended for large files)
+            content=content,
+            receipt=receipt
+        )
+        db.session.add(notebook)
+        db.session.commit()
+
+        # Ensure the 'notebooks' directory exists
+        os.makedirs("notebooks", exist_ok=True)
+
+        # Write the file correctly in binary mode
+        file_path = os.path.join("notebooks", f"{receipt}")
+        with open(file_path, 'wb') as new_file:
+            new_file.write(data)
+
+        return f"Success {file_path}"
+
+    return render_template('upload_notebook.html')
 
 @app.route('/lkse/new/notebook',methods=['POST','GET'])
 @login_required
@@ -4334,6 +4565,29 @@ def lkse_bib():
 @login_required
 def lkse_index():
     return render_template('lkse_index.html')
+
+@app.route('/view/<receipt>/<filename>')
+def view_file(receipt, filename):
+    file_path = os.path.join("notebooks", f"{receipt}_{filename}")
+    
+    if not os.path.exists(file_path):
+        abort(404)  # Return 404 if file not found
+
+    # Determine file type
+    file_extension = filename.rsplit('.', 1)[-1].lower()
+    viewable_extensions = ['txt', 'pdf', 'jpg', 'jpeg', 'png', 'gif','html','py']
+
+    if file_extension not in viewable_extensions:
+        return "File type not supported for preview.", 400
+
+    return render_template('view_file.html', file_path=f"/notebooks/{receipt}_{filename}", file_extension=file_extension)
+
+@app.route('/lkse/view/notebooks',methods=['POST','GET'])
+@login_required
+def lkse_view():
+	notebooks = Notebook.query.filter_by(user=current_user.username).all()#.first_or_404()
+	return render_template('Notebooks.html',notebooks=notebooks)
+
 
 ########################################################################
 # LKSE PAGES
@@ -4370,7 +4624,7 @@ def token_parameters(id):
 		return str(e), 500
 
 # update.delay()
-schedule.every(1).minutes.do(update.delay)
+schedule.every(5).seconds.do(update.delay)
 schedule.every(1).minutes.do(update_prices)
 
 if __name__ == '__main__':
@@ -4381,7 +4635,13 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
+				execute_swap()
+				update_prices()
 				time.sleep(1)  #
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
+	update_thread = threading.Thread(target=update_prices, daemon=True)
+	swap_thread = threading.Thread(target=execute_swap_double_check, daemon=True)
 	schedule_thread.start()
+	update_thread.start()
+	swap_thread.start()
 	app.run(host="0.0.0.0",port=8080)
