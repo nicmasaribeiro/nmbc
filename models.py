@@ -46,6 +46,20 @@ engine = create_engine('sqlite:///blockchain.db')
 Session = sessionmaker(bind=engine)
 
 
+class SharedWalletDB(db.Model):
+    __tablename__ = 'shared_wallets'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    address = db.Column(db.String, unique=True, nullable=False)
+    balance = db.Column(db.Float, default=0)
+    password = db.Column(db.String(1024))
+    coins = db.Column(db.Float, default=10000)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    coinbase_wallet = db.Column(db.String)
+    token = db.Column(db.String(3072))
+    swap_debt_balance = db.Column(db.Float, default=0)
+    swap_credit_balance = db.Column(db.Float, default=0)
+
 class WalletDB(db.Model):
     __tablename__ = 'wallets'
     
@@ -184,7 +198,7 @@ class Notebook(db.Model):
     title = db.Column(db.String)
     content = db.Column(db.Text)
     f = db.Column(db.LargeBinary)
-    # file_type = db.Column(db.String)
+    file_type = db.Column(db.String)
     thread = db.Column(db.String)
     receipt = db.Column(db.String) 
 

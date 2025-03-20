@@ -111,11 +111,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -163,10 +163,13 @@ def execute_swap_double_check():
 		def logic():
 			if s.status == 'Approved' and s.total_amount >= 0:
 				fixed_leg = s.notional * s.fixed_rate
-				wallet_one.swap_credit_balance += fixed_leg
 				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
-				wallet_two.swap_credit_balance += floating_leg
-				s.total_amount -= (floating_leg + fixed_leg)
+				net_cash_flow = fixed_leg - floating_leg
+				if net_cash_flow >= 0:
+					wallet_one.swap_credit_balance += net_cash_flow 
+				elif net_cash_flow < 0:
+					wallet_two.swap_credit_balance += abs(floating_leg)
+				s.total_amount -= abs(net_cash_flow)
 				db.session.commit()
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
 
@@ -175,7 +178,7 @@ def execute_swap_double_check():
 		schedule.every(int(execution_interval)).days.do(logic)
 	print("All swaps scheduled successfully.")
 
-schedule.every(10).seconds.do(execute_swap_double_check)
+schedule.every(1).minutes.do(execute_swap_double_check)
 
 
 
@@ -210,17 +213,19 @@ def execute_swap():
 		def logic():
 			if s.status == 'Approved' and s.total_amount >= 0:
 				fixed_leg = s.notional * s.fixed_rate
-				wallet_one.swap_credit_balance += fixed_leg
 				floating_leg =  s.notional * max(s.floating_rate_spread, ret)
-				wallet_two.swap_credit_balance += floating_leg
-				s.total_amount -= (floating_leg + fixed_leg)
+				net_cash_flow = fixed_leg - floating_leg
+				if net_cash_flow >= 0:
+					wallet_one.swap_credit_balance += net_cash_flow 
+				elif net_cash_flow < 0:
+					wallet_two.swap_credit_balance += abs(floating_leg)
+				s.total_amount -= abs(net_cash_flow)
 				db.session.commit()
 				print(f"Executed swap for {s.id}: Debt Balance Updated")
 		# Schedule swap execution at defined intervals
 		execution_interval = time_total / periods  # Calculate days per execution
 		schedule.every(int(execution_interval)).days.do(logic)
 	print("All swaps scheduled successfully.")
-
 
 
 # from decimal import Decimals
@@ -238,9 +243,11 @@ def make_payment():
 		wallet_two = WalletDB.query.filter_by(address=party_b).first()
 		if swap.status == 'Approved' and swap.total_amount >= 0:
 			fixed_leg = swap.notional * swap.fixed_rate
-			wallet_one.swap_credit_balance += fixed_leg
 			floating_leg =  swap.notional * max(swap.floating_rate_spread, ret)
+			wallet_one.swap_credit_balance += fixed_leg
+			wallet_one.swap_debt_balance -= floating_leg
 			wallet_two.swap_credit_balance += floating_leg
+			wallet_two.swap_debt_balance -= fixed_leg
 			swap.total_amount -= (floating_leg + fixed_leg) #(swap.notional * swap.maturity)/swap.amount
 			db.session.commit()  # Commit transaction
 			return f"<h2>Successful Debt Balance Update</h2>"
@@ -760,7 +767,7 @@ def update():
 
 	return 0
 
-schedule.every(1).seconds.do(update)
+schedule.every(1).minutes.do(update)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -954,6 +961,24 @@ def create_wallet():
 				db.session.commit()
 				return jsonify({'message': 'Wallet Created!'}), 201
 	return render_template("signup-wallet.html")
+
+@app.route('/create/shared-wallet', methods=['POST','GET'])
+def create_shared_wallet():
+	if request.method =="POST":
+		username = request.values.get("username")
+		password = request.values.get("password")
+		users = Users.query.all()
+		ls = [user.username for user in users]
+		passwords = [user.username for user in users]
+		if username in ls:
+			if password in passwords:
+				data = os.urandom(10).hex()
+				new_wallet = WalletDB(address=username,token=username,password=password,coinbase_wallet=data)
+				db.session.add(new_wallet)
+				db.session.commit()
+				return jsonify({'message': 'Wallet Created!'}), 201
+	return render_template("signup-wallet.html")
+
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
@@ -2381,6 +2406,8 @@ def info(id):
 	industry = data['Sector']
 	website = data['OfficialSite']
 	description = data['Description']
+	PEG = data['PEGRatio']
+	PE = data['PERatio']
 
 	# res = asset_info(name)
 	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
@@ -2408,7 +2435,8 @@ def info(id):
 	# Convert plot to JSON
 	graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 	return render_template("info.html", asset=asset, graph_json=graph_json, mk=mk,
-						beta=beta,industry=industry,website=website,description=description,div=DividendYield)
+						beta=beta,industry=industry,website=website,description=description,
+						div=DividendYield,PEG=PEG,PE=PE,)
 
 
 @app.route('/asset/info/<int:id>')
@@ -2967,8 +2995,8 @@ def mine_optimization():
 		
 		f = request.files['file']
 		output_data = f.read()
-		modified_data = request.files['file_two']
-		additional_data = request.files['file_three']
+		modified_data = request.files['file_two'].read()
+		additional_data = request.files['file_three'].read()
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
 							receipt=receipt,
@@ -4489,6 +4517,7 @@ def option_density():
         print("Option Value:\t", option_value)
         return render_template("option_density.html", option_value=option_value)
     return render_template("option_density.html")
+
 ########################################################################
 # LKSE PAGES
 ########################################################################
@@ -4537,7 +4566,7 @@ def upload_lkse_notebook():
         os.makedirs("notebooks", exist_ok=True)
 
         # Write the file correctly in binary mode
-        file_path = os.path.join("notebooks", f"{receipt}")
+        file_path = os.path.join("notebooks", f"{receipt}_{name}")
         with open(file_path, 'wb') as new_file:
             new_file.write(data)
 
@@ -4588,6 +4617,14 @@ def lkse_view():
 	notebooks = Notebook.query.filter_by(user=current_user.username).all()#.first_or_404()
 	return render_template('Notebooks.html',notebooks=notebooks)
 
+@app.route('/lkse/notebook/<receipt>',methods=['POST','GET'])
+@login_required
+def lkse_note(receipt):
+	notebook = Notebook.query.filter_by(receipt=receipt).first_or_404()
+	name = notebook.title
+	file_path = f"notebooks/{receipt}_{name}"
+	file = open(file_path,'r').read()
+	return file #render_template('view.html',data=data)#render_template('Notebooks.html',notebooks=notebooks)
 
 ########################################################################
 # LKSE PAGES
@@ -4624,7 +4661,7 @@ def token_parameters(id):
 		return str(e), 500
 
 # update.delay()
-schedule.every(5).seconds.do(update.delay)
+schedule.every(1).minutes.do(update.delay)
 schedule.every(1).minutes.do(update_prices)
 
 if __name__ == '__main__':
@@ -4637,7 +4674,7 @@ if __name__ == '__main__':
 				schedule.run_pending()
 				execute_swap()
 				update_prices()
-				time.sleep(1)  #
+				time.sleep(10)  #
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	update_thread = threading.Thread(target=update_prices, daemon=True)
 	swap_thread = threading.Thread(target=execute_swap_double_check, daemon=True)
