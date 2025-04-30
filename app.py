@@ -80,6 +80,9 @@ from flask_login import LoginManager
 import redis
 from sklearn.decomposition import PCA
 import subprocess
+from kaggle_ui import kaggle_bp
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -111,11 +114,16 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6380/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6380/0'
+app.register_blueprint(kaggle_bp, url_prefix="/kaggle")
+
+# limiter = Limiter(app, key_func=get_remote_address, default_limits=["1000 per minute"])
+
+
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -227,6 +235,11 @@ def execute_swap():
 		schedule.every(int(execution_interval)).days.do(logic)
 	print("All swaps scheduled successfully.")
 
+@app.route("/launch-jupyter")
+def launch_jupyter():
+    import subprocess
+    subprocess.Popen(["jupyter", "notebook"])
+    return redirect("http://localhost:8888")  
 
 # from decimal import Decimals
 @app.route('/payment/swap', methods=['POST', 'GET'])
@@ -4668,10 +4681,11 @@ schedule.every(1).minutes.do(update)
 schedule.every(1).minutes.do(update_prices)
 
 def run_periodic_task():
-	while True:
-		update.delay()
-		time.sleep(60)
-		celery.start()
+	# while True:
+	update.delay()
+	time.sleep(60)
+	celery.start(argv=["worker", "--loglevel=info"])
+
 
 if __name__ == '__main__':
 	with app.app_context():
@@ -4689,4 +4703,4 @@ if __name__ == '__main__':
 	schedule_thread.start()
 	# update_thread.start()
 	# swap_thread.start()
-	app.run(host="0.0.0.0",port=8080)
+	app.run(host="192.168.1.9",port=3030)

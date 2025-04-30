@@ -144,6 +144,25 @@ class Users(UserMixin, db.Model):
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=True)
     wallet = db.relationship('WalletDB', backref='user', uselist=False)
 
+
+class NotebookSubmission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    notebook_filename = db.Column(db.String(128))
+    score = db.Column(db.Float)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+
+class UserNotebook(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    name = db.Column(db.String(128))
+    content = db.Column(db.Text)  # JSON string (list of cells)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
+
 class TransactionType(enum.Enum):
     send = "send"
     SEND = "SEND"
