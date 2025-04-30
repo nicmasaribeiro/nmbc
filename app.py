@@ -4703,4 +4703,4 @@ if __name__ == '__main__':
 	schedule_thread.start()
 	# update_thread.start()
 	# swap_thread.start()
-	app.run(host="192.168.1.9",port=3030)
+	app.run(host="0.0.0.0",port=8080)
