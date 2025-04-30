@@ -114,16 +114,16 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-app.register_blueprint(kaggle_bp, url_prefix="/kaggle")
+app.register_blueprint(kaggle_bp, url_prefix="/app")
 
 # limiter = Limiter(app, key_func=get_remote_address, default_limits=["1000 per minute"])
 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -2946,10 +2946,12 @@ def submit_optimization():
 	if request.method == 'POST':
 		receipt = os.urandom(10).hex()
 		file = request.files['file']
+		input_data = request.files['input']
 		name = request.values.get("file_name")
 		description = request.values.get("description")
 		price = request.values.get("price")
 		file_data = file.read()
+		input_data = input_data.read()
 		pending = PendingTransactionDatabase(
 			txid=os.urandom(10).hex(),
 			username = user.username,
@@ -2963,6 +2965,7 @@ def submit_optimization():
 		db.session.add(pending)
 		optimization = Optimization(
 							   price=price,
+							   input_data=input_data,
 							   filename=name,
 							   description=description,
 							   created_at = dt.datetime.now(),
@@ -3003,6 +3006,7 @@ def mine_optimization():
 		receipt = request.values.get("receipt")
 		description = (request.values.get("description"))
 		grade = int((request.values.get("grade")))
+		input_data = request.files['input'].read()
 
 		# Ensure the receipt exists in the query
 		optmimization = Optimization.query.filter_by(receipt=receipt).first()
@@ -3015,6 +3019,7 @@ def mine_optimization():
 		additional_data = request.files['file_three'].read()
 		token = OptimizationToken(
 							file_data=optmimization.file_data,
+							input_data=input_data,
 							receipt=receipt,
 							grade=grade,
 							additional_data=additional_data,
@@ -3044,25 +3049,25 @@ def optimizatoin_token_ledger():
 	return render_template("opt-token-ledger.html",invs=opts)
 
 
-@app.route('/process/optimization', methods=['GET', 'POST'])
-def process_optimization():
-	if request.method == 'POST':
-		receipt_address = request.values.get('receipt')
-		target = Optimization.query.filter_by(receipt=receipt_address).first()
-		data = target.file_data
-		command = data.decode('utf-8')
-		f = open('local/command_file.py','w')
-		f.write(command)
-		f.flush()
-		f.close()
-		cmd = """cd local\npython3 command_file.py > output.txt"""
-		os.system(cmd)
-		output = open("local/output.txt",'r').read()
-		print("\nOUTPUT\n",output)
-		safe_html = html.escape(output).replace("\n", "<br>")  # Preserve line breaks
-		html_output = f"<html><body><p>{safe_html}</p></body></html>"
-		return html_output
-	return render_template('process-optimization.html')
+# @app.route('/process/optimization', methods=['GET', 'POST'])
+# def process_optimization():
+# 	if request.method == 'POST':
+# 		receipt_address = request.values.get('receipt')
+# 		target = Optimization.query.filter_by(receipt=receipt_address).first()
+# 		data = target.file_data
+# 		command = data.decode('utf-8')
+# 		f = open('local/command_file.py','w')
+# 		f.write(command)
+# 		f.flush()
+# 		f.close()
+# 		cmd = """cd local\npython3 command_file.py > output.txt"""
+# 		os.system(cmd)
+# 		output = open("local/output.txt",'r').read()
+# 		print("\nOUTPUT\n",output)
+# 		safe_html = html.escape(output).replace("\n", "<br>")  # Preserve line breaks
+# 		html_output = f"<html><body><p>{safe_html}</p></body></html>"
+# 		return html_output
+# 	return render_template('process-optimization.html')
 
 
 @app.route('/ledger/optimizations')
@@ -4703,4 +4708,4 @@ if __name__ == '__main__':
 	schedule_thread.start()
 	# update_thread.start()
 	# swap_thread.start()
-	app.run(host="0.0.0.0",port=8080)
+	app.run(host="0.0.0.0",port=8090)

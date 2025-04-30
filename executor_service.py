@@ -49,5 +49,23 @@ def execute():
 
     return jsonify({"result": return_dict["result"]})
 
+
+@app.route("/execute/two/<code>", methods=["POST"])
+def execute_two(code):
+    content = request.json
+    code = code #content.get("code", "")
+    
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+    p = multiprocessing.Process(target=run_code, args=(code, return_dict))
+    p.start()
+    p.join(3)  # timeout after 3 seconds
+
+    if p.is_alive():
+        p.terminate()
+        return jsonify({"result": "Execution timed out."})
+
+    return jsonify({"result": return_dict["result"]})
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=9090)
