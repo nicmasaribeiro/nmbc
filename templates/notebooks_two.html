@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>📓 My Saved Notebooks</title>
+  <style>
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 10px; border-bottom: 1px solid #ccc; text-align: left; }
+    a { margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+<h2>📓 My Saved Notebooks</h2>
+
+{% if notebooks %}
+<table>
+  <tr><th>Name</th><th>Saved</th><th>Actions</th></tr>
+  {% for nb in notebooks %}
+  <tr>
+    <td>{{ nb.name }}</td>
+    <td>{{ nb.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>
+      <a href="{{ url_for('kaggle.edit_saved_notebook', notebook_id=nb.id) }}">📝 Open</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No notebooks saved yet.</p>
+{% endif %}
+
+<a href="{{ url_for('kaggle.monaco_editor') }}">🧠 Back to Live Editor</a>
+
+</body>
+</html>

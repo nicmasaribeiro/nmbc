@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Jupyter-Lite Notebook</title>
+  <style>
+    body { font-family: sans-serif; }
+    .cell { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
+    .output { background: #f4f4f4; margin-top: 10px; padding: 10px; white-space: pre-wrap; border-left: 4px solid #555; }
+    .toolbar { margin-bottom: 20px; }
+    .markdown-preview { padding: 10px; background: #fffbe7; border: 1px dashed #ccc; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+<h2>🧠 Jupyter-Lite Notebook</h2>
+<div class="toolbar">
+  <button id="addCode">➕ Add Code Cell</button>
+  <button id="addMarkdown">➕ Add Markdown Cell</button>
+  <button id="download">💾 Download as .py</button>
+  <button id="export">📥 Export as .ipynb</button>
+  <button id="saveServer">💾 Save to My Account</button>
+  <button id="open">📂 Open .py File</button>
+  <input type="file" id="upload" accept=".py" style="display:none;">
+</div>
+<div id="cells"></div>
+
+<script>
+let editors = [];
+const cellsDiv = document.getElementById("cells");
+
+require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
+require(["vs/editor/editor.main"], function () {
+  function createCodeCell(content = "") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+
+    const editorDiv = document.createElement("div");
+    editorDiv.style.height = "200px";
+    wrapper.appendChild(editorDiv);
+
+    const runBtn = document.createElement("button");
+    runBtn.innerText = "▶️ Run";
+    wrapper.appendChild(runBtn);
+
+    const outputDiv = document.createElement("div");
+    outputDiv.className = "output";
+    wrapper.appendChild(outputDiv);
+
+    cellsDiv.appendChild(wrapper);
+
+    const editor = monaco.editor.create(editorDiv, {
+      value: content,
+      language: "python",
+      theme: "vs-dark",
+      automaticLayout: true
+    });
+
+    editors.push({ type: "code", editor });
+
+    runBtn.onclick = () => {
+      outputDiv.innerHTML = "⏳ Running...";
+      fetch("/kaggle/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ code: editor.getValue() })
+      })
+      .then(res => res.text())
+      .then(html => outputDiv.innerHTML = html)
+      .catch(err => outputDiv.innerHTML = `<pre>❌ ${err}</pre>`);
+    };
+  }
+
+  function createMarkdownCell(content = "# Markdown") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+
+    const editorDiv = document.createElement("div");
+    editorDiv.style.height = "150px";
+    wrapper.appendChild(editorDiv);
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.innerText = "🔁 Preview";
+    wrapper.appendChild(toggleBtn);
+
+    const preview = document.createElement("div");
+    preview.className = "markdown-preview";
+    wrapper.appendChild(preview);
+    preview.style.display = "none";
+
+    cellsDiv.appendChild(wrapper);
+
+    const editor = monaco.editor.create(editorDiv, {
+      value: content,
+      language: "markdown",
+      theme: "vs",
+      automaticLayout: true
+    });
+
+    editors.push({ type: "markdown", editor, preview });
+
+    toggleBtn.onclick = () => {
+      if (preview.style.display === "none") {
+        preview.innerHTML = marked.parse(editor.getValue());
+        preview.style.display = "block";
+        editorDiv.style.display = "none";
+      } else {
+        preview.style.display = "none";
+        editorDiv.style.display = "block";
+      }
+    };
+  }
+
+  // Initial code cell
+  createCodeCell();
+
+  document.getElementById("addCode").onclick = () => createCodeCell();
+  document.getElementById("addMarkdown").onclick = () => createMarkdownCell();
+
+  document.getElementById("download").onclick = () => {
+    const combined = editors.map((e, i) => {
+      if (e.type === "code") {
+        return `# Cell ${i+1}\n${e.editor.getValue()}`;
+      } else {
+        return `# Markdown Cell ${i+1}\n"""\n${e.editor.getValue()}\n"""`;
+      }
+    }).join("\n\n");
+
+    const blob = new Blob([combined], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "notebook_code.py";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  document.getElementById("export").onclick = () => {
+    const nb = {
+      cells: editors.map(e => {
+        if (e.type === "code") {
+          return {
+            cell_type: "code",
+            metadata: {},
+            source: e.editor.getValue().split("\n"),
+            outputs: [],
+            execution_count: null
+          };
+        } else {
+          return {
+            cell_type: "markdown",
+            metadata: {},
+            source: e.editor.getValue().split("\n")
+          };
+        }
+      }),
+      metadata: {
+        kernelspec: {
+          name: "python3",
+          display_name: "Python 3"
+        },
+        language_info: {
+          name: "python",
+          version: "3.10"
+        }
+      },
+      nbformat: 4,
+      nbformat_minor: 2
+    };
+
+    const blob = new Blob([JSON.stringify(nb, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "notebook.ipynb";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  document.getElementById("saveServer").onclick = () => {
+    const payload = editors.map(e => ({
+      type: e.type,
+      content: e.editor.getValue()
+    }));
+
+    fetch("/kaggle/save_user_notebook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notebook: payload })
+    })
+    .then(res => res.text())
+    .then(alert)
+    .catch(err => alert("Save failed: " + err));
+  };
+
+  document.getElementById("open").onclick = () => document.getElementById("upload").click();
+
+  document.getElementById("upload").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file.name.endsWith(".py")) return alert("Only .py files are supported");
+    const reader = new FileReader();
+    reader.onload = evt => createCodeCell(evt.target.result);
+    reader.readAsText(file);
+  });
+});
+</script>
+
+</body>
+</html>

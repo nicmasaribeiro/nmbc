@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+        <h2>📂 Upload Dataset</h2>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="dataset" required>
+            <button type="submit">Upload</button>
+        </form>
+        <a href="{{ url_for('kaggle.list_datasets') }}">Back to datasets</a>
+
+	</body>
+</html>

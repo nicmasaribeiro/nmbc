@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Notebook Execution Results</title>
+  <style>
+    .cell { margin-bottom: 30px; padding: 15px; background: #f8f9fa; border: 1px solid #ccc; }
+    .output { margin-top: 10px; padding: 10px; background: #e9ecef; font-family: monospace; white-space: pre-wrap; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+<h2>⚙️ Execution Results</h2>
+
+{% for cell, output in paired_cells %}  <div class="cell">
+    {% if cell.strip().startswith("#") %}
+      <h4>Markdown Cell:</h4>
+      <div class="output markdown" data-md="{{ cell | e }}"></div>
+    {% else %}
+      <h4>Code Cell:</h4>
+      <pre>{{ cell }}</pre>
+      <div class="output">
+        <strong>Output:</strong><br>
+        {% for o in output %}
+          {{ o }}<br>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+{% endfor %}
+
+<a href="{{ download_link }}">⬇️ Download Executed Notebook (.ipynb)</a><br>
+<a href="{{ url_for('kaggle.open_notebook') }}">🔙 Edit another Notebook</a>
+
+<script>
+  document.querySelectorAll('.markdown').forEach(div => {
+    const md = div.getAttribute("data-md");
+    div.innerHTML = marked.parse(md);
+  });
+</script>
+
+</body>
+</html>

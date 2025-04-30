@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<h2>📊 Available Datasets</h2>
+		<ul>
+			{% for f in files %}
+			<li>{{ f }} — path: <code>datasets/{{ f }}</code></li>
+			{% endfor %}
+		</ul>
+		<a href="{{ url_for('kaggle.upload_dataset') }}">Upload new dataset</a>
+
+	</body>
+</html>
