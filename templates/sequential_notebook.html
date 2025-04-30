@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sequential Notebook Executor</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f8f8f8; }
+    .toolbar { margin-bottom: 20px; }
+    .cell {
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+      resize: vertical;
+      overflow: auto;
+    }
+    .output {
+      background: #f0f0f0;
+      padding: 10px;
+      white-space: pre-wrap;
+      border-left: 4px solid #4CAF50;
+      margin-top: 10px;
+    }
+    button { margin-right: 10px; padding: 6px 10px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+</head>
+<body>
+
+<h2>📘 Sequential Execution Notebook</h2>
+
+<div class="toolbar">
+  <button id="addCell">➕ Add Code Cell</button>
+  <button id="runAll">▶️ Run All</button>
+  <button id="reset">🔄 Reset Notebook</button>
+  <button id="save">💾 Save</button>
+  {% if notebook %}
+  <a href="{{ url_for('app.download_sequential_notebook', notebook_id=notebook.id) }}">⬇️ Download .ipynb</a>
+  {% endif %}
+</div>
+
+<div id="cells"></div>
+
+<script>
+  let editors = [];
+  const cellsDiv = document.getElementById("cells");
+
+  require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+  require(["vs/editor/editor.main"], function () {
+
+    function addCodeCell(content = "# Write your code here") {
+      const wrapper = document.createElement("div");
+      wrapper.className = "cell";
+
+      const editorDiv = document.createElement("div");
+      editorDiv.style.height = "150px";
+      wrapper.appendChild(editorDiv);
+
+      const outputDiv = document.createElement("div");
+      outputDiv.className = "output";
+      wrapper.appendChild(outputDiv);
+
+      cellsDiv.appendChild(wrapper);
+
+      const editor = monaco.editor.create(editorDiv, {
+        value: content,
+        language: "python",
+        theme: "vs-dark",
+        automaticLayout: true
+      });
+
+      editors.push({ editor, outputDiv });
+    }
+
+    function runAllCells() {
+      const payload = editors.map(e => ({
+        type: "code",
+        content: e.editor.getValue()
+      }));
+
+      fetch("/app/evaluate_sequence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cells: payload })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) return alert("❌ " + data.error);
+        const outputs = data.results || [];
+        editors.forEach((e, i) => {
+          e.outputDiv.innerHTML = `<pre>${outputs[i] || "✅ No output"}</pre>`;
+        });
+      })
+      .catch(err => alert("❌ Execution failed: " + err));
+    }
+
+    function resetNotebook() {
+      cellsDiv.innerHTML = "";
+      editors = [];
+      addCodeCell();
+    }
+
+    function saveSequential() {
+      const name = prompt("Notebook name:", "Untitled Sequential Notebook");
+      const notebook = editors.map(e => ({
+        type: "code",
+        content: e.editor.getValue()
+      }));
+
+      fetch("/app/sequential/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, notebook })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Server error");
+        return res.json();
+      })
+      .then(data => alert(data.message || "✅ Notebook saved!"))
+      .catch(err => alert("❌ Save failed: " + err.message));
+    }
+
+    // Bind buttons
+    document.getElementById("addCell").onclick = () => addCodeCell();
+    document.getElementById("runAll").onclick = runAllCells;
+    document.getElementById("reset").onclick = resetNotebook;
+    document.getElementById("save").onclick = saveSequential;
+
+    // Init
+    addCodeCell();
+  });
+</script>
+
+</body>
+</html>

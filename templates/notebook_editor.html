@@ -11,7 +11,7 @@
 
 <h2>📝 Edit your Notebook Cells</h2>
 
-  <form method="post" action="{{ url_for('kaggle.save_notebook') }}">
+  <form method="post" action="{{ url_for('app.save_notebook') }}">
     {% for cell in cells %}
     {% set idx = loop.index0 %}
     <div id="editor{{ idx }}" class="editor"></div>

@@ -1,16 +1,61 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title></title>
-	</head>
-	<body>
-        <h2>📂 Upload Dataset</h2>
-        <form method="post" enctype="multipart/form-data">
-            <input type="file" name="dataset" required>
-            <button type="submit">Upload</button>
-        </form>
-        <a href="{{ url_for('kaggle.list_datasets') }}">Back to datasets</a>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📂 Upload Dataset</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      max-width: 500px;
+    }
+    input[type="file"], textarea {
+      display: block;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    a {
+      display: inline-block;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
 
-	</body>
+  <h2>📂 Upload Dataset</h2>
+
+  <form method="post" enctype="multipart/form-data" action="">
+    <label for="dataset">Choose file:</label>
+    <input type="file" name="dataset" required><br><br>
+    
+    <label for="description">Description:</label><br>
+    <textarea name="description" rows="4" cols="50" placeholder="Enter a short description..."></textarea><br><br>
+    
+    <button type="submit">Upload</button>
+  </form>
+
+
+  <a href="{{ url_for('app.list_datasets') }}">🔙 Back to Datasets</a>
+
+</body>
 </html>

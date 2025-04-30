@@ -1,17 +1,70 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title></title>
-	</head>
-	<body>
-		<h2>📊 Available Datasets</h2>
-		<ul>
-			{% for f in files %}
-			<li>{{ f }} — path: <code>datasets/{{ f }}</code></li>
-			{% endfor %}
-		</ul>
-		<a href="{{ url_for('kaggle.upload_dataset') }}">Upload new dataset</a>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Available Datasets</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h2 {
+      color: #444;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+      text-align: left;
+    }
+    a.download-btn {
+      color: #1a73e8;
+      text-decoration: none;
+    }
+    a.download-btn:hover {
+      text-decoration: underline;
+    }
+    .upload-link {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    .upload-link:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
 
-	</body>
+  <h2>📊 Available Datasets</h2>
+
+  {% if files %}
+  <table>
+    <tr><th>Filename</th><th>Description</th><th>Download</th></tr>
+    {% for f in files %}
+    <tr>
+      <td>{{ f.filename }}</td>
+      <td>{{ f.description }}</td>
+      <td><a href="{{ url_for('app.download_dataset', filename=f.filename) }}">⬇️</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% else %}
+  <p>No datasets found.</p>
+  {% endif %}
+
+  <a href="{{ url_for('app.upload_dataset') }}" class="upload-link">📤 Upload New Dataset</a>
+
+</body>
 </html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NMBC Notebook Runner</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #282c34;
+      color: #f8f8f2;
+      margin: 40px;
+    }
+    h1 {
+      color: #61dafb;
+    }
+    .toolbar {
+      margin-bottom: 20px;
+    }
+    button {
+      background: #61dafb;
+      border: none;
+      padding: 8px 16px;
+      margin-right: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #000;
+    }
+    .cell {
+      margin-bottom: 20px;
+      border: 1px solid #444;
+      background: #1e1e1e;
+      padding: 10px;
+    }
+    .output {
+      margin-top: 10px;
+      background: #2d2d2d;
+      padding: 10px;
+      white-space: pre-wrap;
+      border-left: 4px solid #61dafb;
+      color: #ccc;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+</head>
+<body>
+
+<h1>⚙️ NMBC Notebook Executor</h1>
+<p>Execute multiple cells, run interactively and view outputs inline.</p>
+
+<div class="toolbar">
+  <button onclick="addCell()">➕ Add Cell</button>
+  <button onclick="runAll()">▶️ Run All</button>
+</div>
+
+<div id="cells"></div>
+
+<script>
+  const cellsDiv = document.getElementById("cells");
+  let editors = [];
+
+  let monacoReady = false;
+
+  require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" } });
+  require(["vs/editor/editor.main"], function () {
+    monacoReady = true;
+    addCell(); // add initial cell
+  });
+
+  function addCell() {
+    if (!monacoReady) return alert("Editor not ready yet");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+
+    const editorDiv = document.createElement("div");
+    editorDiv.style.height = "200px";
+    wrapper.appendChild(editorDiv);
+
+    const output = document.createElement("div");
+    output.className = "output";
+    wrapper.appendChild(output);
+
+    cellsDiv.appendChild(wrapper);
+
+    const editor = monaco.editor.create(editorDiv, {
+      value: "# Write Python code here",
+      language: "python",
+      theme: "vs-dark",
+      automaticLayout: true
+    });
+
+    editors.push({ editor, output });
+  }
+
+  function runAll() {
+    if (!monacoReady) return;
+
+    editors.forEach(({ editor, output }) => {
+      const code = editor.getValue();
+      output.textContent = "⏳ Running...";
+
+      fetch("/app/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ code })
+      })
+      .then(res => res.text())
+      .then(result => output.innerHTML = result)
+      .catch(err => output.innerHTML = `<pre>❌ ${err}</pre>`);
+    });
+  }
+</script>
+
+</body>
+</html>

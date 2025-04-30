@@ -30,7 +30,7 @@
 {% endfor %}
 
 <a href="{{ download_link }}">⬇️ Download Executed Notebook (.ipynb)</a><br>
-<a href="{{ url_for('kaggle.open_notebook') }}">🔙 Edit another Notebook</a>
+<a href="{{ url_for('app.open_notebook') }}">🔙 Edit another Notebook</a>
 
 <script>
   document.querySelectorAll('.markdown').forEach(div => {

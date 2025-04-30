@@ -1,35 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>📓 My Saved Notebooks</title>
   <style>
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 10px; border-bottom: 1px solid #ccc; text-align: left; }
-    a { margin-right: 10px; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #444;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+
+    th {
+      background: #f1f3f5;
+      text-align: left;
+      padding: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    input[type="text"] {
+      padding: 6px;
+      width: 180px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      padding: 5px 10px;
+      font-size: 14px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .inline {
+      display: inline-block;
+      margin-right: 10px;
+    }
+
+    .actions a, .actions form {
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .published-status {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .published-status small {
+      display: block;
+      font-size: 0.8em;
+      color: #aaa;
+    }
+
+    .nav-links {
+      margin-top: 20px;
+      font-size: 15px;
+    }
+
+    .nav-links a {
+      margin-right: 20px;
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .nav-links a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
 
-<h2>📓 My Saved Notebooks</h2>
-
-{% if notebooks %}
-<table>
-  <tr><th>Name</th><th>Saved</th><th>Actions</th></tr>
-  {% for nb in notebooks %}
-  <tr>
-    <td>{{ nb.name }}</td>
-    <td>{{ nb.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-    <td>
-      <a href="{{ url_for('kaggle.edit_saved_notebook', notebook_id=nb.id) }}">📝 Open</a>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No notebooks saved yet.</p>
-{% endif %}
-
-<a href="{{ url_for('kaggle.monaco_editor') }}">🧠 Back to Live Editor</a>
+  {% block title %}
+  My Saved Notebooks
+  {% endblock %}
+  
+  {% block content %}
+  <h2>📓 My Saved Notebooks</h2>
+  
+  {% if notebooks %}
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Last Updated</th>
+        <th>Tags</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for nb in notebooks %}
+      <tr>
+        <td>
+          <strong>{{ nb.name }}</strong><br>
+          <form action="{{ url_for('app.rename_notebook', notebook_id=nb.id) }}" method="post" class="inline">
+            <input type="text" name="new_name" placeholder="Rename notebook" required>
+            <button type="submit">✏️ Rename</button>
+          </form>
+        </td>
+        <td>{{ nb.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          {% if nb.tags %}
+          <span style="color: #007bff;">{{ nb.tags }}</span>
+          {% else %}
+          <em>No tags</em>
+          {% endif %}
+          <form method="post" action="{{ url_for('app.set_notebook_tags', notebook_id=nb.id) }}" class="inline" style="margin-top: 6px;">
+            <input type="text" name="tags" placeholder="Add tags (comma-separated)" required>
+            <button type="submit">🏷️ Set Tags</button>
+          </form>
+        </td>
+        <td class="actions">
+          <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}">🧠 Edit</a>
+          {% if nb.is_sequential %}
+          <a href="{{ url_for('app.open_sequential_notebook', notebook_id=nb.id) }}">📘 Sequential</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('app.delete_notebook_file', filename=nb.filename or '') }}" class="inline">
+            <button type="submit" onclick="return confirm('Are you sure you want to delete this notebook?')">🗑️ Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No notebooks saved yet.</p>
+  {% endif %}
+  
+  <div class="nav-links">
+    <a href="{{ url_for('app.monaco_editor') }}">🧠 Back to Live Editor</a>
+    <a href="{{ url_for('app.sequential_notebook') }}">📘 New Sequential Notebook</a>
+  </div>
+  {% endblock %}
 
 </body>
 </html>

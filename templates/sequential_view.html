@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>📘 Sequential Execution Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f8f8f8; }
+    .cell {
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    .output {
+      background: #f0f0f0;
+      padding: 10px;
+      white-space: pre-wrap;
+      border-left: 4px solid #4CAF50;
+      margin-top: 10px;
+    }
+    button {
+      margin: 10px 5px;
+      padding: 6px 12px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+</head>
+<body>
+
+<h2>📘 Sequential Notebook Viewer: {{ notebook.name }}</h2>
+
+<div id="cells"></div>
+
+<div>
+  <button onclick="runSequential()">▶️ Run Sequentially</button>
+</div>
+
+  <script>
+    let editors = [];
+    
+    function runSequential() {
+      const payload = editors.map(e => ({
+        type: "code",
+        content: e.editor.getValue()
+      }));
+      
+      fetch("{{ url_for('app.evaluate') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cells: payload })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const outputs = data.results || [];
+        editors.forEach((e, i) => {
+          e.outputDiv.innerHTML = `<pre>${outputs[i] || "✅ No output"}</pre>`;
+        });
+      })
+      .catch(err => alert("❌ Error during execution: " + err));
+    }
+    
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+    require(["vs/editor/editor.main"], function () {
+      const notebookCells = {{ notebook.content | safe }};
+      const cellsDiv = document.getElementById("cells");
+      
+      function createCell(cell) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cell";
+        
+        const editorDiv = document.createElement("div");
+        editorDiv.style.height = "150px";
+        wrapper.appendChild(editorDiv);
+        
+        const outputDiv = document.createElement("div");
+        outputDiv.className = "output";
+        wrapper.appendChild(outputDiv);
+        
+        cellsDiv.appendChild(wrapper);
+        
+        const editor = monaco.editor.create(editorDiv, {
+          value: cell.content || "",
+          language: "python",
+          theme: "vs-dark",
+          automaticLayout: true
+        });
+        
+        editors.push({ editor, outputDiv });
+      }
+      
+      notebookCells.forEach(createCell);
+    });
+  </script>
+
+
+</body>
+</html>

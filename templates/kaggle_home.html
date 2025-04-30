@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Jupyter-Lite Notebook</title>
+  <title>NMBC Notebook</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='crawler.png') }}">
   <style>
     body { font-family: sans-serif; }
     .cell { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
@@ -19,16 +20,19 @@
 <body>
 
 <div class="navbar">
-  <a href="/kaggle">🏆 Leaderboard</a>
-  <a href="/kaggle/submit">📤 Submit Notebook</a>
-  <a href="/kaggle/my_notebooks">📓 My Notebooks</a>
-  <a href="/kaggle/datasets">📊 Datasets</a>
-  <a href="/kaggle/open_notebook">🧠 Open Notebook </a>
-  <a href="/kaggle/editor">🧠 Live Editor</a>
+  <a href="/">NMCYBC</a>
+  <a href="/app">🏆 Leaderboard</a>
+  <a href="/app/submit">📤 Submit Notebook</a>
+  <a href="/app/my_notebooks">📓 My Notebooks</a>
+  <a href="/app/datasets">📊 Datasets</a>
+  <a href="/app/open_notebook"> 🗂️ Open Notebook </a>
+  <a href="/app/sequential"> 🧮 Create Sequential Notebook </a>
+  <a href="/app/editor"> 💬 Live Editor</a>
+  <a href="/app/run">💻 Run .py Script</a>
 
 </div>
 
-<h2>🧠 Jupyter-Lite Notebook</h2>
+<h2>🧠NMBC Notebook</h2>
 <div class="toolbar">
   <button id="addCode">➕ Add Code Cell</button>
   <button id="addMarkdown">➕ Add Markdown Cell</button>
@@ -75,7 +79,7 @@ require(["vs/editor/editor.main"], function () {
 
     runBtn.onclick = () => {
       outputDiv.innerHTML = "⏳ Running...";
-      fetch("/kaggle/evaluate", {
+      fetch("/app/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ code: editor.getValue() })
@@ -156,24 +160,8 @@ require(["vs/editor/editor.main"], function () {
   };
 
   document.getElementById("export").onclick = () => {
-    const nb = {
-      cells: editors.map(e => {
-        if (e.type === "code") {
-          return {
-            cell_type: "code",
-            metadata: {},
-            source: e.editor.getValue().split("\n"),
-            outputs: [],
-            execution_count: null
-          };
-        } else {
-          return {
-            cell_type: "markdown",
-            metadata: {},
-            source: e.editor.getValue().split("\n")
-          };
-        }
-      }),
+    const notebook = {
+      cells: [],
       metadata: {
         kernelspec: {
           name: "python3",
@@ -187,8 +175,32 @@ require(["vs/editor/editor.main"], function () {
       nbformat: 4,
       nbformat_minor: 2
     };
-
-    const blob = new Blob([JSON.stringify(nb, null, 2)], { type: "application/json" });
+    
+    editors.forEach(cell => {
+      const raw = cell.editor.getValue();
+      
+      // Guarantee line breaks
+      const lines = raw.split(/\r?\n/).map(line => line + '\n');
+      
+      // Remove trailing empty string if it comes from split
+      if (lines.length > 0 && lines[lines.length - 1] === '\n') {
+        lines.pop();
+      }
+      
+      notebook.cells.push({
+        cell_type: cell.type,
+        metadata: {},
+        source: lines,
+        ...(cell.type === "code"
+          ? { execution_count: null, outputs: [] }
+        : {})
+      });
+    });
+    
+    const blob = new Blob([JSON.stringify(notebook, null, 2)], {
+      type: "application/json"
+    });
+    
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -203,7 +215,7 @@ require(["vs/editor/editor.main"], function () {
       content: e.editor.getValue()
     }));
 
-    fetch("/kaggle/save_user_notebook", {
+    fetch("/app/save_user_notebook", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notebook: payload })

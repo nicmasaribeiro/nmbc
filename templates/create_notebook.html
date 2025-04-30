@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create Jupyter Notebook</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
+    .toolbar { margin-bottom: 20px; }
+    .cell { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; resize: vertical; overflow: auto; background: #fff; }
+    .output { background: #f4f4f4; padding: 10px; margin-top: 10px; white-space: pre-wrap; border-left: 4px solid #555; }
+    button { margin-right: 10px; padding: 10px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+</head>
+<body>
+
+<h2>🧠 Create New Notebook</h2>
+
+<div class="toolbar">
+  <button onclick="createCodeCell()">➕ Add Code Cell</button>
+  <button onclick="createMarkdownCell()">➕ Add Markdown Cell</button>
+  <button onclick="saveNotebook()">💾 Save Notebook (.ipynb)</button>
+</div>
+
+<div id="cells"></div>
+
+<script>
+  let editors = [];
+  const cellsDiv = document.getElementById("cells");
+
+  require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
+  require(["vs/editor/editor.main"], function () {
+
+    window.createCodeCell = function (content = "") {
+      const wrapper = document.createElement("div");
+      wrapper.className = "cell";
+
+      const editorDiv = document.createElement("div");
+      editorDiv.style.height = "200px";
+      wrapper.appendChild(editorDiv);
+
+      cellsDiv.appendChild(wrapper);
+
+      const editor = monaco.editor.create(editorDiv, {
+        value: content,
+        language: "python",
+        theme: "vs-dark",
+        automaticLayout: true
+      });
+
+      editors.push({ type: "code", editor });
+    };
+
+    window.createMarkdownCell = function (content = "# Markdown") {
+      const wrapper = document.createElement("div");
+      wrapper.className = "cell";
+
+      const editorDiv = document.createElement("div");
+      editorDiv.style.height = "150px";
+      wrapper.appendChild(editorDiv);
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.innerText = "🔁 Preview";
+      wrapper.appendChild(toggleBtn);
+
+      const previewDiv = document.createElement("div");
+      previewDiv.className = "output";
+      previewDiv.style.display = "none";
+      wrapper.appendChild(previewDiv);
+
+      cellsDiv.appendChild(wrapper);
+
+      const editor = monaco.editor.create(editorDiv, {
+        value: content,
+        language: "markdown",
+        theme: "vs-light",
+        automaticLayout: true
+      });
+
+      editors.push({ type: "markdown", editor, previewDiv, editorDiv });
+
+      toggleBtn.onclick = () => {
+        const markdown = editor.getValue();
+        const isPreview = previewDiv.style.display === "block";
+
+        if (!isPreview) {
+          previewDiv.innerHTML = marked.parse(markdown);
+          previewDiv.style.display = "block";
+          editorDiv.style.display = "none";
+        } else {
+          previewDiv.style.display = "none";
+          editorDiv.style.display = "block";
+        }
+      };
+    };
+
+    // Start with one code cell
+    createCodeCell();
+  });
+
+  function saveNotebook() {
+    const notebookData = editors.map(e => ({
+      type: e.type,
+      content: e.editor.getValue()
+    }));
+
+    fetch("/create_ipynb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notebook: notebookData })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.filename) {
+        alert("✅ Notebook saved: " + data.filename);
+        window.open(`/submissions/${data.filename}`, "_blank");
+      } else {
+        alert("⚠️ Notebook save failed.");
+      }
+    })
+    .catch(err => alert("❌ Error: " + err));
+  }
+</script>
+
+</body>
+</html>

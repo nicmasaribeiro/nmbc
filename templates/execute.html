@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Run Script</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h2 {
+      color: #444;
+    }
+    form {
+      padding: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      max-width: 600px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input[type="file"] {
+      display: block;
+      margin-bottom: 15px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .cell {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      border-left: 4px solid #4CAF50;
+      background: #fff;
+      padding: 15px;
+      border-radius: 4px;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 15px;
+      border-left: 4px solid #4CAF50;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      border-radius: 4px;
+    }
+    .output-controls {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📂 Run Uploaded Script</h2>
+  <form method="post" enctype="multipart/form-data">
+    <label for="files">Choose a Python file:</label>
+    <input type="file" name="files" id="files" accept=".py,.txt" required>
+    <button type="submit">▶️ Run</button>
+  </form>
+
+  {% if output %}
+    <div class="cell">
+      <h3>🧾 Output:</h3>
+      <pre id="script-output">{{ output }}</pre>
+      <div class="output-controls">
+        <button onclick="downloadOutput()">⬇️ Download Output</button>
+        <button onclick="copyOutput()">📋 Copy to Clipboard</button>
+      </div>
+    </div>
+    <script>
+      function downloadOutput() {
+        const text = document.getElementById('script-output').innerText;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'script_output.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      function copyOutput() {
+        const text = document.getElementById('script-output').innerText;
+        navigator.clipboard.writeText(text)
+          .then(() => alert('Output copied to clipboard!'))
+          .catch(err => alert('Failed to copy output: ' + err));
+      }
+    </script>
+  {% endif %}
+
+</body>
+</html>
