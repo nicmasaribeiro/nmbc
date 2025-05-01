@@ -99,10 +99,11 @@
       const code = editor.getValue();
       output.textContent = "⏳ Running...";
 
-      fetch("/app/evaluate", {
+      fetch("/app/evaluate_two", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ code })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+
       })
       .then(res => res.text())
       .then(result => output.innerHTML = result)

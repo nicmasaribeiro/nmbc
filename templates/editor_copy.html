@@ -60,8 +60,8 @@
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 
   <script>
-    const preloadedCells = {{ saved_cells | tojson | safe }};
-    const notebookTitle = "{{ notebook_name or 'Untitled Notebook' }}";
+    const preloadedCells = {{ saved_cells|safe }};
+    const notebookTitle = "{{ notebook_name | escape }}";
     const notebookId = {{ notebook_id }};
   </script>
 </head>
@@ -85,7 +85,58 @@
 </div>
 
 <div id="cells"></div>
+  <script>
+    // Modify this part to handle the cell data structure properly
+    const preloadedCells = JSON.parse('{{ saved_cells | tojson | safe }}');
+    const notebookTitle = "{{ notebook_name or 'Untitled Notebook' }}";
+    const notebookId = {{ notebook_id }};
+    require(["vs/editor/editor.main"], function (monaco) {
+      let cells = [];
+      try {
+        cells = JSON.parse(preloadedCells);
+      } catch (e) {
+        console.warn("⚠️ Failed to parse saved cells:", e);
+      }
+      
+      if (Array.isArray(cells)) {
+        cells.forEach(cell => {
+          if (cell.type === "code") createCodeCell(monaco, cell.content);
+          else if (cell.type === "markdown") createMarkdownCell(monaco, cell.content);
+        });
+      } else {
+        createCodeCell(monaco);
+      }
 
+      if (Array.isArray(preloadedCells) {
+        preloadedCells.forEach(cell => {
+          if (cell.type === "code") {
+            createCodeCell(monaco, cell.content);
+            // If there's output, display it immediately
+            if (cell.output && cell.output.length > 0) {
+              const lastEditor = editors[editors.length - 1];
+              lastEditor.outputDiv.innerHTML = `<pre>${cell.output.join('\n')}</pre>`;
+            }
+          } else if (cell.type === "markdown") {
+            createMarkdownCell(monaco, cell.content);
+            // For markdown, show preview immediately if content exists
+            if (cell.content && cell.content.trim()) {
+              const lastEditor = editors[editors.length - 1];
+              const preview = lastEditor.editor.getDomNode().parentElement.nextElementSibling;
+              preview.innerHTML = marked.parse(cell.content);
+              preview.style.display = "block";
+              lastEditor.editor.getDomNode().parentElement.style.display = "none";
+            }
+          }
+        });
+      } else {
+        createCodeCell(monaco);
+      }
+        
+        // Rest of your code...
+      });
+    // Debug output to check the data
+    console.log("Preloaded cells:", preloadedCells);
+  </script>
   <script>
     let editors = [];
     let darkMode = true;

@@ -18,19 +18,19 @@
   <tr>
     <td>{{ f }}</td>
     <td>
-      <a href="{{ url_for('kaggle.download_notebook_file', filename=f) }}">⬇️ Download</a>
+      <a href="{{ url_for('app.download_notebook_file', filename=f) }}">⬇️ Download</a>
       |
-      <form method="post" action="{{ url_for('kaggle.delete_notebook_file', filename=f) }}" style="display:inline;">
+      <form method="post" action="{{ url_for('app.delete_notebook_file', filename=f) }}" style="display:inline;">
         <button type="submit" onclick="return confirm('Delete {{ f }}?')">🗑️ Delete</button>
       </form>
       |
-      <a href="{{ url_for('kaggle.load_uploaded_notebook', filename=f) }}">📝 Open</a> <!-- ✅ New Open link -->
+      <a href="{{ url_for('app.load_uploaded_notebook', filename=f) }}">📝 Open</a> <!-- ✅ New Open link -->
     </td>
   </tr>
   {% endfor %}
 </table>
 
-<a href="{{ url_for('kaggle.open_notebook') }}">📤 Upload New Notebook</a>
+<a href="{{ url_for('app.open_notebook') }}">📤 Upload New Notebook</a>
 
 </body>
 </html>

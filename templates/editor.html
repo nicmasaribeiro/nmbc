@@ -4,42 +4,137 @@
   <meta charset="UTF-8">
   <title>Live Notebook Editor</title>
   <style>
-    body.light-mode {
-      background: #fefefe;
-      color: #222;
-    }
-    body.dark-mode {
-      background: #111;
-      color: #eee;
+    :root {
+      --bg-color: #1e1e1e;
+      --text-color: #e0e0e0;
+      --cell-bg: #252526;
+      --border-color: #3c3c3c;
+      --button-bg: #333;
+      --button-hover: #444;
+      --output-bg: #1e1e1e;
+      --output-color: #9cdcfe;
+      --success-color: #4CAF50;
+      --error-color: #f44336;
+      --toolbar-bg: #252526;
+      --drag-placeholder: rgba(76, 175, 80, 0.2);
     }
 
-    .cell {
+    .light-mode {
+      --bg-color: #fefefe;
+      --text-color: #333;
+      --cell-bg: #ffffff;
+      --border-color: #e0e0e0;
+      --button-bg: #f5f5f5;
+      --button-hover: #e0e0e0;
+      --output-bg: #f8f8f8;
+      --output-color: #333;
+      --success-color: #388e3c;
+      --error-color: #d32f2f;
+      --toolbar-bg: #f5f5f5;
+      --drag-placeholder: rgba(56, 142, 60, 0.2);
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    h2, h3 {
+      color: var(--text-color);
+      margin-top: 0;
+    }
+
+    a {
+      color: #4dabf7;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .toolbar {
+      background-color: var(--toolbar-bg);
+      padding: 10px;
+      border-radius: 6px;
       margin-bottom: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      resize: vertical;
-      overflow: auto;
-    }
-
-    .output pre {
-      background: #1e1e1e;
-      color: #9cdcfe;
-      padding: 10px;
-      border-left: 4px solid #4CAF50;
-      border-radius: 4px;
-      font-family: monospace;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s;
     }
 
     button {
-      margin-right: 10px;
+      background-color: var(--button-bg);
+      color: var(--text-color);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .theme-toggle {
-      float: right;
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
+    button:hover {
+      background-color: var(--button-hover);
+    }
+
+    .cell {
+      background-color: var(--cell-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+      position: relative;
+      cursor: grab;
+    }
+
+    .cell:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .cell.dragging {
+      opacity: 0.5;
+      transform: scale(0.98);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .drag-handle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 20px;
+      height: 20px;
+      cursor: grab;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    .cell:hover .drag-handle {
+      opacity: 1;
+    }
+
+    .drag-handle::before {
+      content: "⠿";
+      font-size: 18px;
+    }
+
+    .drag-placeholder {
+      background-color: var(--drag-placeholder);
+      border: 2px dashed var(--success-color);
+      border-radius: 6px;
+      margin-bottom: 20px;
+      height: 60px;
     }
 
     .editor-wrapper {
@@ -47,327 +142,569 @@
       min-height: 100px;
       resize: vertical;
       overflow: hidden;
-      border: 1px solid #aaa;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-color);
+      margin-left: 30px; /* Space for drag handle */
     }
 
-    .monaco-editor {
-      width: 100% !important;
-      height: 100% !important;
+    .output {
+      background-color: var(--output-bg);
+      color: var(--output-color);
+      padding: 12px;
+      border-left: 4px solid var(--success-color);
+      border-radius: 4px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      white-space: pre-wrap;
+      margin-top: 10px;
+      overflow-x: auto;
+      margin-left: 30px;
+    }
+
+    .output.error {
+      border-left-color: var(--error-color);
+    }
+
+    .cell-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      margin-left: 30px;
+    }
+
+    .theme-toggle {
+      margin-left: auto;
+      background: none;
+      border: none;
+      font-size: 20px;
+      padding: 5px;
+      cursor: pointer;
+    }
+
+    .markdown-preview {
+      padding: 12px;
+      background-color: var(--cell-bg);
+      border-radius: 4px;
+      border-left: 4px solid #ffc107;
+      margin-left: 30px;
+    }
+
+    .markdown-preview h1, 
+    .markdown-preview h2, 
+    .markdown-preview h3 {
+      margin-top: 0;
+    }
+
+    .markdown-preview code {
+      background-color: rgba(0, 0, 0, 0.1);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    .markdown-preview pre {
+      background-color: rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .theme-toggle {
+        margin-left: 0;
+      }
     }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
-
-  <script>
-    const preloadedCells = {{ saved_cells | tojson | safe }};
-    const notebookTitle = "{{ notebook_name or 'Untitled Notebook' }}";
-    const notebookId = {{ notebook_id }};
-  </script>
 </head>
 
 <body class="dark-mode">
 
-<h3><a href="/app">Back</a></h3>
-<h2>🧠 Live Notebook</h2>
-
 <div class="toolbar">
+  <h2 style="margin: 0; flex-grow: 1;">🧠 Live Notebook Editor</h2>
   <button id="addCode">➕ Add Code Cell</button>
-  <button id="addMarkdown">➕ Add Markdown Cell</button>
-  <button id="updateNotebook">📤 Update Notebook</button>
-  <button id="runAll">▶️ Run All Cells</button>
-  <button id="download">💾 Download as .py</button>
-  <button id="export">📥 Export as .ipynb</button>
-  <button id="saveServer">💾 Save to My Account</button>
-  <button id="open">📂 Open .py File</button>
-  <input type="file" id="upload" accept=".py" style="display:none;">
+  <button id="addMarkdown">➕ Add Markdown</button>
+  <button id="runAll">▶️ Run All</button>
+  <button id="updateNotebook">💾 Save Notebook</button>
+  <button id="download">📥 Download .py</button>
+  <button id="export">📦 Export .ipynb</button>
+  <button id="open">📂 Open File</button>
+  <input type="file" id="upload" accept=".py,.ipynb" style="display:none;">
   <button class="theme-toggle" id="toggleTheme">🌙</button>
 </div>
 
 <div id="cells"></div>
 
-  <script>
-    let editors = [];
-    let darkMode = true;
-    const cellsDiv = document.getElementById("cells");
+<script>
+  // Initialize with empty array if no cells provided
+  const preloadedCells = JSON.parse('{{ saved_cells | tojson | safe }}') || [];
+  const notebookTitle = "{{ notebook_name or 'Untitled Notebook' }}";
+  const notebookId = {{ notebook_id or 'null' }};
+  
+  console.log("Initial cells:", preloadedCells);
+</script>
+
+<script>
+  let editors = [];
+  let darkMode = true;
+  const cellsDiv = document.getElementById("cells");
+  let draggedItem = null;
+  let dragPlaceholder = null;
+  
+  // Enhanced theme switching
+  function toggleTheme() {
+    darkMode = !darkMode;
+    document.body.classList.toggle("dark-mode", darkMode);
+    document.body.classList.toggle("light-mode", !darkMode);
     
-    function attachResizable(editor, container) {
-      const observer = new ResizeObserver(() => editor.layout());
-      observer.observe(container);
-    }
-    
-    function makeDraggable(wrapper, record) {
-      wrapper.setAttribute("draggable", "true");
-      
-      wrapper.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("text/plain", editors.indexOf(record));
-        wrapper.classList.add("dragging");
-      });
-      
-      wrapper.addEventListener("dragend", () => {
-        wrapper.classList.remove("dragging");
-      });
-      
-      wrapper.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        const dragging = document.querySelector(".cell.dragging");
-        if (!dragging || dragging === wrapper) return;
-        
-        const container = document.getElementById("cells");
-        const bounds = wrapper.getBoundingClientRect();
-        const after = e.clientY > bounds.top + bounds.height / 2;
-        container.insertBefore(dragging, after ? wrapper.nextSibling : wrapper);
-      });
-      
-      wrapper.addEventListener("drop", (e) => {
-        e.preventDefault();
-        const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
-        const toIndex = Array.from(cellsDiv.children).indexOf(wrapper);
-        
-        if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
-        
-        const moved = editors.splice(fromIndex, 1)[0];
-        editors.splice(toIndex, 0, moved);
-      });
-    }
-    
-    function createCodeCell(monaco, content = "") {
-      const wrapper = document.createElement("div");
-      wrapper.className = "cell";
-      
-      const editorContainer = document.createElement("div");
-      editorContainer.className = "editor-wrapper";
-      editorContainer.style.height = "200px";
-      wrapper.appendChild(editorContainer);
-      
-      const outputDiv = document.createElement("div");
-      outputDiv.className = "output";
-      wrapper.appendChild(outputDiv);
-      
-      const controls = document.createElement("div");
-      controls.style.marginTop = "10px";
-      
-      const runBtn = document.createElement("button");
-      runBtn.innerText = "▶️ Run";
-      
-      const deleteBtn = document.createElement("button");
-      deleteBtn.innerText = "🗑️ Delete";
-      
-      controls.appendChild(runBtn);
-      controls.appendChild(deleteBtn);
-      wrapper.appendChild(controls);
-      cellsDiv.appendChild(wrapper);
-      
-      const editor = monaco.editor.create(editorContainer, {
-        value: content,
-        language: "python",
-        theme: darkMode ? "vs-dark" : "vs",
-        automaticLayout: true
-      });
-      
-      const record = { type: "code", editor, outputDiv };
-      editors.push(record);
-      attachResizable(editor, editorContainer);
-      makeDraggable(wrapper, record);
-      
-      runBtn.onclick = () => {
-        outputDiv.innerHTML = "⏳ Running...";
-        fetch("/app/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: editor.getValue() })
-        })
-        .then(res => res.json())
-        .then(data => {
-          outputDiv.innerHTML = `<pre>${data.result || "✅ Done"}</pre>`;
-        })
-        .catch(err => {
-          outputDiv.innerHTML = `<pre style="color:red;">❌ ${err}</pre>`;
-        });
-      };
-      
-      deleteBtn.onclick = () => {
-        wrapper.remove();
-        editors = editors.filter(e => e.editor !== editor);
-      };
-    }
-    
-    function createMarkdownCell(monaco, content = "# Markdown") {
-      const wrapper = document.createElement("div");
-      wrapper.className = "cell";
-      
-      const editorContainer = document.createElement("div");
-      editorContainer.className = "editor-wrapper";
-      editorContainer.style.height = "150px";
-      wrapper.appendChild(editorContainer);
-      
-      const preview = document.createElement("div");
-      preview.className = "output";
-      preview.style.display = "none";
-      wrapper.appendChild(preview);
-      
-      const controls = document.createElement("div");
-      controls.style.marginTop = "10px";
-      
-      const toggleBtn = document.createElement("button");
-      toggleBtn.innerText = "🔁 Preview";
-      
-      const deleteBtn = document.createElement("button");
-      deleteBtn.innerText = "🗑️ Delete";
-      
-      controls.appendChild(toggleBtn);
-      controls.appendChild(deleteBtn);
-      wrapper.appendChild(controls);
-      cellsDiv.appendChild(wrapper);
-      
-      const editor = monaco.editor.create(editorContainer, {
-        value: content,
-        language: "markdown",
-        theme: darkMode ? "vs-dark" : "vs-light",
-        automaticLayout: true
-      });
-      
-      const record = { type: "markdown", editor };
-      editors.push(record);
-      attachResizable(editor, editorContainer);
-      makeDraggable(wrapper, record);
-      
-      toggleBtn.onclick = () => {
-        const showing = preview.style.display === "block";
-        if (!showing) {
-          preview.innerHTML = marked.parse(editor.getValue());
-          preview.style.display = "block";
-          editorContainer.style.display = "none";
-        } else {
-          preview.style.display = "none";
-          editorContainer.style.display = "block";
-        }
-      };
-      
-      deleteBtn.onclick = () => {
-        wrapper.remove();
-        editors = editors.filter(e => e.editor !== editor);
-      };
-    }
-    
-    function updateTheme() {
-      darkMode = !darkMode;
-      document.body.classList.toggle("dark-mode", darkMode);
-      document.body.classList.toggle("light-mode", !darkMode);
-      editors.forEach(e => {
-        e.editor.updateOptions({
-          theme: darkMode
-          ? (e.type === "code" ? "vs-dark" : "vs-dark")
-          : (e.type === "code" ? "vs" : "vs-light")
-        });
-      });
-    }
-    
-    require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" } });
-    require(["vs/editor/editor.main"], function (monaco) {
-      if (Array.isArray(preloadedCells)) {
-        preloadedCells.forEach(cell => {
-          if (cell.type === "code") createCodeCell(monaco, cell.content);
-          else if (cell.type === "markdown") createMarkdownCell(monaco, cell.content);
+    // Update Monaco editor themes
+    editors.forEach(editor => {
+      if (editor.type === "code") {
+        editor.editor.updateOptions({
+          theme: darkMode ? "vs-dark" : "vs"
         });
       } else {
-        createCodeCell(monaco);
+        editor.editor.updateOptions({
+          theme: darkMode ? "vs-dark" : "vs-light"
+        });
+      }
+    });
+    
+    // Update theme button icon
+    document.getElementById("toggleTheme").textContent = darkMode ? "🌙" : "☀️";
+    
+    // Save preference to localStorage
+    localStorage.setItem("editorTheme", darkMode ? "dark" : "light");
+  }
+  
+  // Initialize theme from localStorage
+  if (localStorage.getItem("editorTheme") === "light") {
+    toggleTheme();
+  }
+  
+  function createCodeCell(monaco, content = "", output = "") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+    wrapper.draggable = true;
+    
+    // Add drag handle
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "drag-handle";
+    wrapper.appendChild(dragHandle);
+    
+    const editorContainer = document.createElement("div");
+    editorContainer.className = "editor-wrapper";
+    editorContainer.style.height = "200px";
+    wrapper.appendChild(editorContainer);
+    
+    const outputDiv = document.createElement("div");
+    outputDiv.className = "output";
+    if (output) {
+      outputDiv.innerHTML = `<pre>${output}</pre>`;
+    }
+    wrapper.appendChild(outputDiv);
+    
+    const controls = document.createElement("div");
+    controls.className = "cell-controls";
+    
+    const runBtn = document.createElement("button");
+    runBtn.innerHTML = "▶️ Run";
+    
+    const deleteBtn = document.createElement("button");
+    deleteBtn.innerHTML = "🗑️ Delete";
+    
+    controls.appendChild(runBtn);
+    controls.appendChild(deleteBtn);
+    wrapper.appendChild(controls);
+    cellsDiv.appendChild(wrapper);
+    
+    const editor = monaco.editor.create(editorContainer, {
+      value: content,
+      language: "python",
+      theme: darkMode ? "vs-dark" : "vs",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      fontSize: 14
+    });
+    
+    const record = { 
+      type: "code", 
+      editor, 
+      outputDiv,
+      wrapper 
+    };
+    editors.push(record);
+    
+    // Setup drag events
+    setupDragEvents(wrapper, record);
+    
+    runBtn.onclick = () => {
+      outputDiv.innerHTML = "<pre>⏳ Running...</pre>";
+      fetch("/app/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: editor.getValue() })
+      })
+      .then(res => res.json())
+      .then(data => {
+        outputDiv.innerHTML = `<pre>${data.result || "✅ Execution successful"}</pre>`;
+      })
+      .catch(err => {
+        outputDiv.className = "output error";
+        outputDiv.innerHTML = `<pre>❌ Error: ${err.message || "Failed to execute code"}</pre>`;
+      });
+    };
+    
+    deleteBtn.onclick = () => {
+      wrapper.remove();
+      editors = editors.filter(e => e.editor !== editor);
+    };
+    
+    return wrapper;
+  }
+  
+  function createMarkdownCell(monaco, content = "# Markdown") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+    wrapper.draggable = true;
+    
+    // Add drag handle
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "drag-handle";
+    wrapper.appendChild(dragHandle);
+    
+    const editorContainer = document.createElement("div");
+    editorContainer.className = "editor-wrapper";
+    editorContainer.style.height = "150px";
+    wrapper.appendChild(editorContainer);
+    
+    const preview = document.createElement("div");
+    preview.className = "markdown-preview";
+    preview.style.display = "none";
+    wrapper.appendChild(preview);
+    
+    const controls = document.createElement("div");
+    controls.className = "cell-controls";
+    
+    const toggleBtn = document.createElement("button");
+    toggleBtn.innerHTML = "👁️ Preview";
+    
+    const deleteBtn = document.createElement("button");
+    deleteBtn.innerHTML = "🗑️ Delete";
+    
+    controls.appendChild(toggleBtn);
+    controls.appendChild(deleteBtn);
+    wrapper.appendChild(controls);
+    cellsDiv.appendChild(wrapper);
+    
+    const editor = monaco.editor.create(editorContainer, {
+      value: content,
+      language: "markdown",
+      theme: darkMode ? "vs-dark" : "vs-light",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      fontSize: 14
+    });
+    
+    const record = { 
+      type: "markdown", 
+      editor,
+      preview,
+      wrapper 
+    };
+    editors.push(record);
+    
+    // Setup drag events
+    setupDragEvents(wrapper, record);
+    
+    // Initial render if content exists
+    if (content.trim()) {
+      preview.innerHTML = marked.parse(content);
+    }
+    
+    // Update preview on content change
+    editor.onDidChangeModelContent(() => {
+      if (preview.style.display === "block") {
+        preview.innerHTML = marked.parse(editor.getValue());
+      }
+    });
+    
+    toggleBtn.onclick = () => {
+      const isPreview = preview.style.display === "block";
+      preview.style.display = isPreview ? "none" : "block";
+      editorContainer.style.display = isPreview ? "block" : "none";
+      toggleBtn.innerHTML = isPreview ? "👁️ Preview" : "✏️ Edit";
+      
+      if (!isPreview) {
+        preview.innerHTML = marked.parse(editor.getValue());
+      }
+    };
+    
+    deleteBtn.onclick = () => {
+      wrapper.remove();
+      editors = editors.filter(e => e.editor !== editor);
+    };
+    
+    return wrapper;
+  }
+  
+  function setupDragEvents(element, record) {
+    element.addEventListener('dragstart', (e) => {
+      draggedItem = record;
+      element.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', element);
+      
+      // Create placeholder
+      dragPlaceholder = document.createElement('div');
+      dragPlaceholder.className = 'drag-placeholder';
+      cellsDiv.insertBefore(dragPlaceholder, element.nextSibling);
+    });
+    
+    element.addEventListener('dragend', () => {
+      element.classList.remove('dragging');
+      if (dragPlaceholder && dragPlaceholder.parentNode) {
+        dragPlaceholder.parentNode.removeChild(dragPlaceholder);
+      }
+      draggedItem = null;
+      dragPlaceholder = null;
+    });
+    
+    element.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      
+      if (!draggedItem || !dragPlaceholder) return;
+      
+      const bounding = element.getBoundingClientRect();
+      const offset = bounding.y + bounding.height / 2;
+      
+      if (e.clientY < offset) {
+        cellsDiv.insertBefore(dragPlaceholder, element);
+      } else {
+        cellsDiv.insertBefore(dragPlaceholder, element.nextSibling);
+      }
+    });
+    
+    element.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (!draggedItem || draggedItem === record) return;
+      
+      // Remove placeholder
+      if (dragPlaceholder && dragPlaceholder.parentNode) {
+        cellsDiv.removeChild(dragPlaceholder);
       }
       
-      // Toolbar Bindings
-      document.getElementById("toggleTheme").onclick = updateTheme;
-      document.getElementById("addCode").onclick = () => createCodeCell(monaco);
-      document.getElementById("addMarkdown").onclick = () => createMarkdownCell(monaco);
+      // Get the index of the dragged item
+      const draggedIndex = editors.indexOf(draggedItem);
+      const targetIndex = editors.indexOf(record);
       
-      document.getElementById("runAll").onclick = () => {
-        editors.forEach(e => {
-          if (e.type === "code") {
-            e.editor.getDomNode().parentElement.querySelector("button").click();
-          }
+      // Determine position to insert (before or after)
+      const bounding = element.getBoundingClientRect();
+      const offset = bounding.y + bounding.height / 2;
+      const insertBefore = e.clientY < offset;
+      
+      // Remove from old position
+      editors.splice(draggedIndex, 1);
+      
+      // Calculate new position
+      let newIndex;
+      if (insertBefore) {
+        newIndex = targetIndex > draggedIndex ? targetIndex - 1 : targetIndex;
+      } else {
+        newIndex = targetIndex > draggedIndex ? targetIndex : targetIndex + 1;
+      }
+      
+      // Insert at new position
+      editors.splice(newIndex, 0, draggedItem);
+      
+      // Reorder DOM elements
+      const cells = Array.from(cellsDiv.children).filter(el => el.classList.contains('cell'));
+      cells.forEach(cell => cellsDiv.removeChild(cell));
+      editors.forEach(editor => cellsDiv.appendChild(editor.wrapper));
+    });
+  }
+  
+  function saveNotebook() {
+    const payload = editors.map(e => ({
+      type: e.type,
+      content: e.editor.getValue(),
+      ...(e.type === "code" && e.outputDiv ? { 
+        output: e.outputDiv.textContent 
+      } : {})
+    }));
+    
+    const savePromise = notebookId !== null
+      ? fetch(`/app/notebook/update/${notebookId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            name: notebookTitle, 
+            notebook: payload 
+          })
+        })
+      : fetch("/app/save_user_notebook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            name: notebookTitle,
+            notebook: payload 
+          })
         });
-      };
-      
-      document.getElementById("updateNotebook").onclick = () => {
-        const payload = editors.map(e => ({
-          type: e.type,
-          content: e.editor.getValue()
-        }));
-        fetch(`/app/notebook/update/${notebookId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: notebookTitle, notebook: payload })
-        })
-        .then(res => res.text())
-        .then(alert)
-        .catch(err => alert("Update failed: " + err));
-      };
-      
-      document.getElementById("saveServer").onclick = () => {
-        const payload = editors.map(e => ({
-          type: e.type,
-          content: e.editor.getValue()
-        }));
-        fetch("/app/save_user_notebook", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notebook: payload })
-        })
-        .then(res => res.text())
-        .then(alert)
-        .catch(err => alert("Save failed: " + err));
-      };
-      
-      document.getElementById("download").onclick = () => {
-        const py = editors.map((e, i) =>
-          e.type === "code"
-          ? `# Cell ${i+1}\n${e.editor.getValue()}`
-          : `# Markdown Cell ${i+1}\n"""\n${e.editor.getValue()}\n"""`
-        ).join("\n\n");
-        const blob = new Blob([py], { type: "text/plain" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "notebook_code.py";
-        a.click();
-      };
-      
-      document.getElementById("export").onclick = () => {
-        const nb = {
-          cells: [],
-          metadata: { kernelspec: { name: "python3" }, language_info: { name: "python" }},
-          nbformat: 4,
-          nbformat_minor: 2
+    
+    savePromise
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message || "Notebook saved successfully");
+        if (data.id && !notebookId) {
+          window.history.replaceState({}, "", `/app/edit_notebook/${data.id}`);
+        }
+      })
+      .catch(err => {
+        alert("Failed to save notebook: " + (err.message || "Unknown error"));
+      });
+  }
+  
+  function downloadAsPython() {
+    const pyContent = editors.map((e, i) => {
+      if (e.type === "code") {
+        return `# Cell ${i+1}\n${e.editor.getValue()}`;
+      } else {
+        return `'''\n# Markdown Cell ${i+1}\n${e.editor.getValue()}\n'''`;
+      }
+    }).join("\n\n");
+    
+    const blob = new Blob([pyContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${notebookTitle.replace(/\s+/g, '_')}.py`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function exportAsIPythonNotebook() {
+    const notebook = {
+      cells: editors.map(e => {
+        const cell = {
+          cell_type: e.type,
+          metadata: {},
+          source: e.editor.getValue().split("\n")
         };
-        editors.forEach(e => {
-          const lines = e.editor.getValue().split("\n").map(l => l + "\n");
-          const cell = {
-            cell_type: e.type,
-            metadata: {},
-            source: lines
-          };
-          if (e.type === "code") {
-            cell.outputs = [];
-            cell.execution_count = null;
-          }
-          nb.cells.push(cell);
-        });
-        const blob = new Blob([JSON.stringify(nb, null, 2)], { type: "application/json" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "notebook.ipynb";
-        a.click();
+        
+        if (e.type === "code") {
+          cell.outputs = [];
+          cell.execution_count = null;
+        }
+        
+        return cell;
+      }),
+      metadata: {
+        kernelspec: { name: "python3", display_name: "Python 3" },
+        language_info: { name: "python" }
+      },
+      nbformat: 4,
+      nbformat_minor: 4
+    };
+    
+    const blob = new Blob([JSON.stringify(notebook, null, 2)], { 
+      type: "application/json" 
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${notebookTitle.replace(/\s+/g, '_')}.ipynb`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function handleFileUpload(file) {
+    if (file.name.endsWith(".py")) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        createCodeCell(monaco, e.target.result);
       };
-      
-      document.getElementById("open").onclick = () => document.getElementById("upload").click();
-      document.getElementById("upload").addEventListener("change", (e) => {
-        const file = e.target.files[0];
-        if (!file.name.endsWith(".py")) return alert("Only .py files supported");
-        const reader = new FileReader();
-        reader.onload = evt => createCodeCell(monaco, evt.target.result);
-        reader.readAsText(file);
+      reader.readAsText(file);
+    } else if (file.name.endsWith(".ipynb")) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const notebook = JSON.parse(e.target.result);
+          notebook.cells.forEach(cell => {
+            const content = Array.isArray(cell.source) 
+              ? cell.source.join("") 
+              : cell.source;
+            
+            if (cell.cell_type === "code") {
+              createCodeCell(monaco, content);
+            } else {
+              createMarkdownCell(monaco, content);
+            }
+          });
+        } catch (err) {
+          alert("Failed to parse notebook: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      alert("Only .py or .ipynb files are supported");
+    }
+  }
+  
+  // Initialize the editor
+  require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" } });
+  require(["vs/editor/editor.main"], function(monaco) {
+    // Load preexisting cells
+    if (Array.isArray(preloadedCells) && preloadedCells.length > 0) {
+      preloadedCells.forEach(cell => {
+        if (cell.type === "code") {
+          createCodeCell(
+            monaco, 
+            cell.content, 
+            cell.output || ""
+          );
+        } else if (cell.type === "markdown") {
+          createMarkdownCell(monaco, cell.content);
+        }
+      });
+    } else {
+      // Default empty code cell
+      createCodeCell(monaco);
+    }
+    
+    // Set up event listeners
+    document.getElementById("toggleTheme").addEventListener("click", toggleTheme);
+    document.getElementById("addCode").addEventListener("click", () => createCodeCell(monaco));
+    document.getElementById("addMarkdown").addEventListener("click", () => createMarkdownCell(monaco));
+    document.getElementById("runAll").addEventListener("click", () => {
+      editors.filter(e => e.type === "code").forEach(cell => {
+        cell.wrapper.querySelector(".cell-controls button").click();
       });
     });
-  </script>
-
+    document.getElementById("updateNotebook").addEventListener("click", saveNotebook);
+    document.getElementById("download").addEventListener("click", downloadAsPython);
+    document.getElementById("export").addEventListener("click", exportAsIPythonNotebook);
+    document.getElementById("open").addEventListener("click", () => document.getElementById("upload").click());
+    document.getElementById("upload").addEventListener("change", e => {
+      if (e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+  });
+</script>
 
 </body>
 </html>

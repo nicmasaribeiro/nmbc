@@ -133,6 +133,9 @@
         .save-btn:hover {
             background-color: #e68a00;
         }
+        .hidden {
+            display: none;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -164,7 +167,7 @@
                     </div>
                     <div class="{% if cell.type == 'code' %}editor-container{% else %}markdown-editor-container{% endif %}"></div>
                     {% if cell.type == "code" %}
-                        <div class="output {% if cell.output and 'Error' in cell.output[0] %}error{% endif %}">
+                        <div class="output {% if cell.output and cell.output.length > 0 and cell.output[0].includes('Error') %}error{% endif %}">
                             {% if cell.output %}
                                 {% for out in cell.output %}
                                     <pre>{{ out }}</pre>
@@ -178,7 +181,6 @@
             {% endfor %}
         </div>
     </div>
-    
 
     <script>
         let editors = [];
@@ -188,14 +190,26 @@
         require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
         require(["vs/editor/editor.main"], function() {
             // Initialize existing cells
-            preloadedCells.forEach((cell, index) => {
-                const type = cell.type;
-                const content = cell.content || "";
-                const output = cell.output || [];
+            document.querySelectorAll('.cell').forEach((cell, index) => {
+                const cellType = cell.dataset.cellType;
+                const editorContainer = cell.querySelector(cellType === 'code' ? '.editor-container' : '.markdown-editor-container');
                 
-                addNewCell(type, content, output);
-            });
-
+                // Get content from preloadedCells if available
+                let content = '';
+                let output = [];
+                if (preloadedCells && preloadedCells[index]) {
+                    content = preloadedCells[index].content || '';
+                    output = preloadedCells[index].output || [];
+                }
+                
+                const editor = monaco.editor.create(editorContainer, {
+                    value: content,
+                    language: cellType === 'code' ? 'python' : 'markdown',
+                    theme: 'vs',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false
+                });
                 
                 editors.push({
                     editor,
@@ -205,8 +219,14 @@
                 
                 if (cellType === 'markdown') {
                     const preview = cell.querySelector('.markdown-preview');
-                    preview.innerHTML = marked.parse(editor.getValue());
+                    preview.innerHTML = marked.parse(content);
                     markdownPreviews.push(preview);
+                }
+                
+                // Initialize output if it's a code cell with output
+                if (cellType === 'code' && output && output.length > 0) {
+                    const outputDiv = cell.querySelector('.output');
+                    outputDiv.innerHTML = output.map(out => `<pre>${out}</pre>`).join('');
                 }
             });
             
@@ -298,22 +318,22 @@
             const cellsContainer = document.getElementById('cells');
             
             const cellHTML = `
-        <div class="cell" data-cell-type="${type}" data-cell-id="${cellId}">
-            <div class="cell-header">
-                <span>${type === 'code' ? 'Code' : 'Markdown'} Cell</span>
-                <div class="cell-actions">
+                <div class="cell" data-cell-type="${type}" data-cell-id="${cellId}">
+                    <div class="cell-header">
+                        <span>${type === 'code' ? 'Code' : 'Markdown'} Cell</span>
+                        <div class="cell-actions">
+                            ${type === 'code' ? 
+                                '<button class="run-btn"><i class="fas fa-play"></i> Run</button>' : 
+                                '<button class="toggle-btn"><i class="fas fa-eye"></i> Toggle Preview</button>'}
+                            <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="${type === 'code' ? 'editor-container' : 'markdown-editor-container'}"></div>
                     ${type === 'code' ? 
-            '<button class="run-btn"><i class="fas fa-play"></i> Run</button>' : 
-            '<button class="toggle-btn"><i class="fas fa-eye"></i> Toggle Preview</button>'}
-                    <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                        `<div class="output">${output.map(o => `<pre>${o}</pre>`).join("")}</div>` : 
+                        '<div class="markdown-preview hidden"></div>'}
                 </div>
-            </div>
-            <div class="${type === 'code' ? 'editor-container' : 'markdown-editor-container'}"></div>
-            ${type === 'code' ? 
-            `<div class="output">${output.map(o => `<pre>${o}</pre>`).join("")}</div>` : 
-            '<div class="markdown-preview hidden"></div>'}
-        </div>
-    `;
+            `;
             
             const cellElement = document.createRange().createContextualFragment(cellHTML);
             cellsContainer.appendChild(cellElement);
@@ -330,27 +350,6 @@
                 scrollBeyondLastLine: false
             });
             
-            editors.push({
-                editor,
-                cell: newCell,
-                type
-            });
-            
-            if (type === 'markdown') {
-                const preview = newCell.querySelector('.markdown-preview');
-                markdownPreviews.push(preview);
-            }
-            
-            // Add event listeners to new buttons
-            if (type === 'code') {
-                newCell.querySelector('.run-btn').addEventListener('click', runCodeCell);
-            } else {
-                newCell.querySelector('.toggle-btn').addEventListener('click', toggleMarkdownPreview);
-            }
-            newCell.querySelector('.delete-btn').addEventListener('click', deleteCell);
-            
-            renumberCells();
-        }
             editors.push({
                 editor,
                 cell: newCell,
@@ -407,10 +406,15 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     notebook: notebookData,
-                    name: "{{ notebook_name }}"
+                    name: notebookTitle
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 alert(data.message || "Notebook saved successfully!");
             })

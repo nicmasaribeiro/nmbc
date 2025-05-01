@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>📘 Sequential Execution Viewer</title>
+  <style>
+    /* Previous styles remain the same */
+    button.danger {
+      background: var(--error-color);
+      color: white;
+    }
+    button.danger:hover {
+      background: #d32f2f;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+</head>
+<body>
+
+<h2>
+  <i class="fas fa-book"></i> Sequential Notebook: <span id="notebook-title">{{ notebook.name }}</span>
+  <span class="execution-time" id="last-execution"></span>
+</h2>
+
+<div class="controls">
+  <button class="primary" onclick="runSequential()">
+    <i class="fas fa-play"></i> Run Sequentially
+  </button>
+  <button class="secondary" onclick="resetOutputs()">
+    <i class="fas fa-undo"></i> Clear Outputs
+  </button>
+  <button class="success" onclick="updateNotebook()">
+    <i class="fas fa-save"></i> Update Notebook
+  </button>
+  <button class="danger" onclick="confirmDeleteNotebook()">
+    <i class="fas fa-trash"></i> Delete Notebook
+  </button>
+</div>
+
+<div id="status-bar" class="status-bar"></div>
+
+<!-- Add rename modal -->
+<div id="rename-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Rename Notebook</h3>
+    <input type="text" id="new-notebook-name" value="{{ notebook.name }}" style="width:100%;padding:8px;margin:10px 0;">
+    <div style="display:flex;gap:10px;">
+      <button class="primary" onclick="renameNotebook()">Save</button>
+      <button class="secondary" onclick="document.getElementById('rename-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add delete confirmation modal -->
+<div id="delete-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Confirm Deletion</h3>
+    <p>Are you sure you want to delete this notebook? This action cannot be undone.</p>
+    <div style="display:flex;gap:10px;">
+      <button class="danger" onclick="deleteNotebook()">Delete</button>
+      <button class="secondary" onclick="document.getElementById('delete-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal {
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+  }
+  .modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 50%;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  }
+</style>
+
+<div id="cells"></div>
+
+<script>
+  let editors = [];
+  let executionInProgress = false;
+  const notebookId = {{ notebook.id }};
+  
+  // Parse the notebook content safely
+  let notebookCells = [];
+  try {
+    const rawContent = {{ notebook_content | tojson | safe }};
+    notebookCells = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+    if (!Array.isArray(notebookCells)) {
+      console.error("Notebook content is not an array:", notebookCells);
+      notebookCells = [];
+    }
+  } catch (error) {
+    console.error("Error parsing notebook content:", error);
+    notebookCells = [];
+  }
+  console.log("Loaded notebook cells:", notebookCells);
+
+  function setStatus(message, type = 'running') {
+    const statusBar = document.getElementById('status-bar');
+    statusBar.textContent = message;
+    statusBar.className = `status-bar ${type}`;
+  }
+
+  function clearStatus() {
+    const statusBar = document.getElementById('status-bar');
+    statusBar.className = 'status-bar';
+  }
+
+  function resetOutputs() {
+    if (executionInProgress) {
+      alert('Please wait for current execution to complete');
+      return;
+    }
+    
+    editors.forEach(e => {
+      e.outputDiv.innerHTML = '';
+      e.wrapper.classList.remove('completed', 'error', 'running');
+      e.outputDiv.className = 'output';
+    });
+    clearStatus();
+    document.getElementById('last-execution').textContent = '';
+  }
+
+  async function runSequential() {
+    if (executionInProgress) {
+      alert('Execution already in progress');
+      return;
+    }
+    
+    executionInProgress = true;
+    resetOutputs();
+    setStatus('Starting sequential execution...');
+    
+    const startTime = new Date();
+    const payload = editors.map(e => ({
+      type: e.editor.getModel().getLanguageId() === 'markdown' ? 'markdown' : 'code',
+      content: e.editor.getValue()
+    }));
+    
+    try {
+      // Only execute code cells
+      const codeCells = payload.filter(cell => cell.type === 'code');
+      
+      for (let i = 0; i < codeCells.length; i++) {
+        const cellIndex = payload.findIndex(cell => cell.content === codeCells[i].content);
+        const editor = editors[cellIndex];
+        
+        editor.wrapper.classList.add('running');
+        editor.wrapper.classList.remove('completed', 'error');
+        setStatus(`Executing cell ${cellIndex + 1} of ${editors.length}...`);
+        
+        const cellStartTime = new Date();
+        
+        try {
+          const response = await fetch("{{ url_for('app.evaluate_sequence') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cells: [codeCells[i]] })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          
+          const output = data.results[0] || "✅ No output";
+          editor.outputDiv.innerHTML = `<pre>${output}</pre>`;
+          
+          if (output.includes('❌') || output.includes('Error')) {
+            editor.wrapper.classList.add('error');
+            editor.outputDiv.classList.add('error');
+            setStatus(`Error in cell ${cellIndex + 1}`, 'error');
+            break;
+          } else {
+            editor.wrapper.classList.add('completed');
+            editor.outputDiv.classList.add('success');
+          }
+          
+          const cellTime = (new Date() - cellStartTime) / 1000;
+          console.log(`Cell ${cellIndex + 1} executed in ${cellTime.toFixed(2)}s`);
+          
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+        } catch (error) {
+          editor.outputDiv.innerHTML = `<pre style="color:red;">${error.message}</pre>`;
+          editor.wrapper.classList.add('error');
+          editor.outputDiv.classList.add('error');
+          setStatus(`Error in cell ${cellIndex + 1}`, 'error');
+          break;
+        } finally {
+          editor.wrapper.classList.remove('running');
+        }
+      }
+      
+      const totalTime = (new Date() - startTime) / 1000;
+      document.getElementById('last-execution').textContent = `Execution time: ${totalTime.toFixed(2)}s`;
+      
+      if (!document.querySelector('.cell.error')) {
+        setStatus(`Execution completed in ${totalTime.toFixed(2)} seconds`, 'completed');
+      }
+      
+    } catch (error) {
+      console.error('Execution error:', error);
+      setStatus(`Error: ${error.message}`, 'error');
+    } finally {
+      executionInProgress = false;
+    }
+  }
+
+  function updateNotebook() {
+    if (executionInProgress) {
+      alert('Please wait for current execution to complete');
+      return;
+    }
+    
+    setStatus('Updating notebook...', 'running');
+    
+    const cells = editors.map(editor => ({
+      type: editor.editor.getModel().getLanguageId() === 'markdown' ? 'markdown' : 'code',
+      content: editor.editor.getValue(),
+      output: editor.outputDiv.textContent.trim() ? [editor.outputDiv.textContent.trim()] : []
+    }));
+
+    fetch(`/app/notebook/update/${notebookId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notebook: cells,
+        name: document.getElementById('notebook-title').textContent
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to update notebook');
+      }
+      return response.text();
+    })
+    .then(message => {
+      setStatus(message, 'completed');
+    })
+    .catch(error => {
+      setStatus(`Error updating notebook: ${error.message}`, 'error');
+    });
+  }
+
+  function confirmDeleteNotebook() {
+    document.getElementById('delete-modal').style.display = 'block';
+  }
+
+  function deleteNotebook() {
+    setStatus('Deleting notebook...', 'running');
+    document.getElementById('delete-modal').style.display = 'none';
+    
+    fetch(`/app/notebook/delete/${notebookId}`, {
+      method: "POST"
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to delete notebook');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        window.location.href = "/app/my_notebooks";
+      } else {
+        throw new Error(data.message || 'Failed to delete notebook');
+      }
+    })
+    .catch(error => {
+      setStatus(`Error: ${error.message}`, 'error');
+    });
+  }
+
+  function showRenameModal() {
+    document.getElementById('rename-modal').style.display = 'block';
+  }
+
+  function renameNotebook() {
+    const newName = document.getElementById('new-notebook-name').value.trim();
+    if (!newName) {
+      alert('Notebook name cannot be empty');
+      return;
+    }
+    
+    setStatus('Renaming notebook...', 'running');
+    document.getElementById('rename-modal').style.display = 'none';
+    
+    fetch(`/app/notebook/rename/${notebookId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_name: newName })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to rename notebook');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        document.getElementById('notebook-title').textContent = newName;
+        setStatus('Notebook renamed successfully', 'completed');
+      } else {
+        throw new Error(data.message || 'Failed to rename notebook');
+      }
+    })
+    .catch(error => {
+      setStatus(`Error: ${error.message}`, 'error');
+    });
+  }
+
+  // Make the notebook title clickable for renaming
+  document.getElementById('notebook-title').addEventListener('click', showRenameModal);
+
+  require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+  require(["vs/editor/editor.main"], function () {
+    const cellsDiv = document.getElementById("cells");
+    
+    function createCell(cell, index) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "cell";
+      
+      const header = document.createElement("div");
+      header.className = "cell-header";
+      header.innerHTML = `<span class="cell-number">Cell ${index + 1}</span>`;
+      wrapper.appendChild(header);
+      
+      const editorDiv = document.createElement("div");
+      editorDiv.style.height = "200px";
+      editorDiv.style.marginBottom = "10px";
+      wrapper.appendChild(editorDiv);
+      
+      const outputDiv = document.createElement("div");
+      outputDiv.className = "output";
+      wrapper.appendChild(outputDiv);
+      
+      cellsDiv.appendChild(wrapper);
+      
+      const editor = monaco.editor.create(editorDiv, {
+        value: cell.content || "",
+        language: cell.type === "markdown" ? "markdown" : "python",
+        theme: "vs",
+        automaticLayout: true,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false
+      });
+      
+      editors.push({ 
+        editor, 
+        outputDiv, 
+        wrapper,
+        index 
+      });
+      
+      if (cell.output && cell.output.length > 0) {
+        outputDiv.innerHTML = `<pre>${cell.output.join('\n')}</pre>`;
+      }
+    }
+    
+    if (notebookCells.length > 0) {
+      notebookCells.forEach((cell, index) => {
+        const cellWithDefaults = {
+          type: "code",
+          content: "",
+          output: [],
+          ...cell
+        };
+        createCell(cellWithDefaults, index);
+      });
+    } else {
+      createCell({ 
+        type: "code",
+        content: "# Enter your Python code here\nprint('Hello, World!')",
+        output: []
+      }, 0);
+    }
+    
+    window.addEventListener('resize', () => {
+      editors.forEach(e => e.editor.layout());
+    });
+  });
+</script>
+
+</body>
+</html>

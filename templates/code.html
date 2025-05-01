@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sequential Notebook Executor</title>
+  <style>
+    :root {
+      --primary: #4285f4;
+      --success: #34a853;
+      --danger: #ea4335;
+      --warning: #fbbc05;
+      --light-gray: #f8f9fa;
+      --medium-gray: #e9ecef;
+      --dark-gray: #495057;
+    }
+    
+    body {
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+      color: #212529;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    h2 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 25px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    button:hover {
+      background: #3367d6;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button.secondary {
+      background: var(--medium-gray);
+      color: var(--dark-gray);
+    }
+    
+    button.danger {
+      background: var(--danger);
+    }
+    
+    button.success {
+      background: var(--success);
+    }
+    
+    .cell {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      margin-bottom: 25px;
+      padding: 20px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--medium-gray);
+    }
+    
+    .cell-type {
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: capitalize;
+    }
+    
+    .cell-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .editor-container {
+      height: 180px;
+      border: 1px solid var(--medium-gray);
+      border-radius: 6px;
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+    
+    .output-container {
+      margin-top: 15px;
+    }
+    
+    .output {
+      background: #f0f7ff;
+      padding: 15px;
+      border-left: 4px solid var(--primary);
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 14px;
+      color: #1a1a1a;
+      white-space: pre-wrap;
+      border-radius: 0 6px 6px 0;
+      overflow-x: auto;
+    }
+    
+    .output.success {
+      background: #f0fff4;
+      border-left-color: var(--success);
+    }
+    
+    .output.error {
+      background: #fff5f5;
+      border-left-color: var(--danger);
+      color: var(--danger);
+    }
+    
+    .markdown-preview {
+      padding: 15px;
+      background: #fff9f0;
+      border-left: 4px solid var(--warning);
+      border-radius: 0 6px 6px 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+      line-height: 1.6;
+    }
+    
+    .markdown-preview h1,
+    .markdown-preview h2,
+    .markdown-preview h3 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    
+    .markdown-preview pre {
+      background: #f6f8fa;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    .markdown-preview code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      background: #f6f8fa;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 85%;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .toggle-btn {
+      background: var(--warning);
+    }
+    
+    .run-btn {
+      background: var(--success);
+    }
+    
+    .delete-btn {
+      background: var(--danger);
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+    
+    #notebookList {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 350px;
+      height: 100vh;
+      background: white;
+      box-shadow: -2px 0 15px rgba(0,0,0,0.1);
+      padding: 20px;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    
+    #notebookList.show {
+      transform: translateX(0);
+    }
+    
+    .notebook-item {
+      background: white;
+      border: 1px solid var(--medium-gray);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .notebook-item:hover {
+      transform: translateX(-3px);
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .notebook-item strong {
+      font-size: 15px;
+      color: #2c3e50;
+    }
+    
+    .notebook-item small {
+      display: block;
+      font-size: 12px;
+      color: var(--dark-gray);
+      margin-top: 4px;
+    }
+    
+    #loadingNotebooks {
+      padding: 20px;
+      text-align: center;
+      color: var(--dark-gray);
+    }
+    
+    .spinner {
+      border: 3px solid rgba(0,0,0,0.1);
+      border-radius: 50%;
+      border-top: 3px solid var(--primary);
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <h2><i class="fas fa-book"></i> Notebook Editor</h2>
+
+  <div class="toolbar">
+    <button id="addCode"><i class="fas fa-code"></i> Add Code</button>
+    <button id="addMarkdown"><i class="fas fa-markdown"></i> Add Markdown</button>
+    <button id="runAll" class="success"><i class="fas fa-play"></i> Run All</button>
+    <button id="reset" class="secondary"><i class="fas fa-redo"></i> Reset</button>
+    <button id="save"><i class="fas fa-save"></i> Save</button>
+    <input type="file" id="uploadPyFile" accept=".py" style="display: none;">
+    <button id="openFileBtn" class="secondary"><i class="fas fa-file-import"></i> Open .py</button>
+    <button id="showNotebooks"><i class="fas fa-folder-open"></i> Open Saved</button>
+  </div>
+
+  <div id="cells"></div>
+</div>
+
+<!-- Notebook Side Panel -->
+<div id="notebookList">
+  <button onclick="this.parentElement.classList.remove('show')" style="float:right; background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+  <h3><i class="fas fa-bookmark"></i> My Notebooks</h3>
+  <div id="notebookItems">
+    <div id="loadingNotebooks"><span class="spinner"></span> Loading notebooks...</div>
+  </div>
+</div>
+
+<script>
+let editors = [];
+const cellsDiv = document.getElementById("cells");
+
+// Configure Monaco Editor
+require.config({ 
+  paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' },
+  waitSeconds: 30
+});
+
+// Initialize Monaco Editor
+require(["vs/editor/editor.main"], function() {
+
+  function addCodeCell(content = "# Write your Python code here\nprint('Hello, World!')") {
+    const cellId = Date.now();
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+    wrapper.dataset.cellType = "code";
+    wrapper.dataset.cellId = cellId;
+    
+    const header = document.createElement("div");
+    header.className = "cell-header";
+    header.innerHTML = `
+      <span class="cell-type">Code Cell</span>
+      <div class="cell-actions">
+        <button class="run-btn"><i class="fas fa-play"></i> Run</button>
+        <button class="delete-btn"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    wrapper.appendChild(header);
+    
+    const editorDiv = document.createElement("div");
+    editorDiv.className = "editor-container";
+    wrapper.appendChild(editorDiv);
+    
+    const outputDiv = document.createElement("div");
+    outputDiv.className = "output";
+    outputDiv.innerHTML = "<em><i class='fas fa-info-circle'></i> No output yet. Run cell to see results.</em>";
+    wrapper.appendChild(outputDiv);
+    
+    cellsDiv.appendChild(wrapper);
+    
+    const editor = monaco.editor.create(editorDiv, {
+      value: content,
+      language: "python",
+      theme: "vs",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      fontSize: 14,
+      scrollBeyondLastLine: false
+    });
+    
+    const editorObj = { 
+      editor, 
+      outputDiv,
+      wrapper,
+      type: "code"
+    };
+    
+    editors.push(editorObj);
+    
+    // Add event listeners
+    wrapper.querySelector(".run-btn").addEventListener("click", () => runCodeCell(editorObj));
+    wrapper.querySelector(".delete-btn").addEventListener("click", () => deleteCell(editorObj));
+    
+    return wrapper;
+  }
+
+  function addMarkdownCell(content = "# Enter your markdown here\n\n*This* is **Markdown** content") {
+    const cellId = Date.now();
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+    wrapper.dataset.cellType = "markdown";
+    wrapper.dataset.cellId = cellId;
+    
+    const header = document.createElement("div");
+    header.className = "cell-header";
+    header.innerHTML = `
+      <span class="cell-type">Markdown Cell</span>
+      <div class="cell-actions">
+        <button class="toggle-btn"><i class="fas fa-eye"></i> Preview</button>
+        <button class="delete-btn"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    wrapper.appendChild(header);
+    
+    const editorDiv = document.createElement("div");
+    editorDiv.className = "editor-container";
+    wrapper.appendChild(editorDiv);
+    
+    const previewDiv = document.createElement("div");
+    previewDiv.className = "markdown-preview hidden";
+    wrapper.appendChild(previewDiv);
+    
+    cellsDiv.appendChild(wrapper);
+    
+    const editor = monaco.editor.create(editorDiv, {
+      value: content,
+      language: "markdown",
+      theme: "vs",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      fontSize: 14,
+      scrollBeyondLastLine: false
+    });
+    
+    const editorObj = {
+      editor,
+      previewDiv,
+      wrapper,
+      type: "markdown"
+    };
+    
+    // Initial render
+    previewDiv.innerHTML = marked.parse(content);
+    
+    // Update preview on changes
+    editor.onDidChangeModelContent(() => {
+      previewDiv.innerHTML = marked.parse(editor.getValue());
+    });
+    
+    editors.push(editorObj);
+    
+    // Add event listeners
+    wrapper.querySelector(".toggle-btn").addEventListener("click", () => toggleMarkdownPreview(editorObj));
+    wrapper.querySelector(".delete-btn").addEventListener("click", () => deleteCell(editorObj));
+    
+    return wrapper;
+  }
+
+  function runCodeCell(cell) {
+    cell.outputDiv.innerHTML = "<span class='spinner'></span> Running...";
+    cell.outputDiv.className = "output";
+    
+    fetch("/app/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: cell.editor.getValue() })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      cell.outputDiv.innerHTML = data.result 
+        ? `<pre>${data.result}</pre>` 
+        : "<em><i class='fas fa-check-circle'></i> Execution completed with no output</em>";
+      cell.outputDiv.className = "output success";
+    })
+    .catch(err => {
+      cell.outputDiv.innerHTML = `<pre><i class='fas fa-exclamation-circle'></i> Error: ${err.message}</pre>`;
+      cell.outputDiv.className = "output error";
+    });
+  }
+
+  function toggleMarkdownPreview(cell) {
+    const editorDiv = cell.wrapper.querySelector(".editor-container");
+    const previewDiv = cell.previewDiv;
+    const toggleBtn = cell.wrapper.querySelector(".toggle-btn");
+    
+    if (previewDiv.classList.contains("hidden")) {
+      // Show preview
+      previewDiv.innerHTML = marked.parse(cell.editor.getValue());
+      previewDiv.classList.remove("hidden");
+      editorDiv.classList.add("hidden");
+      toggleBtn.innerHTML = "<i class='fas fa-edit'></i> Edit";
+    } else {
+      // Show editor
+      previewDiv.classList.add("hidden");
+      editorDiv.classList.remove("hidden");
+      toggleBtn.innerHTML = "<i class='fas fa-eye'></i> Preview";
+    }
+  }
+
+  function deleteCell(cell) {
+    if (confirm("Are you sure you want to delete this cell?")) {
+      cell.editor.dispose();
+      const index = editors.indexOf(cell);
+      if (index > -1) {
+        editors.splice(index, 1);
+      }
+      cell.wrapper.remove();
+    }
+  }
+
+  function runAllCells() {
+    const codeCells = editors.filter(cell => cell.type === "code");
+    if (codeCells.length === 0) {
+      alert("No code cells to run");
+      return;
+    }
+    
+    codeCells.forEach(cell => {
+      runCodeCell(cell);
+    });
+  }
+
+  function resetNotebook() {
+    if (confirm("Are you sure you want to reset the notebook? All cells will be deleted.")) {
+      cellsDiv.innerHTML = "";
+      editors = [];
+      addCodeCell();
+    }
+  }
+
+  function saveNotebook() {
+    const name = prompt("Notebook name:", "Untitled Notebook");
+    if (!name) return;
+    
+    const notebook = editors.map(e => ({
+      type: e.type,
+      content: e.editor.getValue(),
+      output: e.type === "code" ? e.outputDiv.textContent : null
+    }));
+
+    fetch("/app/sequential/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, notebook })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Server error");
+      return res.json();
+    })
+    .then(data => {
+      alert(data.message || "Notebook saved successfully!");
+      loadNotebookList();
+    })
+    .catch(err => {
+      alert("Error saving notebook: " + err.message);
+    });
+  }
+
+  function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !file.name.endsWith(".py")) {
+      return alert("Please select a valid .py file");
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const content = e.target.result;
+      if (!content.trim()) return alert("File is empty");
+      
+      // Clear the file input
+      event.target.value = '';
+      
+      // Split into logical blocks (functions, classes, or sections)
+      const blocks = content.split(/(?=\n\s*(?:def |class |# %%|\n\n))/);
+      
+      // Add each block as a new code cell (appends to existing cells)
+      blocks.forEach(block => {
+        const cleaned = block.trim();
+        if (cleaned) {
+          addCodeCell(cleaned);
+        }
+      });
+      
+      alert(`Added ${blocks.length} code blocks from ${file.name}`);
+    };
+    
+    reader.readAsText(file);
+  }
+
+  function loadNotebookList() {
+    const container = document.getElementById("notebookItems");
+    container.innerHTML = '<div id="loadingNotebooks"><span class="spinner"></span> Loading notebooks...</div>';
+    document.getElementById("notebookList").classList.add("show");
+
+    fetch("/app/sequential/list")
+      .then(response => {
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        container.innerHTML = "";
+        
+        if (!data || data.length === 0) {
+          container.innerHTML = "<div style='padding: 20px; text-align: center;'>No notebooks found</div>";
+          return;
+        }
+
+        data.forEach(notebook => {
+          const item = document.createElement("div");
+          item.className = "notebook-item";
+          item.innerHTML = `
+            <strong><i class="fas fa-book"></i> ${notebook.name || 'Untitled Notebook'}</strong>
+            <small><i class="far fa-clock"></i> ${new Date(notebook.updated_at).toLocaleString()}</small>
+          `;
+          item.addEventListener("click", () => loadNotebook(notebook.id));
+          container.appendChild(item);
+        });
+      })
+      .catch(err => {
+        console.error("Error loading notebooks:", err);
+        container.innerHTML = `
+          <div style="color: var(--danger); padding: 20px; text-align: center;">
+            <i class="fas fa-exclamation-triangle"></i> Error loading notebooks: ${err.message}
+            <button onclick="loadNotebookList()" style="margin-top: 10px; background: var(--primary);">
+              <i class="fas fa-sync-alt"></i> Retry
+            </button>
+          </div>
+        `;
+      });
+  }
+
+  function loadNotebook(notebookId) {
+    fetch(`/app/sequential/load?id=${notebookId}`)
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load notebook (${res.status})`);
+        return res.json();
+      })
+      .then(data => {
+        // Clear current notebook
+        cellsDiv.innerHTML = "";
+        editors = [];
+        
+        // Add cells from loaded notebook
+        if (data.cells && data.cells.length > 0) {
+          data.cells.forEach(cell => {
+            if (cell.type === "markdown") {
+              const newCell = addMarkdownCell(cell.content);
+              // Immediately show preview for markdown cells
+              const previewDiv = newCell.querySelector(".markdown-preview");
+              previewDiv.innerHTML = marked.parse(cell.content);
+              newCell.querySelector(".editor-container").classList.add("hidden");
+              newCell.querySelector(".toggle-btn").innerHTML = "<i class='fas fa-edit'></i> Edit";
+            } else {
+              const newCell = addCodeCell(cell.content);
+              if (cell.output) {
+                const outputDiv = newCell.querySelector(".output");
+                outputDiv.innerHTML = `<pre>${cell.output}</pre>`;
+              }
+            }
+          });
+        } else {
+          addCodeCell(); // Add empty cell if notebook is empty
+        }
+        
+        // Close notebook panel
+        document.getElementById("notebookList").classList.remove("show");
+        alert(`Loaded notebook: ${data.name}`);
+      })
+      .catch(err => {
+        console.error("Notebook load error:", err);
+        alert(`Error loading notebook: ${err.message}`);
+      });
+  }
+
+  // Initialize event listeners
+  document.getElementById("addCode").addEventListener("click", () => addCodeCell());
+  document.getElementById("addMarkdown").addEventListener("click", () => addMarkdownCell());
+  document.getElementById("runAll").addEventListener("click", runAllCells);
+  document.getElementById("reset").addEventListener("click", resetNotebook);
+  document.getElementById("save").addEventListener("click", saveNotebook);
+  document.getElementById("openFileBtn").addEventListener("click", function() {
+    document.getElementById("uploadPyFile").click();
+  });
+  document.getElementById("uploadPyFile").addEventListener("change", handleFileUpload);
+  document.getElementById("showNotebooks").addEventListener("click", loadNotebookList);
+
+  // Initialize with one empty code cell
+  addCodeCell();
+});
+</script>
+</body>
+</html>

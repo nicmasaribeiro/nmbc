@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sequential Notebook Executor</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/editor/editor.main.css" />
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        background: #f4f6f8;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+      }
+      
+      h2 {
+        font-size: 26px;
+        margin-bottom: 20px;
+        color: #2c3e50;
+      }
+      
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 25px;
+      }
+      
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      }
+      
+      button:hover {
+        background-color: #0056b3;
+      }
+      
+      .cell {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        margin-bottom: 20px;
+        padding: 18px;
+        position: relative;
+        transition: transform 0.2s ease;
+      }
+      
+      .cell:hover {
+        transform: scale(1.01);
+      }
+      
+      .output, .preview {
+        margin-top: 12px;
+        padding: 12px;
+        border-left: 4px solid;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+      }
+      
+      .output {
+        background: #eef5ef;
+        border-color: #28a745;
+        font-family: 'Courier New', monospace;
+        color: #1e4620;
+      }
+      
+      .preview {
+        background: #fff7e6;
+        border-color: #ffc107;
+        font-family: sans-serif;
+      }
+      
+      .delete-btn {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background-color: #e74c3c;
+        color: white;
+        border: none;
+        padding: 6px 10px;
+        font-size: 13px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      
+      .delete-btn:hover {
+        background-color: #c0392b;
+      }
+      
+      input[type="file"] {
+        display: none;
+      }
+      
+      .cell.dragging {
+        opacity: 0.5;
+        transform: scale(0.98);
+      }
+      
+      #notebookList {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 340px;
+        height: 100vh;
+        background: #ffffff;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        overflow-y: auto;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+      }
+      
+      #notebookList.show {
+        transform: translateX(0);
+      }
+      
+      .notebook-item {
+        background-color: #f5f7fa;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      
+      .notebook-item:hover {
+        background-color: #e2e6ea;
+      }
+      
+      .notebook-item strong {
+        font-size: 15px;
+      }
+      
+      .notebook-item small {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+      }
+    </style>
+    
+    <!-- Monaco + Markdown support -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+<body>
+<h3><a href="/app">Back</a></h3>
+<h2>📘 Sequential Notebook Executor</h2>
+
+<div class="toolbar">
+  <button id="addCode">➕ Code</button>
+  <button id="addMarkdown">➕ Markdown</button>
+  <button id="runAll">▶️ Run All</button>
+  <button id="reset">🔄 Reset</button>
+  <button id="save">💾 Save</button>
+  <input type="file" id="uploadPyFile" accept=".py">
+  <button id="openFileBtn">📂 Open .py File</button>
+  <button id="openSaved">📚 Open Saved</button>
+</div>
+
+<div id="cells"></div>
+
+<!-- Sidebar for saved notebooks -->
+<div id="notebookList">
+  <button onclick="this.parentElement.classList.remove('show')" style="float:right;">✖</button>
+  <h3>My Saved Notebooks</h3>
+  <div id="notebookItems">Loading...</div>
+</div>
+
+<script>
+let editors = [];
+const cellsDiv = document.getElementById("cells");
+
+require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
+require(["vs/editor/editor.main"], function () {
+
+  function addCodeCell(content = "# Code") {
+    const wrapper = createCellWrapper();
+    const editorDiv = document.createElement("div");
+    editorDiv.style.height = "160px";
+    wrapper.appendChild(editorDiv);
+
+    const outputDiv = document.createElement("div");
+    outputDiv.className = "output";
+    wrapper.appendChild(outputDiv);
+
+    const editor = monaco.editor.create(editorDiv, {
+      value: content,
+      language: "python",
+      theme: "vs-dark",
+      automaticLayout: true
+    });
+
+    editors.push({ type: "code", editor, outputDiv, wrapper });
+    return wrapper;
+  }
+
+  function addMarkdownCell(content = "# Markdown") {
+    const wrapper = createCellWrapper();
+    const controls = document.createElement("div");
+    controls.style.display = "flex";
+    controls.style.justifyContent = "flex-end";
+    controls.style.marginBottom = "8px";
+    
+    const toggleBtn = document.createElement("button");
+    toggleBtn.textContent = "🖼 Preview";
+    toggleBtn.style.backgroundColor = "#ffc107";
+    toggleBtn.style.color = "#333";
+    toggleBtn.style.fontWeight = "bold";
+    toggleBtn.style.fontSize = "12px";
+    toggleBtn.style.padding = "6px 10px";
+    toggleBtn.style.borderRadius = "4px";
+    toggleBtn.style.cursor = "pointer";
+    
+    controls.appendChild(toggleBtn);
+    wrapper.appendChild(controls);
+    
+    const editorDiv = document.createElement("div");
+    editorDiv.style.height = "120px";
+    wrapper.appendChild(editorDiv);
+    
+    const preview = document.createElement("div");
+    preview.className = "preview";
+    preview.style.display = "none";
+    wrapper.appendChild(preview);
+    
+    const editor = monaco.editor.create(editorDiv, {
+      value: content,
+      language: "markdown",
+      theme: "vs-dark",
+      automaticLayout: true
+    });
+    
+    // Toggle preview
+    toggleBtn.onclick = () => {
+      const visible = preview.style.display === "block";
+      if (visible) {
+        preview.style.display = "none";
+        editorDiv.style.display = "block";
+        toggleBtn.textContent = "🖼 Preview";
+      } else {
+        preview.innerHTML = marked.parse(editor.getValue());
+        preview.style.display = "block";
+        editorDiv.style.display = "none";
+        toggleBtn.textContent = "✏️ Edit";
+      }
+    };
+    
+    editors.push({ type: "markdown", editor, preview, wrapper });
+    return wrapper;
+  }
+
+
+  function createCellWrapper() {
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+    wrapper.setAttribute("draggable", "true");
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑";
+    deleteBtn.className = "delete-btn";
+    deleteBtn.onclick = () => {
+      const index = editors.findIndex(e => e.wrapper === wrapper);
+      if (index !== -1) editors.splice(index, 1);
+      wrapper.remove();
+    };
+
+    wrapper.appendChild(deleteBtn);
+    cellsDiv.appendChild(wrapper);
+    enableDrag(wrapper);
+    return wrapper;
+  }
+
+  function enableDrag(wrapper) {
+    wrapper.addEventListener("dragstart", () => wrapper.classList.add("dragging"));
+    wrapper.addEventListener("dragend", () => wrapper.classList.remove("dragging"));
+    wrapper.addEventListener("dragover", e => {
+      e.preventDefault();
+      const dragging = document.querySelector(".cell.dragging");
+      if (dragging && dragging !== wrapper) {
+        const after = e.offsetY > wrapper.offsetHeight / 2;
+        cellsDiv.insertBefore(dragging, after ? wrapper.nextSibling : wrapper);
+      }
+    });
+  }
+
+  function runAllCells() {
+    const payload = editors
+      .filter(e => e.type === "code")
+      .map(e => ({ content: e.editor.getValue() }));
+
+    fetch("/app/evaluate_sequence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cells: payload })
+    })
+    .then(res => res.json())
+    .then(data => {
+      const outputs = data.results || [];
+      let i = 0;
+      editors.forEach(e => {
+        if (e.type === "code") {
+          e.outputDiv.innerHTML = `<pre>${outputs[i++] || "✅ No output"}</pre>`;
+        }
+      });
+    });
+  }
+
+  function resetNotebook() {
+    cellsDiv.innerHTML = "";
+    editors = [];
+    addCodeCell();
+  }
+
+  function saveNotebook() {
+    const name = prompt("Notebook name:");
+    const notebook = editors.map(e => ({
+      type: e.type,
+      content: e.editor.getValue()
+    }));
+
+    fetch("/app/sequential/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, notebook })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message || "✅ Saved"))
+    .catch(err => alert("❌ Save failed: " + err.message));
+  }
+
+  function openPyFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const content = e.target.result;
+      if (content.trim()) {
+        addCodeCell(content);
+        alert("✅ File loaded into a new code cell");
+      } else {
+        alert("❌ File is empty");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function loadNotebookList() {
+    document.getElementById("notebookList").classList.add("show");
+    const container = document.getElementById("notebookItems");
+    container.innerHTML = "Loading...";
+    fetch("/app/sequential/list")
+      .then(res => res.json())
+      .then(data => {
+        container.innerHTML = "";
+        if (!data.length) {
+          container.innerHTML = "No notebooks found.";
+          return;
+        }
+        data.forEach(nb => {
+          const item = document.createElement("div");
+          item.className = "notebook-item";
+          item.innerHTML = `
+            <strong>${nb.name || "Untitled"}</strong><br>
+            <small>${new Date(nb.updated_at).toLocaleString()}</small>`;
+          item.onclick = () => loadNotebook(nb.id);
+          container.appendChild(item);
+        });
+      });
+  }
+
+  function loadNotebook(id) {
+    fetch(`/app/sequential/load/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        editors = [];
+        cellsDiv.innerHTML = "";
+        data.cells.forEach(cell => {
+          if (cell.type === "markdown") addMarkdownCell(cell.content);
+          else addCodeCell(cell.content);
+        });
+        document.getElementById("notebookList").classList.remove("show");
+      });
+  }
+
+  // Events
+  document.getElementById("addCode").onclick = () => addCodeCell();
+  document.getElementById("addMarkdown").onclick = () => addMarkdownCell();
+  document.getElementById("runAll").onclick = runAllCells;
+  document.getElementById("reset").onclick = resetNotebook;
+  document.getElementById("save").onclick = saveNotebook;
+  document.getElementById("openFileBtn").onclick = () => {
+    document.getElementById("uploadPyFile").click();
+  };
+  document.getElementById("uploadPyFile").onchange = e => openPyFile(e.target.files[0]);
+  document.getElementById("openSaved").onclick = loadNotebookList;
+
+  // Init
+  addCodeCell();
+});
+</script>
+
+</body>
+</html>

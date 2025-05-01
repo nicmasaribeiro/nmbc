@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📓 My Saved Notebooks</title>
+  <title>📓 My Notebooks</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -15,6 +15,8 @@
     h2 {
       margin-top: 0;
       color: #444;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
     }
 
     table {
@@ -49,56 +51,97 @@
     }
 
     input[type="text"] {
-      padding: 6px;
-      width: 180px;
+      padding: 8px;
+      width: 200px;
       font-size: 14px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
       border-radius: 4px;
+      margin-right: 8px;
     }
 
     button {
-      padding: 5px 10px;
+      padding: 8px 12px;
       font-size: 14px;
       border: none;
       background: #007bff;
       color: white;
       border-radius: 4px;
       cursor: pointer;
+      transition: background 0.2s;
     }
 
     button:hover {
       background-color: #0056b3;
     }
 
-    .inline {
-      display: inline-block;
-      margin-right: 10px;
+    .action-button {
+      padding: 6px 10px;
+      font-size: 13px;
+      margin-right: 6px;
     }
 
-    .actions a, .actions form {
-      display: inline-block;
-      margin-right: 8px;
+    .rename-container {
+      margin-top: 8px;
     }
 
-    .published-status {
+    .status-message {
       font-size: 0.9em;
-      color: #666;
-      margin-top: 4px;
+      margin-top: 5px;
+      height: 18px;
     }
 
-    .published-status small {
-      display: block;
-      font-size: 0.8em;
-      color: #aaa;
+    .success {
+      color: #28a745;
+    }
+
+    .error {
+      color: #dc3545;
+    }
+
+    .loading {
+      color: #6c757d;
+    }
+
+    .publish-button {
+      background-color: #28a745;
+    }
+
+    .publish-button:hover {
+      background-color: #218838;
+    }
+
+    .unpublish-button {
+      background-color: #6c757d;
+    }
+
+    .unpublish-button:hover {
+      background-color: #5a6268;
+    }
+
+    .delete-button {
+      background-color: #dc3545;
+    }
+
+    .delete-button:hover {
+      background-color: #c82333;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #6c757d;
+      background: white;
+      border-radius: 6px;
+      margin-top: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
     .nav-links {
       margin-top: 20px;
-      font-size: 15px;
     }
 
     .nav-links a {
-      margin-right: 20px;
+      margin-right: 15px;
       color: #007bff;
       text-decoration: none;
     }
@@ -110,20 +153,14 @@
 </head>
 <body>
 
-  {% block title %}
-  My Saved Notebooks
-  {% endblock %}
-  
-  {% block content %}
-  <h2>📓 My Saved Notebooks</h2>
-  
+  <h2>📓 My Notebooks</h2>
+
   {% if notebooks %}
   <table>
     <thead>
       <tr>
         <th>Name</th>
         <th>Last Updated</th>
-        <th>Tags</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -131,31 +168,41 @@
       {% for nb in notebooks %}
       <tr>
         <td>
-          <strong>{{ nb.name }}</strong><br>
-          <form action="{{ url_for('app.rename_notebook', notebook_id=nb.id) }}" method="post" class="inline">
-            <input type="text" name="new_name" placeholder="Rename notebook" required>
-            <button type="submit">✏️ Rename</button>
-          </form>
+          <strong id="notebook-name-{{ nb.id }}">{{ nb.name }}</strong>
+          <div class="rename-container">
+            <input 
+              type="text" 
+              id="rename-input-{{ nb.id }}" 
+              placeholder="New name" 
+              value="{{ nb.name }}"
+            >
+            <button 
+              class="action-button" 
+              onclick="renameNotebook({{ nb.id }})"
+            >
+              Rename
+            </button>
+            <div id="rename-status-{{ nb.id }}" class="status-message"></div>
+          </div>
         </td>
         <td>{{ nb.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td>
-          {% if nb.tags %}
-          <span style="color: #007bff;">{{ nb.tags }}</span>
-          {% else %}
-          <em>No tags</em>
-          {% endif %}
-          <form method="post" action="{{ url_for('app.set_notebook_tags', notebook_id=nb.id) }}" class="inline" style="margin-top: 6px;">
-            <input type="text" name="tags" placeholder="Add tags (comma-separated)" required>
-            <button type="submit">🏷️ Set Tags</button>
-          </form>
-        </td>
-        <td class="actions">
-          <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}">🧠 Edit</a>
+          <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}" class="action-button">✏️ Edit</a>
+          
           {% if nb.is_sequential %}
-          <a href="{{ url_for('app.open_sequential_notebook', notebook_id=nb.id) }}">📘 Sequential</a>
+            <a href="{{ url_for('app.open_sequential_notebook', notebook_id=nb.id) }}" class="action-button">📘 Open</a>
           {% endif %}
-          <form method="post" action="{{ url_for('app.delete_notebook_file', filename=nb.filename or '') }}" class="inline">
-            <button type="submit" onclick="return confirm('Are you sure you want to delete this notebook?')">🗑️ Delete</button>
+
+          <form method="post" action="{{ url_for('app.toggle_publish_status', notebook_id=nb.id) }}" style="display: inline;">
+            {% if nb.published %}
+              <button type="submit" class="action-button unpublish-button">🔒 Private</button>
+            {% else %}
+              <button type="submit" class="action-button publish-button">🌐 Public</button>
+            {% endif %}
+          </form>
+
+          <form method="post" action="{{ url_for('app.delete_notebook', notebook_id=nb.id) }}" style="display: inline;">
+            <button type="submit" class="action-button delete-button" onclick="return confirm('Delete this notebook?')">🗑️ Delete</button>
           </form>
         </td>
       </tr>
@@ -163,14 +210,94 @@
     </tbody>
   </table>
   {% else %}
-  <p>No notebooks saved yet.</p>
-  {% endif %}
-  
-  <div class="nav-links">
-    <a href="{{ url_for('app.monaco_editor') }}">🧠 Back to Live Editor</a>
-    <a href="{{ url_for('app.sequential_notebook') }}">📘 New Sequential Notebook</a>
+  <div class="empty-state">
+    <p>You don't have any saved notebooks yet.</p>
+    <p>
+      <a href="{{ url_for('app.monaco_editor') }}">Create a new notebook</a> or 
+      <a href="{{ url_for('app.sequential_notebook') }}">start a sequential notebook</a>
+    </p>
   </div>
-  {% endblock %}
+  {% endif %}
+
+  <div class="nav-links">
+    <a href="{{ url_for('app.monaco_editor') }}">🧠 New Notebook</a>
+    <a href="{{ url_for('app.sequential_notebook') }}">📘 New Sequential Notebook</a>
+    <a href="{{ url_for('app.explore_notebooks') }}">🌍 Explore Public Notebooks</a>
+  </div>
+
+  <script>
+    async function renameNotebook(notebookId) {
+      const inputElement = document.getElementById(`rename-input-${notebookId}`);
+      const nameElement = document.getElementById(`notebook-name-${notebookId}`);
+      const statusElement = document.getElementById(`rename-status-${notebookId}`);
+      
+      const newName = inputElement.value.trim();
+      
+      // Validation
+      if (!newName) {
+        statusElement.textContent = "Please enter a name";
+        statusElement.className = "status-message error";
+        return;
+      }
+
+      if (newName === nameElement.textContent) {
+        statusElement.textContent = "Name unchanged";
+        statusElement.className = "status-message";
+        return;
+      }
+
+      // Show loading state
+      statusElement.textContent = "Saving...";
+      statusElement.className = "status-message loading";
+
+      try {
+        // Note: Using /app prefix to match Flask blueprint
+        const response = await fetch(`/app/notebook/rename/${notebookId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ new_name: newName })
+        });
+
+        // Check for JSON response
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          throw new Error(text || "Invalid server response");
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || `Error: ${response.statusText}`);
+        }
+
+        // Success case
+        nameElement.textContent = newName;
+        statusElement.textContent = "✓ Renamed successfully";
+        statusElement.className = "status-message success";
+        
+        // Clear status after 2 seconds
+        setTimeout(() => {
+          statusElement.textContent = "";
+        }, 2000);
+
+      } catch (error) {
+        console.error('Rename error:', error);
+        statusElement.textContent = "Failed to rename notebook";
+        statusElement.className = "status-message error";
+        
+        // More detailed error for debugging (remove in production)
+        if (error.message.includes("404")) {
+          statusElement.textContent = "Server endpoint not found";
+        } else if (error.message.includes("JSON")) {
+          statusElement.textContent = "Invalid server response";
+        }
+      }
+    }
+  </script>
 
 </body>
 </html>
