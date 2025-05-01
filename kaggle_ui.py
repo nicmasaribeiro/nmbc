@@ -13,7 +13,23 @@ import requests
 import time
 from models import UserNotebook
 from flask import abort
+import markdown
+# from flask import Markup
 import json
+from markupsafe import Markup  # Instead of from flask import Markup
+import markdown
+from nbformat import reads as nbformat_reads
+from nbformat import NO_CONVERT
+from nbconvert.preprocessors import ExecutePreprocessor
+import base64
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
+import matplotlib.pyplot as plt
+from io import BytesIO
+from flask import current_app
+from markupsafe import Markup
+import markdown
+
 
 kaggle_bp = Blueprint("app", __name__)
 
@@ -32,12 +48,34 @@ def execute_code_cells(code_cells):
     return nb, None
 
 
+def markdown_to_html(text):
+    """Convert markdown text to HTML"""
+    if not text:
+        return ""
+    return Markup(markdown.markdown(text))
+
+def register_template_filters(app):
+    """Register custom template filters"""
+    app.jinja_env.filters['markdown'] = markdown_to_html
+
+@kaggle_bp.after_request
+def after_request(response):
+    """Ensure all API responses are JSON"""
+    if request.path.startswith('/notebook/'):
+        if response.status_code >= 400:
+            data = {
+                "success": False,
+                "message": response.get_data(as_text=True)
+            }
+            response.set_data(json.dumps(data))
+            response.content_type = 'application/json'
+    return response
+
 @kaggle_bp.route("/notes")
 @login_required
 def notebook_manager():
     notebooks = UserNotebook.query.filter_by(user_id=current_user.id).order_by(UserNotebook.updated_at.desc()).all()
     return render_template("notebook_manager.html", notebooks=notebooks)
-
 
 
 def execute_notebook_and_capture(path):
@@ -62,7 +100,7 @@ def execute_notebook_and_capture(path):
 @kaggle_bp.route("/")
 def kaggle_home():
     submissions = NotebookSubmission.query.order_by(NotebookSubmission.score.desc()).all()
-    return render_template("kaggle_home.html", submissions=submissions)
+    return render_template("kaggle_index.html", submissions=submissions)
 
 
 @kaggle_bp.route("/submit", methods=["GET", "POST"])
@@ -180,16 +218,74 @@ def evaluate():
     except Exception as e:
         return jsonify({ "result": f"❌ Syntax Error: {str(e)}" })
 
+@kaggle_bp.route("/evaluate_two", methods=["POST"])
+def evaluate_two():
+    data = request.get_json(force=True)
+    code = data.get("code", "")
+
+    import io, contextlib
+    buffer = io.StringIO()
+
+    try:
+        with contextlib.redirect_stdout(buffer):
+            exec(code, {})
+        return jsonify({ "result": buffer.getvalue() })
+    except Exception as e:
+        return jsonify({ "result": f"❌ {str(e)}" })
+
 
 @kaggle_bp.route("/open_notebook", methods=["GET", "POST"])
 def open_notebook():
     if request.method == "POST":
-        file = request.files["notebook"]
-        if file.filename.endswith(".ipynb"):
-            nb = nbformat.read(file, as_version=4)
-            # Extract source code of code cells
-            code_cells = [cell["source"] for cell in nb.cells if cell.cell_type == "code"]
-            return render_template("notebook_editor.html", cells=code_cells)
+        file = request.files.get("notebook")
+        if not file:
+            return "No file uploaded", 400
+            
+        if not file.filename.endswith(".ipynb"):
+            return "Only .ipynb files are supported", 400
+
+        try:
+            # Read and execute the notebook
+            nb_content = file.read().decode('utf-8')
+            nb = nbformat.reads(nb_content, as_version=4)
+            
+            ep = ExecutePreprocessor(timeout=60, kernel_name='python3')
+            try:
+                ep.preprocess(nb, {'metadata': {'path': './'}})
+            except Exception as e:
+                print(f"Execution error: {e}")
+
+            # Process cells
+            processed_cells = []
+            for cell in nb.cells:
+                cell_data = {
+                    "type": cell.cell_type,
+                    "content": cell.source,
+                    "output": []
+                }
+
+                if cell.cell_type == "code":
+                    for output in cell.get("outputs", []):
+                        if output.output_type == "stream":
+                            cell_data["output"].append(output.text)
+                        elif output.output_type == "execute_result":
+                            cell_data["output"].append(output.data.get("text/plain", ""))
+                        elif output.output_type == "error":
+                            traceback = "\n".join(output.traceback)
+                            cell_data["output"].append(f"Error: {output.ename}\n{traceback}")
+                
+                processed_cells.append(cell_data)
+
+            return render_template(
+                "notebook_editor_two.html", 
+                cells=processed_cells,
+                notebook_name=file.filename
+            )
+
+        except Exception as e:
+            print(f"Error processing notebook: {e}")
+            return f"Error processing notebook: {str(e)}", 500
+
     return render_template("upload_notebook_two.html")
 
 
@@ -437,7 +533,11 @@ def sequential_notebook():
     notebook = UserNotebook.query.filter_by(user_id=current_user.id, is_sequential=True).order_by(UserNotebook.updated_at.desc()).first()
     return render_template("sequential_notebook.html", notebook=notebook)
 
-
+@kaggle_bp.route("/sequential_two")
+@login_required
+def sequential_notebook_two():
+    notebook = UserNotebook.query.filter_by(user_id=current_user.id, is_sequential=True).order_by(UserNotebook.updated_at.desc()).first()
+    return render_template("sequential_notebook_two.html", notebook=notebook)
 
 
 @kaggle_bp.route("/datasets")
@@ -447,6 +547,17 @@ def list_datasets():
     files = DatasetMeta.query.order_by(DatasetMeta.uploaded_at.desc()).all()
     return render_template("list_datasets.html", files=files)
 
+@kaggle_bp.route("/sequential/list")
+@login_required
+def list_sequential_notebooks():
+    notebooks = UserNotebook.query.filter_by(user_id=current_user.id, is_sequential=True).order_by(UserNotebook.updated_at.desc()).all()
+    return jsonify([
+        {
+            "id": nb.id,
+            "name": nb.name,
+            "updated_at": nb.updated_at.isoformat() if nb.updated_at else None
+        } for nb in notebooks
+    ])
 
 
 @kaggle_bp.route("/save_user_notebook", methods=["POST"])
@@ -486,21 +597,6 @@ def my_notebooks():
 def runner():
     return render_template("runner.html")
 
-@kaggle_bp.route("/notebook/rename/<int:notebook_id>", methods=["POST"])
-@login_required
-def rename_notebook(notebook_id):
-    new_name = request.form.get("new_name", "").strip()
-    if not new_name:
-        return "⚠️ Name cannot be empty.", 400
-
-    notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first()
-    if not notebook:
-        return "Notebook not found", 404
-
-    notebook.name = new_name
-    db.session.commit()
-    return redirect(url_for("app.my_notebooks"))
-
 
 @kaggle_bp.route("/edit_notebook/<int:notebook_id>")
 @login_required
@@ -510,21 +606,35 @@ def edit_saved_notebook(notebook_id):
         return "Notebook not found", 404
 
     try:
-        # Parse to ensure it's valid JSON, then re-dump it for safe JS usage
-        parsed = json.loads(nb.content)
-        encoded = json.dumps(parsed)
+        # Parse the notebook content
+        notebook_content = json.loads(nb.content)
+        
+        # Ensure it's a list of cells
+        if not isinstance(notebook_content, list):
+            notebook_content = []
+            
+        # Convert to a format the editor expects
+        cells = []
+        for cell in notebook_content:
+            cells.append({
+                "type": cell.get("type", "code"),
+                "content": cell.get("content", ""),
+                "output": cell.get("output", [])
+            })
+            
+        # Convert to JSON string for the template
+        safe_json = json.dumps(cells)
+        
     except Exception as e:
         print("⚠️ JSON parsing error:", e)
-        encoded = "[]"
-    import json
+        safe_json = "[]"
 
-    
-    notebook = UserNotebook.query.get(notebook_id)
-    parsed = json.loads(notebook.content)       # parsed: list of dicts
-    safe_json = json.dumps(parsed)              # string with real \n, not \\n
-
-    return render_template("editor.html", saved_cells=safe_json, notebook_id=nb.id, notebook_name=nb.name)
-
+    return render_template(
+        "editor.html", 
+        saved_cells=safe_json,
+        notebook_id=nb.id,
+        notebook_name=nb.name
+    )
     # return render_template(
     #     "editor.html",
     #     notebook_name=nb.name,
@@ -552,7 +662,7 @@ def load_uploaded_notebook(filename):
     # Extract source code from code cells
     code_cells = [cell["source"] for cell in nb.cells if cell.cell_type == "code"]
 
-    return render_template("notebook_editor.html", cells=code_cells)
+    return render_template("notebook_editor_two.html", cells=code_cells)
 
 
 
@@ -696,31 +806,31 @@ def toggle_publish_status(notebook_id):
     db.session.commit()
     return redirect(url_for("app.my_notebooks"))
 
-@kaggle_bp.route("/notebook/update/<int:notebook_id>", methods=["POST"])
-@login_required
-def update_notebook(notebook_id):
-    try:
-        data = request.get_json()
-        new_cells = data.get("notebook", [])
-        new_name = data.get("name")
+# @kaggle_bp.route("/notebook/update/<int:notebook_id>", methods=["POST"])
+# @login_required
+# def update_notebook(notebook_id):
+#     try:
+#         data = request.get_json()
+#         new_cells = data.get("notebook", [])
+#         new_name = data.get("name")
 
-        notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first()
-        if not notebook:
-            return "Notebook not found or unauthorized", 404
+#         notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first()
+#         if not notebook:
+#             return "Notebook not found or unauthorized", 404
 
-        if new_name:
-            notebook.name = new_name
-        if new_cells:
-            notebook.content = json.dumps(new_cells)
+#         if new_name:
+#             notebook.name = new_name
+#         if new_cells:
+#             notebook.content = json.dumps(new_cells)
 
-        db.session.commit()
-        return "✅ Notebook updated", 200
+#         db.session.commit()
+#         return "✅ Notebook updated", 200
 
-    except Exception as e:
-        print("❌ Update error:", e)
-        return f"❌ Failed to update notebook: {str(e)}", 500
+#     except Exception as e:
+#         print("❌ Update error:", e)
+#         return f"❌ Failed to update notebook: {str(e)}", 500
     
-    from flask import send_from_directory
+from flask import send_from_directory
 from nbconvert import HTMLExporter
 import nbformat
 
@@ -784,21 +894,21 @@ def monaco_editor():
         notebook_id="null"
     )
 
-@kaggle_bp.route("/edit_notebook/<int:notebook_id>")
-@login_required
-def edit_notebook(notebook_id):
-    notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first_or_404()
-    try:
-        cells = json.loads(notebook.content)
-    except Exception as e:
-        cells = []
+# @kaggle_bp.route("/edit_notebook/<int:notebook_id>")
+# @login_required
+# def edit_notebook(notebook_id):
+#     notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first_or_404()
+#     try:
+#         cells = json.loads(notebook.content)
+#     except Exception as e:
+#         cells = []
 
-    return render_template(
-        "editor.html",
-        saved_cells=cells,
-        notebook_name=notebook.name,
-        notebook_id=notebook.id
-    )
+#     return render_template(
+#         "editor.html",
+#         saved_cells=cells,
+#         notebook_name=notebook.name,
+#         notebook_id=notebook.id
+#     )
 
 
 @kaggle_bp.route("/jup")
@@ -809,21 +919,178 @@ def jup():
 def rendered_file(filename):
     return send_from_directory("rendered_notebooks", filename)
 
-@kaggle_bp.route("/sequential/open/<int:notebook_id>")
-@login_required
-def open_sequential_notebook_two(notebook_id):
-    nb = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id, is_sequential=True).first()
-    if not nb:
-        return "Notebook not found", 404
-
-    return render_template("sequential_notebook.html", notebook=nb)
-
 @kaggle_bp.route("/sequential/<int:notebook_id>")
 @login_required
 def open_sequential_notebook(notebook_id):
+    notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        # Parse the content to ensure it's valid JSON
+        content = json.loads(notebook.content)
+        # If content is a string (old format), convert to proper structure
+        if isinstance(content, str):
+            content = [{"type": "code", "content": content}]
+    except json.JSONDecodeError:
+        # Handle case where content isn't valid JSON
+        content = [{"type": "code", "content": notebook.content}]
+    except Exception as e:
+        print(f"Error parsing notebook content: {e}")
+        content = []
+    
+    return render_template(
+        "sequential_view.html",
+        notebook=notebook,
+        notebook_content=json.dumps(content)  # Properly formatted JSON string
+    )
+
+@kaggle_bp.route("/notebook/update/<int:notebook_id>", methods=["POST"])
+@login_required
+def update_notebook(notebook_id):
     notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first()
     if not notebook:
-        return "Notebook not found or unauthorized", 404
+        return jsonify({"success": False, "message": "Notebook not found"}), 404
+    
+    data = request.get_json()
+    notebook.content = json.dumps(data.get("notebook", []))
+    if "name" in data:
+        notebook.name = data["name"]
+    
+    db.session.commit()
+    return jsonify({"success": True, "message": "Notebook updated successfully"})
 
-    # You can customize the UI to look different for sequential view if needed
-    return render_template("sequential_view.html", notebook=notebook)
+# @kaggle_bp.route("/rename/<int:notebook_id>", methods=["POST"])
+# @login_required
+# def rename_notebook(notebook_id):
+#     new_name = request.form.get("new_name", "").strip()
+#     if not new_name:
+#         flash("Name cannot be empty.", "danger")
+#         return redirect(url_for("app.my_notebooks"))
+
+#     notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first()
+#     if not notebook:
+#         flash("Notebook not found.", "danger")
+#         return redirect(url_for("app.my_notebooks"))
+
+#     notebook.name = new_name
+#     notebook.updated_at = datetime.utcnow()
+#     db.session.commit()
+
+#     # flash("Notebook renamed successfully.", "success")
+#     return redirect(url_for("app.my_notebooks"))
+
+
+@kaggle_bp.route("/notebook/delete/<int:notebook_id>", methods=["POST"])
+@login_required
+def delete_notebook(notebook_id):
+    notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first()
+    if not notebook:
+        return jsonify({"success": False, "message": "Notebook not found"}), 404
+    
+    db.session.delete(notebook)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Notebook deleted successfully"})
+
+@kaggle_bp.route("/code", methods=["GET"])
+def code():
+    return render_template('code.html')
+@kaggle_bp.route("/notebook/rename/<int:notebook_id>", methods=["POST"])
+@login_required
+def rename_notebook(notebook_id):
+    try:
+        if not request.is_json:
+            return jsonify({
+                "success": False,
+                "message": "Content-Type must be application/json"
+            }), 400
+
+        data = request.get_json()
+        new_name = data.get("new_name", "").strip()
+        
+        if not new_name:
+            return jsonify({
+                "success": False,
+                "message": "Name cannot be empty"
+            }), 400
+
+        notebook = UserNotebook.query.filter_by(
+            id=notebook_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not notebook:
+            return jsonify({
+                "success": False,
+                "message": "Notebook not found"
+            }), 404
+
+        notebook.name = new_name
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Notebook renamed successfully",
+            "new_name": new_name
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error renaming notebook: {str(e)}"
+        }), 500
+    
+
+@kaggle_bp.route("/evaluate_plot", methods=["POST"])
+def evaluate_plot():
+    try:
+        data = request.get_json()
+        code = data.get("code", "")
+        
+        # Redirect stdout to capture print statements
+        buffer = BytesIO()
+        
+        # Check if the code might generate a plot
+        if any(keyword in code for keyword in ['plt.', 'plot(', 'figure(', 'show(']):
+            # Create a new figure
+            plt.figure()
+            
+            # Execute the code
+            exec(code, {'plt': plt}, {})
+            
+            # Save the plot to buffer
+            img_buffer = BytesIO()
+            plt.savefig(img_buffer, format='png')
+            plt.close()
+            img_buffer.seek(0)
+            
+            return jsonify({
+                "success": True,
+                "plot": base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+            })
+        else:
+            # Regular code execution
+            import io
+            import contextlib
+            
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                exec(code, {}, {})
+                
+            return jsonify({
+                "success": True,
+                "result": output.getvalue() or "✅ Execution successful"
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "result": f"❌ Error: {str(e)}"
+        })
+    
+@kaggle_bp.route("/editor_two", methods=["GET"])
+def monaco_editor_two():
+    return render_template(
+        "editor_two.html",
+        saved_cells=[],
+        notebook_name="Untitled Notebook",
+        notebook_id="null"
+    )
