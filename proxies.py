@@ -30,8 +30,23 @@ class YFinanceProxyWrapper:
 		
 	def restore(self):
 		requests.get = self._original_get
-		
+	
 	def fetch(self, ticker, **kwargs):
-		return yf.Ticker(ticker).history(**kwargs)
+		for proxy in self.proxy_list:
+			try:
+				session = requests.Session()
+				session.proxies = {
+					"http": proxy,
+					"https": proxy,
+				}
+				session.headers.update({
+					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+				})
+				return yf.Ticker(ticker, session=session).history(**kwargs)
+			except Exception as e:
+				print(f"Proxy failed: {proxy}. Error: {e}")
+		raise RuntimeError(f"All proxies failed for {ticker}.")
+
+
 	
 	

@@ -132,16 +132,16 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(sequential_bp, url_prefix="/seq")
 
 register_template_filters(app)
 # # 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -151,6 +151,11 @@ celery.conf.beat_schedule = {
         'schedule': 60.0,  # Run every 60 seconds
     },
 }
+
+@cache.cached(timeout=300)
+def get_yf_data(ticker):
+	proxy = YFinanceProxyWrapper(proxy_list)
+	return proxy.fetch(ticker, period='1d', interval='1m')
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -171,9 +176,9 @@ def execute_swap_double_check():
 		session = requests.Session()
 		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 		# Fetch historical stock data
-		proxy = YFinanceProxyWrapper(proxy_list=proxy_list)
+		# proxy = YFinanceProxyWrapper(proxy_list=proxy_list)
 		# ticker =  #yf.Ticker(s.equity.upper(),session=session)
-		historical_data = proxy.fetch(s.equity.upper(),period='5d', interval='1m')['Close']
+		historical_data = get_yf_data(s.equity.upper())['Close'] #proxy.fetch(,period='5d', interval='1m')['Close']
 
 		if len(historical_data) < 2:
 			print(f"Not enough historical data for {s.equity}")
@@ -689,11 +694,12 @@ def recalculate():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
 		try:
-			session = requests.Session()
-			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-			t = yf.Ticker(i.investment_name.upper(),session=session)
-			prices_vector = t.history(period='5d',interval='1m')
-			price = t.history()['Close'].iloc[-1]
+			# session = requests.Session()
+			# get
+			# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+			# t = yf.Ticker(,session=session)
+			prices_vector = get_yf_data(i.investment_name.upper())#t.history(period='5d',interval='1m')
+			price = prices_vector['Close'].iloc[-1]
 			s = stoch_price(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
 			i.stoch_price = s
 			# i.tokenized_price
@@ -704,11 +710,11 @@ def recalculate():
 def update_portfolio():
 	portfolio = Portfolio.query.all()
 	for i in portfolio:
-		session = requests.Session()
-		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-		t = yf.Ticker(i.token_name.upper(),session=session)
-		prices_vector = t.history(period='5d',interval='1m')
-		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+		# session = requests.Session()
+		# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		t = get_yf_data(i.token_name.upper())#yf.Ticker(i.token_name.upper(),session=session)
+		prices_vector = t #t.history(period='5d',interval='1m')
+		price = t['Close'].iloc[-1]
 		i.price = price
 		db.session.commit()
 
@@ -718,8 +724,8 @@ def change_value_update():
 		proxy = YFinanceProxyWrapper(proxy_list) #requests.Session()
 		# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 		# t = #yf.Ticker(i.investment_name.upper(),session=session)
-		prices_vector = proxy.fetch(i.investment_name.upper(),period='5d',interval='1m')#t.history(period='5d',interval='1m')
-		price = proxy.fetch(i.investment_name.upper(),period='1d',interval='1m')['Close'].iloc[-1]#t.history(period='1d',interval='1m')
+		prices_vector = get_yf_data(i.investment_name.upper()) #proxy.fetch(i.investment_name.upper(),period='5d',interval='1m')#t.history(period='5d',interval='1m')
+		price = prices_vector['Close'].iloc[-1]#t.history(period='1d',interval='1m')
 		change = np.log(price) - np.log(i.starting_price)
 		i.change_value = change
 		db.session.commit()
@@ -4823,10 +4829,9 @@ def download_file():
 # schedule.every(1).minutes.do(update_prices)
 
 def run_periodic_task():
-	# while True:
 	update.delay()
 	time.sleep(60)
-	celery.start()#argv=["worker", "--loglevel=info"])
+	celery.start(argv=["worker", "--loglevel=info"]))
 
 
 if __name__ == '__main__':
@@ -4834,11 +4839,11 @@ if __name__ == '__main__':
 		db.create_all()
 		PendingTransactionDatabase.genisis() 
 	def run_scheduler():
-		while True:
-			with app.app_context():
-				schedule.run_pending()
-				run_periodic_task()
-				time.sleep(10)  #
+		# while True:
+		with app.app_context():
+			schedule.run_pending()
+			run_periodic_task()
+			time.sleep(10)  #
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	# update_thread = threading.Thread(target=update_prices, daemon=True)
 	# swap_thread = threading.Thread(target=execute_swap_double_check, daemon=True)
