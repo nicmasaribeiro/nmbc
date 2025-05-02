@@ -166,6 +166,9 @@ class UserNotebook(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
     tags = db.Column(db.String, default="")
     is_sequential = db.Column(db.Boolean, default=False)
+    is_for_sale = db.Column(db.Boolean, default=False)
+    price = db.Column(db.Float, default=0.0)
+
 
 
 

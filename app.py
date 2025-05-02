@@ -84,6 +84,9 @@ from kaggle_ui import kaggle_bp
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from kaggle_ui import register_template_filters
+from sequential_bp import sequential_bp
+
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -121,6 +124,7 @@ app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
 app.register_blueprint(kaggle_bp, url_prefix="/app")
+app.register_blueprint(sequential_bp, url_prefix="/seq")
 
 register_template_filters(app)
 
@@ -147,13 +151,15 @@ def execute_swap_double_check():
 	"""Executes swap transactions at scheduled intervals"""
 	swaps = Swap.query.all()  # Get all swaps from the database
 
+
 	for s in swaps:
 		periods = s.amount
 		maturity = s.maturity
 		time_total = maturity * 252  # Convert years to days
-
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 		# Fetch historical stock data
-		ticker = yf.Ticker(s.equity.upper())
+		ticker = yf.Ticker(s.equity.upper(),session=session)
 		historical_data = ticker.history(period='5d', interval='1m')["Close"]
 
 		if len(historical_data) < 2:
@@ -201,9 +207,10 @@ def execute_swap():
 		periods = s.amount
 		maturity = s.maturity
 		time_total = maturity * 365  # Convert years to days
-
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 		# Fetch historical stock data
-		ticker = yf.Ticker(s.equity.upper())
+		ticker = yf.Ticker(s.equity.upper(), session=session)
 		historical_data = ticker.history(period='1d', interval='1m')["Close"]
 
 		if len(historical_data) < 2:
@@ -249,8 +256,12 @@ def make_payment():
 	"""Executes swap transactions at scheduled intervals"""
 	if request.method =='POST':
 		receipt = request.values.get('receipt')
-		swap = Swap.query.filter_by(receipt=receipt).first()  # Get all swaps from the database
-		price = yf.Ticker(swap.equity.upper()).history()["Close"]
+		swap = Swap.query.filter_by(receipt=receipt).first()
+		  # Get all swaps from the database
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		# data = yf.Ticker("AAPL", session=session)
+		price = yf.Ticker(swap.equity.upper(),session=session).history()["Close"]
 		ret = np.log(price[-1]) - np.log(price[-2])
 		party_a = swap.counterparty_a
 		party_b = swap.counterparty_b
@@ -482,7 +493,9 @@ def calc_greeks():
 	df = {"name":[],"delta": [], "gamma": [], "theta": [], "vega": [], "rho": [], "price": [],'receipt': []}
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
-		t = yf.Ticker(i.investment_name.upper())
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		t = yf.Ticker(i.investment_name.upper(),session=session)
 		price = t.history(period='1d')['Close'].iloc[-1]
 		greeks = calculate_greeks(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
 		df["name"].append(i.investment_name)
@@ -568,7 +581,9 @@ def calc_option_greeks():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
 		try:
-			t = yf.Ticker(i.investment_name.upper())
+			session = requests.Session()
+			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+			t = yf.Ticker(i.investment_name.upper(),session=session)
 			type_option = str(i.investment_type).strip('InvestmentType.')
 			print(type_option)
 			if type_option == 'u':
@@ -661,7 +676,9 @@ def recalculate():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
 		try:
-			t = yf.Ticker(i.investment_name.upper())
+			session = requests.Session()
+			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+			t = yf.Ticker(i.investment_name.upper(),session=session)
 			prices_vector = t.history(period='5d',interval='1m')
 			price = t.history()['Close'].iloc[-1]
 			s = stoch_price(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
@@ -674,7 +691,9 @@ def recalculate():
 def update_portfolio():
 	portfolio = Portfolio.query.all()
 	for i in portfolio:
-		t = yf.Ticker(i.token_name.upper())
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		t = yf.Ticker(i.token_name.upper(),session=session)
 		prices_vector = t.history(period='5d',interval='1m')
 		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
 		i.price = price
@@ -683,7 +702,9 @@ def update_portfolio():
 def change_value_update():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
-		t = yf.Ticker(i.investment_name.upper())
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		t = yf.Ticker(i.investment_name.upper(),session=session)
 		prices_vector = t.history(period='5d',interval='1m')
 		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
 		change = np.log(price) - np.log(i.starting_price)
@@ -702,8 +723,10 @@ def update_prices():
 
 	for i in invests:
 		try:
+			session = requests.Session()
+			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 			# Fetch current market data
-			t = yf.Ticker(i.investment_name.upper())
+			t = yf.Ticker(i.investment_name.upper(),session=session)
 			prices_vector = t.history(period='5d', interval='1m')
 			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
 			
@@ -750,8 +773,10 @@ def update():
 
 	for i in invests:
 		try:
+			session = requests.Session()
+			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 			# Fetch current market data
-			t = yf.Ticker(i.investment_name.upper())
+			t = yf.Ticker(i.investment_name.upper(),session=session)
 			prices_vector = t.history(period='5d', interval='1m')
 			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
 			
@@ -1315,7 +1340,9 @@ def add_portfolio():
 		ticker = request.form.get('name').upper()
 		password = request.form.get('password')
 		name = request.form.get('pname').lower()
-		price = yf.Ticker(ticker).history(period='ytd',interval='1d')['Close']
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		price = yf.Ticker(ticker,session=session).history(period='ytd',interval='1d')['Close']
 		mean = np.mean(price)
 		std = np.std(price)
 		weight = float(request.form.get('weight'))
@@ -1587,7 +1614,7 @@ def buy_or_sell():
             user_db = Users.query.filter_by(username=user).first()
             if not user_db:
                 return "<h3>User not found</h3>"
-
+	
             ticker = yf.Ticker(invest_name)
             history = ticker.history(period='1d', interval='1m')
 
@@ -2027,7 +2054,10 @@ def filt_option():
 def create_options():
 	if request.method =='POST':
 		ticker = request.values.get('ticker').upper()
-		price = yf.Ticker(ticker).history()['Close'][-1]
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		price = yf.Ticker(ticker,session=session).history()['Close'][-1]
 		url = 'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=ticker)
 		r = requests.get(url)
 		data = r.json()
@@ -2111,7 +2141,10 @@ def create_options():
 
 @app.route('/chain/<ticker>')
 def options_chain_pricing(ticker):
-	price = yf.Ticker(ticker).history()['Close'][-1]
+	session = requests.Session()
+	session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+	price = yf.Ticker(ticker,session=session).history()['Close'][-1]
 	url = 'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=ticker)
 	r = requests.get(url)
 	data = r.json()
@@ -2426,9 +2459,11 @@ def info(id):
 	description = data['Description']
 	PEG = data['PEGRatio']
 	PE = data['PERatio']
-
+	session = requests.Session()
+	session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
 	# res = asset_info(name)
-	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
+	df = yf.Ticker(name,session=session).history(period='2y', interval='1d')["Close"]
 	df = df.dropna()
 	# Compute rolling mean and standard deviation
 	rolling_window = 20  # Adjust the window size as needed
@@ -2462,8 +2497,11 @@ def info_assets(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
 	name = asset.investment_name.upper()
+	session = requests.Session()
+	session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
 	# res = asset_info(name)
-	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
+	df = yf.Ticker(name,session=session).history(period='2y', interval='1d')["Close"]
 	df = df.dropna()
 	# Compute rolling mean and standard deviation
 	rolling_window = 20  # Adjust the window size as needed
@@ -2698,7 +2736,10 @@ def neutral_measure():
 			return q
 
 		def bin_stats_df(t,period='1d',interval='1m',rf=.05,dt=1/252):
-			ticker = yf.Ticker(t.upper())
+			session = requests.Session()
+			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+			ticker = yf.Ticker(t.upper(),session=session)
 			history = ticker.history(period=period,interval=interval)
 			df = history[['Close','Open']]
 			up = []
@@ -2735,7 +2776,10 @@ def risk_neutral_measure():
 			return 1 if x > threshold else 0
 		tickers = request.values.get("tickers").upper()
 		tickers = tickers.replace(',', ' ')
-		t = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Tickers(tickers,session=session)
 		h = t.history(start='2020-1-1',end=dt.date.today(),interval="1d")
 		df = h["Close"].pct_change()[1:]
 		cov = df.cov()
@@ -2773,7 +2817,10 @@ def risk_neutral_measure():
 def valuation_stats():
 	if request.method=="POST":
 		name = request.values.get('ticker')
-		t = yf.Ticker(name.upper())
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Ticker(name.upper(),session=session)
 		price = t.history()["Close"][-1]
 		invs = ValuationDatabase.query.filter_by(target_company=name).all()
 		ls = {'coe':[],"cod":[],"price":[],'wacc':[],'change':[]}
@@ -2841,7 +2888,10 @@ def submit_blog():
 def track_inv():
 	if request.method=="POST":
 		name = request.values.get('ticker').upper()
-		t = yf.Ticker(name.upper())
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		# data = yf.Ticker("AAPL", session=session)
+		t = yf.Ticker(name.upper(),session=session)
 		price = t.history()["Close"][-1]
 		invs = InvestmentDatabase.query.filter_by(investment_name=name).all()
 		ls = {'spread':[],"reversion":[],"risk_neutral":[],'timedelta':[],'target_price':[]}
@@ -3105,7 +3155,10 @@ def forward_rate_two():
 		p = request.values.get('period')
 		i = request.values.get('interval')
 		ticker = request.values.get("ticker").upper()
-		t = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Ticker(ticker,session=session)
 		history = t.history(period=p,interval=i)
 		
 		close_prices = history["Close"].pct_change()[1:]
@@ -3135,7 +3188,10 @@ def transform_coef():
 		p = request.values.get('period')
 		i = request.values.get('interval')
 		ticker = request.values.get("ticker").upper()
-		t = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Ticker(ticker,session=session)
 		history = t.history(period=p,interval=i)
 		
 		hig_low = history["High"] - history["Low"]
@@ -3212,7 +3268,10 @@ def reversion():
 		interval = request.values.get("interval")
 		
 		t = yf.Ticker(ticker)
-		history = t.history(period=period,interval=interval)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		history = t.history(period=period,interval=interval,session=session)
 		prices = history["Close"]
 		reversion_coefficient = calculate_reversion_coefficient_sklearn(prices)
 
@@ -3305,7 +3364,10 @@ def ddm():
 @app.route('/api/stocks/<symbol>', methods=['GET','POST'])
 def get_stock(symbol):
 	try:
-		stock = yf.Ticker(symbol)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		stock = yf.Ticker(symbol,session=session)
 		stock_info = stock.info
 		print(stock_info)
 		
@@ -3412,7 +3474,10 @@ def calibration():
 	if request.method == "POST":
 		tickers = request.values.get("tickers").upper()
 		tickers = tickers.replace(',', ' ')
-		t = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Tickers(tickers,session=session)
 		h = t.history(start='2020-1-1',end=dt.date.today(),interval="1d")
 		df = h["Close"].pct_change()[1:]
 		cov = df.cov()
@@ -3457,7 +3522,10 @@ def mu_sigma():
 		ticker = request.values.get("ticker").upper()
 		period = request.values.get("period")
 		interval = request.values.get("interval")
-		t = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Ticker(ticker,session=session)
 		h = t.history(period=period,interval=interval)
 		df = h["Close"] 
 		ret = df.pct_change()[1:]
@@ -3485,7 +3553,10 @@ def single_calibration():
 		ticker = request.values.get("tickers").upper()
 		def eucdist(Xk,Yk):
 			return np.sqrt(sum([(Xk[i] - Yk[i])**2 for i in range(len(Xk))]))*(np.linalg.norm(Xk)*np.linalg.norm(Yk))
-		t = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		t = yf.Ticker(ticker,session=session)
 		h = t.history(period='max',interval="1d")
 		o = h["Open"].pct_change()[1:]
 		c = h["Close"].pct_change()[1:]
@@ -3613,7 +3684,10 @@ def cov_prices():
 	if request.method == 'POST':
 		tickers = request.values.get("tickers").upper()
 		tickers = tickers.replace(',', ' ')
-		tickers = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		tickers = yf.Tickers(tickers,session=session)
 		history = tickers.history(start='2018-1-1',end=dt.date.today())
 		df = history['Close']
 		covaraince = df.cov()
@@ -3626,7 +3700,10 @@ def cov_returns():
 	if request.method == 'POST':
 		tickers = request.values.get("tickers").upper()
 		tickers = tickers.replace(',', ' ')
-		tickers = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		tickers = yf.Tickers(tickers,session=session)
 		history = tickers.history(start='2018-1-1',end=dt.date.today())
 		df = history['Close'].pct_change()
 		covaraince = df.cov()*np.sqrt(256)
@@ -3639,7 +3716,10 @@ def corr_returns():
 	if request.method == 'POST':
 		tickers = request.values.get("tickers").upper()
 		tickers = tickers.replace(',', ' ')
-		tickers = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		tickers = yf.Tickers(tickers,session=session)
 		history = tickers.history(start='2018-1-1',end=dt.date.today())
 		df = history['Close'].pct_change()
 		correlation = df.corr()#*np.sqrt(256)
@@ -3652,7 +3732,10 @@ def corr_prices():
 	if request.method == 'POST':
 		tickers = request.values.get("tickers").upper()
 		tickers = tickers.replace(',', ' ')
-		tickers = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		tickers = yf.Tickers(tickers,session=session)
 		history = tickers.history(start='2018-1-1',end=dt.date.today())
 		df = history['Close']#.pct_change()
 		correlation = df.corr()#*np.sqrt(256)
@@ -3665,7 +3748,10 @@ def graph():
 	if request.method == 'POST':
 		ticker = request.values.get("asset").upper()
 		period = request.form.get("ttype")
-		ticker_data = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		ticker_data = yf.Ticker(ticker,session=session)
 		hist = ticker_data.history(period=period)['Close']
 		# Create the Bokeh plot
 		p = figure(title=f"{ticker} Closing Prices", x_axis_label='Date', y_axis_label='Price', x_axis_type='datetime')
@@ -3680,7 +3766,10 @@ def graph_day():
 	if request.method == 'POST':
 		ticker = request.values.get("asset").upper()
 		period = request.form.get("ttype")
-		ticker_data = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		ticker_data = yf.Ticker(ticker,session=session)
 		hist = ticker_data.history(interval=period,period='1d')['Close']
 		open = ticker_data.history(interval=period,period='1d')['Open']
 		sma = hist.rolling(7).mean()
@@ -3698,7 +3787,10 @@ def graph_day():
 def graph_forecast_1m():
 	if request.method == 'POST':
 		ticker = request.values.get("asset").upper()
-		ticker_data = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		ticker_data = yf.Ticker(ticker,session=session)
 #		ttype = request.form.get('')
 		hist = ticker_data.history(interval='1d',period='1mo')['Close']
 		initial_price = hist[-1]
@@ -3735,7 +3827,7 @@ def graph_forecast_max():
             return "Error: No ticker provided.", 400
         
         ticker = ticker.upper()
-        ticker_data = yf.Ticker(ticker)
+        ticker_data = yf.Ticker(ticker,session=session)
         hist = ticker_data.history(interval='1mo', period='max')['Close']
 
         if hist.empty:
@@ -3777,7 +3869,10 @@ def graph_forecast_max():
 def graph_forecast_1d():
 	if request.method == 'POST':
 		ticker = request.values.get("asset").upper()
-		ticker_data = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		ticker_data = yf.Ticker(ticker,session=session)
 		hist = ticker_data.history(interval='1m',period='1d')['Close']
 		initial_price = hist[-1]
 		ret = hist.pct_change()[1:]
@@ -3809,7 +3904,10 @@ def graph_forecast_1d():
 def graph_forecast_1y():
 	if request.method == 'POST':
 		ticker = request.values.get("asset").upper()
-		ticker_data = yf.Ticker(ticker)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		ticker_data = yf.Ticker(ticker,session=session)
 		hist = ticker_data.history(interval='1d',period='1y')['Close']
 		initial_price = hist[-1]
 		ret = hist.pct_change()[1:]
@@ -4112,7 +4210,10 @@ def stats_binom():
 
 @app.route('/plotly/<ticker>')
 def plot_ly(ticker):
-	t = yf.Ticker(ticker.upper())
+	session = requests.Session()
+	session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+	t = yf.Ticker(ticker.upper(),session=session)
 	history=t.history(period="5y")["Close"]
     # Example plot
 	fig = px.scatter(history.values,title=f"{ticker}")
@@ -4201,15 +4302,20 @@ def filtration():
 		target_index = request.values.get('target_index').upper()
 		target_stock = request.values.get('target_stock').upper()
 		# interval = request.values.get('interval')
-		
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
 		# Fetch the index history
-		i = yf.Ticker(target_index)
+		i = yf.Ticker(target_index,session=session)
 		index = i.history(period='2y')["Close"]
 		ret_index = index.pct_change()[1:]
 
 		# Fetch the ticker data from user input
 		t = yf.Ticker(target_stock)
-		history = t.history(period='2y')
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		history = t.history(period='2y',session=session)
 		close = history["Close"]
 		ret = close.pct_change()[1:]  # Percentage returns
 
@@ -4240,7 +4346,10 @@ def drift_vol():
 		ticker = request.values.get("ticker").upper()
 		p = request.values.get("p")
 		i = request.values.get("i")
-		data = yf.Ticker(ticker).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		data = yf.Ticker(ticker,session=session).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
 		data['Log Returns'] = np.log(data['Close'] / data['Close'].shift(1))
 		# Time step (e.g., daily returns, assume 252 trading days in a year)
 		delta_t = 1 / 252
@@ -4285,7 +4394,10 @@ def pca_one():
 	if request.method == "POST":
 		t = request.values.get("tickers").upper()
 		t = t.replace(',', ' ')
-		tickers = yf.Tickers(t)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		tickers = yf.Tickers(t,session=session)
 		df = tickers.history(period='max',interval='1d')["Close"]
 		returns = df.pct_change()[1:]
 		ret = returns.dropna().to_numpy()#.reshape(-1,1)
@@ -4420,7 +4532,10 @@ def paramatize():
 def test():
 	if request.method == "POST":
 		tickers = request.form.get("tickers").upper().replace(',', ' ')
-		tickers = yf.Tickers(tickers)
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		tickers = yf.Tickers(tickers,session=session)
 		data = tickers.history()["Close"]
 		normalized_data = (data - data.mean()) / data.std()
 		fig = px.line(normalized_data, x=normalized_data.index, y=normalized_data.columns, title="Normalized Stock Price Trends")
@@ -4449,8 +4564,10 @@ def kappa():
 		# Create a sample Plotly figure
 		# Define parameters
 		ticker = request.values.get("ticker").upper()  # Replace with any stock ticker
-
-		stock_data = yf.Ticker(ticker).history(period='max', interval='1d')
+		session = requests.Session()
+		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+# data = yf.Ticker("AAPL", session=session)
+		stock_data = yf.Ticker(ticker,session=session).history(period='max', interval='1d')
 
 		# Compute log prices
 		stock_data["Log Price"] = np.log(stock_data["Close"])
@@ -4716,4 +4833,4 @@ if __name__ == '__main__':
 	schedule_thread.start()
 	# update_thread.start()
 	# swap_thread.start()
-	app.run(host="0.0.0.0",port=9000)
+	app.run(host="0.0.0.0",port=3000)
