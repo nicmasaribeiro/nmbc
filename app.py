@@ -132,16 +132,16 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(sequential_bp, url_prefix="/seq")
 
 register_template_filters(app)
-# # 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhçost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+# 
+app.config['CELERY_BROKER_URL'] = 'redis://localhçost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -155,7 +155,7 @@ celery.conf.beat_schedule = {
 @cache.cached(timeout=300)
 def get_yf_data(ticker):
 	proxy = YFinanceProxyWrapper(proxy_list)
-	return proxy.fetch(ticker, period='1d', interval='1m')
+	return proxy.fetch(ticker, period='1wk', interval='1d')
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -1601,7 +1601,7 @@ def mine():
 	return render_template('mine.html')
 
 
-proxy_create_investment = YFinanceProxyWrapper(proxy_list)
+# proxy_create_investment = YFinanceProxyWrapper(proxy_list)
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
     def normal_pdf(x, mean=0, std_dev=1):
@@ -1628,14 +1628,15 @@ def buy_or_sell():
             if not all([user, invest_name, coins, password, qt, target_price, maturity, risk_neutral, spread, reversion, option_type]):
                 return "<h3>Missing required fields</h3>"
 
-            invest_name = invest_name.upper()
+            # invest_name = invest_name.upper()
             coins, qt, target_price, maturity = map(float, [coins, qt, target_price, maturity])
             risk_neutral, spread, reversion = map(float, [risk_neutral, spread, reversion])
             option_type = option_type.lower()
             user_db = Users.query.filter_by(username=user).first()
             if not user_db:
                 return "<h3>User not found</h3>"
-            history = proxy_create_investment.fetch(invest_name,period='1d', interval='1m') 
+            history = yf.Ticker(invest_name,session=requests.Session()).history()#proxy_create_investment.fetch(invest_name,period='1d', interval='1m') 
+			# print(history)
             if history.empty:
                 return "<h3>Invalid ticker symbol</h3>"
 	
@@ -4361,12 +4362,11 @@ def drift_vol():
 		ticker = request.values.get("ticker").upper()
 		p = request.values.get("p")
 		i = request.values.get("i")
-		# session = requests.Session()
-		proxy_drift = YFinanceProxyWrapper(proxy_list=proxy_list)
+		session = requests.Session()
+		# proxy_drift = YFinanceProxyWrapper(proxy_list=proxy_list)
 		# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 # data = yf.Ticker("AAPL", session=session)
-		data = proxy_drift.fetch(ticker,period=p,interval=i)
-		#yf.Ticker(ticker,session=session).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
+		data = yf.Ticker(ticker,session=session).history(period=p,interval=i) #proxy_drift.fetch(ticker,period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
 		data['Log Returns'] = np.log(data['Close'] / data['Close'].shift(1))
 		# Time step (e.g., daily returns, assume 252 trading days in a year)
 		delta_t = 1 / 252
