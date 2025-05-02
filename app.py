@@ -92,7 +92,11 @@ proxy_list = [
 "http://24.249.199.12:4145",
 "http://45.77.67.203:8080",
 "http://138.68.60.8:3128"
-"http://50.174.7.157:80"
+"http://50.174.7.157:80",
+"http://172.66.43.12:80",
+"http://133.18.234.13:80",
+"http://81.169.213.169:8888",
+"http://194.158.203.14:80"
 ]
 	
 
@@ -135,7 +139,7 @@ app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(sequential_bp, url_prefix="/seq")
 
 register_template_filters(app)
-# 
+# # 
 # app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
 # app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
@@ -203,7 +207,7 @@ def execute_swap_double_check():
 		schedule.every(int(execution_interval)).days.do(logic)
 	print("All swaps scheduled successfully.")
 
-schedule.every(1).minutes.do(execute_swap_double_check)
+# schedule.every(1).minutes.do(execute_swap_double_check)
 
 
 
@@ -767,7 +771,7 @@ def update_prices():
 
 	return 0
 
-schedule.every(1).minutes.do(update_prices)
+# schedule.every(1).minutes.do(update_prices)
 
 
 @celery.task	
@@ -818,7 +822,7 @@ def update():
 
 	return 0
 
-schedule.every(1).minutes.do(update)
+# schedule.every(1).minutes.do(update)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1601,7 +1605,6 @@ def buy_or_sell():
         K = s ** 3 - 3 * s ** 2 * (1 - s)
         return (s * (s - 1 / K)) ** (1 / s) * normal_pdf(s)
 		
-
     if request.method == "POST":
         try:
             user = request.values.get('name')
@@ -1627,12 +1630,9 @@ def buy_or_sell():
             if not user_db:
                 return "<h3>User not found</h3>"
             history = proxy_create_investment.fetch(invest_name,period='1d', interval='1m') 
-			#yf.Ticker(invest_name,session=requests.session())
-            # history = ticker.history(period='1d', interval='1m')
-
             if history.empty:
                 return "<h3>Invalid ticker symbol</h3>"
-
+	
             price = history['Close'].iloc[-1]
             sigma = np.std(history['Close'].pct_change().dropna()) * np.sqrt(525960)
             option = black_scholes(price, target_price, maturity, 0.05, sigma, option_type)
@@ -4819,8 +4819,8 @@ def download_file():
 
 
 # update.delay()
-schedule.every(1).minutes.do(update)
-schedule.every(1).minutes.do(update_prices)
+# schedule.every(1).minutes.do(update)
+# schedule.every(1).minutes.do(update_prices)
 
 def run_periodic_task():
 	# while True:
