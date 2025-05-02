@@ -30,7 +30,7 @@ ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}
 # Initialize Flask app
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/blockchain.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/blockchain.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blockchain.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.urandom(24).hex()
