@@ -98,6 +98,7 @@
       margin-bottom: 20px;
       transition: all 0.3s;
       position: relative;
+      cursor: grab;
     }
 
     .cell:hover {
@@ -185,6 +186,9 @@
       margin-top: 10px;
       overflow-x: auto;
       margin-left: 30px;
+      resize: vertical;
+      min-height: 20px;
+      max-height: 500px;
     }
 
     .output.error {
@@ -213,6 +217,10 @@
       border-radius: 4px;
       border-left: 4px solid #ffc107;
       margin-left: 30px;
+      resize: vertical;
+      min-height: 20px;
+      max-height: 500px;
+      overflow: auto;
     }
 
     .markdown-preview h1, 
@@ -256,7 +264,7 @@
 </head>
 
 <body class="dark-mode">
-<h3><a href="/app">Back</a></h3>
+
 <div class="toolbar">
   <h2 style="margin: 0; flex-grow: 1;">🧠 Live Notebook Editor</h2>
   <button id="addCode">➕ Add Code Cell</button>
@@ -276,10 +284,9 @@
     // Debug: print raw Jinja-injected values
     console.log("SAVED CELLS:", {{ saved_cells | tojson | safe }});
     
-    // Change these from const to let so they can be updated
-    let preloadedCells = {{ saved_cells | tojson | safe }} || [];
-    let notebookTitle = "{{ notebook_name or 'Untitled Notebook' }}";
-    let notebookId = {{ notebook_id or 'null' }};
+    const preloadedCells = {{ saved_cells | tojson | safe }} || [];  // Ensure it's always an array
+    const notebookTitle = "{{ notebook_name or 'Untitled Notebook' }}";
+    const notebookId = {{ notebook_id or 'null' }};
     
     console.log("Initial cells:", preloadedCells);
   </script>
@@ -290,7 +297,6 @@
   const cellsDiv = document.getElementById("cells");
   let draggedItem = null;
   let dragPlaceholder = null;
-  let dragStartY = 0;
   
   // Enhanced theme switching
   function toggleTheme() {
@@ -326,11 +332,11 @@
   function createCodeCell(monaco, content = "", output = "") {
     const wrapper = document.createElement("div");
     wrapper.className = "cell";
+    wrapper.draggable = true;
     
     // Add drag handle
     const dragHandle = document.createElement("div");
     dragHandle.className = "drag-handle";
-    dragHandle.draggable = true;
     wrapper.appendChild(dragHandle);
     
     const editorContainer = document.createElement("div");
@@ -372,18 +378,12 @@
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       fontSize: 14,
-      quickSuggestions: true,
-      suggestOnTriggerCharacters: true,
-      snippetSuggestions: 'inline',
-      parameterHints: { enabled: true },
-      wordBasedSuggestions: true,
       scrollbar: {
         vertical: 'auto',
         horizontal: 'auto',
         useShadows: true
       }
     });
-
 
     // Enhanced resize handling
     let isResizing = false;
@@ -456,7 +456,7 @@
     editors.push(record);
     
     // Setup drag events
-    setupDragEvents(wrapper, dragHandle, record);
+    setupDragEvents(wrapper, record);
     
     runBtn.onclick = () => {
       outputDiv.innerHTML = "<pre>⏳ Running...</pre>";
@@ -487,11 +487,11 @@
   function createMarkdownCell(monaco, content = "# Markdown") {
     const wrapper = document.createElement("div");
     wrapper.className = "cell";
+    wrapper.draggable = true;
     
     // Add drag handle
     const dragHandle = document.createElement("div");
     dragHandle.className = "drag-handle";
-    dragHandle.draggable = true;
     wrapper.appendChild(dragHandle);
     
     const editorContainer = document.createElement("div");
@@ -528,16 +528,23 @@
       fontSize: 14
     });
     
+    // Handle editor resize
+    const resizeObserver = new ResizeObserver(() => {
+      editor.layout();
+    });
+    resizeObserver.observe(editorContainer);
+    
     const record = { 
       type: "markdown", 
       editor,
       preview,
-      wrapper 
+      wrapper,
+      resizeObserver 
     };
     editors.push(record);
     
     // Setup drag events
-    setupDragEvents(wrapper, dragHandle, record);
+    setupDragEvents(wrapper, record);
     
     // Initial render if content exists
     if (content.trim()) {
@@ -563,6 +570,7 @@
     };
     
     deleteBtn.onclick = () => {
+      resizeObserver.disconnect();
       wrapper.remove();
       editors = editors.filter(e => e.editor !== editor);
     };
@@ -570,22 +578,21 @@
     return wrapper;
   }
   
-  function setupDragEvents(wrapper, dragHandle, record) {
-    dragHandle.addEventListener('dragstart', (e) => {
+  function setupDragEvents(element, record) {
+    element.addEventListener('dragstart', (e) => {
       draggedItem = record;
-      wrapper.classList.add('dragging');
+      element.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', ''); // Required for Firefox
-      dragStartY = e.clientY;
+      e.dataTransfer.setData('text/html', element);
       
       // Create placeholder
       dragPlaceholder = document.createElement('div');
       dragPlaceholder.className = 'drag-placeholder';
-      cellsDiv.insertBefore(dragPlaceholder, wrapper.nextSibling);
+      cellsDiv.insertBefore(dragPlaceholder, element.nextSibling);
     });
     
-    dragHandle.addEventListener('dragend', () => {
-      wrapper.classList.remove('dragging');
+    element.addEventListener('dragend', () => {
+      element.classList.remove('dragging');
       if (dragPlaceholder && dragPlaceholder.parentNode) {
         dragPlaceholder.parentNode.removeChild(dragPlaceholder);
       }
@@ -593,23 +600,23 @@
       dragPlaceholder = null;
     });
     
-    wrapper.addEventListener('dragover', (e) => {
+    element.addEventListener('dragover', (e) => {
       e.preventDefault();
-      if (!draggedItem || draggedItem === record) return;
-      
       e.dataTransfer.dropEffect = 'move';
       
-      const rect = wrapper.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
+      if (!draggedItem || !dragPlaceholder) return;
       
-      if (e.clientY < midpoint) {
-        cellsDiv.insertBefore(dragPlaceholder, wrapper);
+      const bounding = element.getBoundingClientRect();
+      const offset = bounding.y + bounding.height / 2;
+      
+      if (e.clientY < offset) {
+        cellsDiv.insertBefore(dragPlaceholder, element);
       } else {
-        cellsDiv.insertBefore(dragPlaceholder, wrapper.nextSibling);
+        cellsDiv.insertBefore(dragPlaceholder, element.nextSibling);
       }
     });
     
-    wrapper.addEventListener('drop', (e) => {
+    element.addEventListener('drop', (e) => {
       e.preventDefault();
       if (!draggedItem || draggedItem === record) return;
       
@@ -623,9 +630,9 @@
       const targetIndex = editors.indexOf(record);
       
       // Determine position to insert (before or after)
-      const rect = wrapper.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      const insertBefore = e.clientY < midpoint;
+      const bounding = element.getBoundingClientRect();
+      const offset = bounding.y + bounding.height / 2;
+      const insertBefore = e.clientY < offset;
       
       // Remove from old position
       editors.splice(draggedIndex, 1);
@@ -649,22 +656,45 @@
   }
   
   function saveNotebook() {
-    const name = prompt("Notebook name:");
-    const notebook = editors.map(e => ({
+    const payload = editors.map(e => ({
       type: e.type,
-      content: e.editor.getValue()
+      content: e.editor.getValue(),
+      ...(e.type === "code" && e.outputDiv ? { 
+        output: e.outputDiv.textContent 
+      } : {})
     }));
     
-    fetch("/app/sequential/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, notebook })
-    })
-    .then(res => res.json())
-    .then(data => alert(data.message || "✅ Saved"))
-    .catch(err => alert("❌ Save failed: " + err.message));
+    const savePromise = notebookId !== null
+      ? fetch(`/app/notebook/update/${notebookId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            name: notebookTitle, 
+            notebook: payload 
+          })
+        })
+      : fetch("/app/save_user_notebook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            name: notebookTitle,
+            notebook: payload 
+          })
+        });
+    
+    savePromise
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message || "Notebook saved successfully");
+        if (data.id && !notebookId) {
+          window.history.replaceState({}, "", `/app/edit_notebook/${data.id}`);
+        }
+      })
+      .catch(err => {
+        alert("Failed to save notebook: " + (err.message || "Unknown error"));
+      });
   }
-
+  
   function downloadAsPython() {
     const pyContent = editors.map((e, i) => {
       if (e.type === "code") {

@@ -97,6 +97,18 @@
       transition: all 0.2s ease;
       position: relative;
       overflow: hidden;
+      cursor: move; /* Add move cursor for draggable cells */
+    }
+    
+    .cell.dragging {
+      opacity: 0.5;
+      border: 2px dashed var(--primary);
+    }
+    
+    .cell.placeholder {
+      background: var(--light-gray);
+      border: 2px dashed var(--medium-gray);
+      height: 100px;
     }
     
     .cell-header {
@@ -267,11 +279,20 @@
       margin-right: 8px;
     }
     
+    .drag-handle {
+      cursor: move;
+      padding: 8px;
+      margin-right: 10px;
+      color: var(--dark-gray);
+    }
+    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
@@ -307,6 +328,8 @@
 <script>
 let editors = [];
 const cellsDiv = document.getElementById("cells");
+let draggedItem = null;
+let placeholder = null;
 
 // Configure Monaco Editor
 require.config({ 
@@ -323,11 +346,15 @@ require(["vs/editor/editor.main"], function() {
     wrapper.className = "cell";
     wrapper.dataset.cellType = "code";
     wrapper.dataset.cellId = cellId;
+    wrapper.draggable = true;
     
     const header = document.createElement("div");
     header.className = "cell-header";
     header.innerHTML = `
-      <span class="cell-type">Code Cell</span>
+      <div style="display: flex; align-items: center;">
+        <span class="drag-handle"><i class="fas fa-grip-vertical"></i></span>
+        <span class="cell-type">Code Cell</span>
+      </div>
       <div class="cell-actions">
         <button class="run-btn"><i class="fas fa-play"></i> Run</button>
         <button class="delete-btn"><i class="fas fa-trash"></i></button>
@@ -369,6 +396,9 @@ require(["vs/editor/editor.main"], function() {
     wrapper.querySelector(".run-btn").addEventListener("click", () => runCodeCell(editorObj));
     wrapper.querySelector(".delete-btn").addEventListener("click", () => deleteCell(editorObj));
     
+    // Add drag and drop events
+    setupDragEvents(wrapper, editorObj);
+    
     return wrapper;
   }
 
@@ -378,11 +408,15 @@ require(["vs/editor/editor.main"], function() {
     wrapper.className = "cell";
     wrapper.dataset.cellType = "markdown";
     wrapper.dataset.cellId = cellId;
+    wrapper.draggable = true;
     
     const header = document.createElement("div");
     header.className = "cell-header";
     header.innerHTML = `
-      <span class="cell-type">Markdown Cell</span>
+      <div style="display: flex; align-items: center;">
+        <span class="drag-handle"><i class="fas fa-grip-vertical"></i></span>
+        <span class="cell-type">Markdown Cell</span>
+      </div>
       <div class="cell-actions">
         <button class="toggle-btn"><i class="fas fa-eye"></i> Preview</button>
         <button class="delete-btn"><i class="fas fa-trash"></i></button>
@@ -431,7 +465,99 @@ require(["vs/editor/editor.main"], function() {
     wrapper.querySelector(".toggle-btn").addEventListener("click", () => toggleMarkdownPreview(editorObj));
     wrapper.querySelector(".delete-btn").addEventListener("click", () => deleteCell(editorObj));
     
+    // Add drag and drop events
+    setupDragEvents(wrapper, editorObj);
+    
     return wrapper;
+  }
+
+  function setupDragEvents(wrapper, editorObj) {
+    wrapper.addEventListener('dragstart', function(e) {
+      draggedItem = editorObj;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this);
+    });
+
+    wrapper.addEventListener('dragend', function() {
+      this.classList.remove('dragging');
+      if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.removeChild(placeholder);
+      }
+      draggedItem = null;
+      placeholder = null;
+    });
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    if (!draggedItem) return;
+    
+    // Get the element we're hovering over
+    const afterElement = getDragAfterElement(cellsDiv, e.clientY);
+    
+    // Remove any existing placeholder
+    if (placeholder && placeholder.parentNode) {
+      placeholder.parentNode.removeChild(placeholder);
+    }
+    
+    // Create a new placeholder
+    placeholder = document.createElement('div');
+    placeholder.className = 'cell placeholder';
+    
+    if (afterElement == null) {
+      cellsDiv.appendChild(placeholder);
+    } else {
+      cellsDiv.insertBefore(placeholder, afterElement);
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    if (!draggedItem) return;
+    
+    // Remove the placeholder
+    if (placeholder && placeholder.parentNode) {
+      placeholder.parentNode.removeChild(placeholder);
+    }
+    
+    // Get the element we're hovering over
+    const afterElement = getDragAfterElement(cellsDiv, e.clientY);
+    
+    if (afterElement == null) {
+      cellsDiv.appendChild(draggedItem.wrapper);
+    } else {
+      cellsDiv.insertBefore(draggedItem.wrapper, afterElement);
+    }
+    
+    // Update the editors array to maintain correct order
+    const fromIndex = editors.indexOf(draggedItem);
+    if (fromIndex > -1) {
+      editors.splice(fromIndex, 1);
+    }
+    
+    const toIndex = afterElement ? 
+      Array.from(cellsDiv.children).indexOf(afterElement) - 1 : 
+      cellsDiv.children.length - 1;
+    
+    editors.splice(toIndex, 0, draggedItem);
+  }
+
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.cell:not(.dragging):not(.placeholder)')];
+    
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
   }
 
   function runCodeCell(cell) {
@@ -664,6 +790,10 @@ require(["vs/editor/editor.main"], function() {
   });
   document.getElementById("uploadPyFile").addEventListener("change", handleFileUpload);
   document.getElementById("showNotebooks").addEventListener("click", loadNotebookList);
+
+  // Add drag and drop events to the container
+  cellsDiv.addEventListener('dragover', handleDragOver);
+  cellsDiv.addEventListener('drop', handleDrop);
 
   // Initialize with one empty code cell
   addCodeCell();

@@ -25,6 +25,14 @@
       margin: 0;
       padding: 20px;
     }
+    .drag-handle {
+      cursor: grab;
+      user-select: none;
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #888;
+    }
+
 
     .toolbar {
       background-color: var(--toolbar-bg);
@@ -83,6 +91,39 @@
     .plot-image {
       max-width: 100%;
     }
+
+    .markdown-preview {
+      padding: 12px;
+      background-color: var(--cell-bg);
+      border-radius: 4px;
+      border-left: 4px solid #ffc107;
+    }
+
+    .markdown-preview h1, 
+    .markdown-preview h2, 
+    .markdown-preview h3 {
+      margin-top: 0;
+    }
+
+    .markdown-preview code {
+      background-color: rgba(0, 0, 0, 0.1);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    .markdown-preview pre {
+      background-color: rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .cell-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
@@ -90,6 +131,7 @@
 
 <body>
 <div class="toolbar">
+  <h2 style="margin: 0; flex-grow: 1;">📓 Notebook Editor</h2>
   <button id="addCode">➕ Add Code Cell</button>
   <button id="addMarkdown">➕ Add Markdown</button>
   <button id="runAll">▶️ Run All</button>
@@ -109,6 +151,12 @@
   function createCodeCell(monaco, content = "", output = "") {
     const wrapper = document.createElement("div");
     wrapper.className = "cell";
+    wrapper.setAttribute("draggable", "true");
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "drag-handle";
+    dragHandle.innerHTML = "☰ Drag";
+    wrapper.appendChild(dragHandle);
+
     
     const editorContainer = document.createElement("div");
     editorContainer.className = "editor-wrapper";
@@ -125,15 +173,18 @@
     }
     wrapper.appendChild(outputDiv);
     
+    const controls = document.createElement("div");
+    controls.className = "cell-controls";
+    
     const runBtn = document.createElement("button");
     runBtn.textContent = "▶️ Run";
-    runBtn.style.marginRight = "10px";
-    wrapper.appendChild(runBtn);
+    controls.appendChild(runBtn);
     
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "🗑️ Delete";
-    wrapper.appendChild(deleteBtn);
+    controls.appendChild(deleteBtn);
     
+    wrapper.appendChild(controls);
     cellsDiv.appendChild(wrapper);
     
     const editor = monaco.editor.create(editorContainer, {
@@ -180,6 +231,85 @@
     };
   }
 
+  function createMarkdownCell(monaco, content = "# Markdown Cell") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "cell";
+    wrapper.setAttribute("draggable", "true");
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "drag-handle";
+    dragHandle.innerHTML = "☰ Drag";
+    wrapper.appendChild(dragHandle);
+
+    
+    
+    const editorContainer = document.createElement("div");
+    editorContainer.className = "editor-wrapper";
+    editorContainer.style.height = "150px";
+    wrapper.appendChild(editorContainer);
+    
+    const preview = document.createElement("div");
+    preview.className = "markdown-preview";
+    preview.style.display = "none";
+    wrapper.appendChild(preview);
+    
+    const controls = document.createElement("div");
+    controls.className = "cell-controls";
+    
+    const toggleBtn = document.createElement("button");
+    toggleBtn.textContent = "👁️ Preview";
+    controls.appendChild(toggleBtn);
+    
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑️ Delete";
+    controls.appendChild(deleteBtn);
+    
+    wrapper.appendChild(controls);
+    cellsDiv.appendChild(wrapper);
+    
+    const editor = monaco.editor.create(editorContainer, {
+      value: content,
+      language: "markdown",
+      theme: "vs-dark",
+      automaticLayout: true
+    });
+    
+    const record = { 
+      type: "markdown", 
+      editor,
+      preview,
+      wrapper 
+    };
+    editors.push(record);
+    
+    // Initial render if content exists
+    if (content.trim()) {
+      preview.innerHTML = marked.parse(content);
+    }
+    
+    // Update preview on content change
+    editor.onDidChangeModelContent(() => {
+      if (preview.style.display === "block") {
+        preview.innerHTML = marked.parse(editor.getValue());
+      }
+    });
+    
+    toggleBtn.onclick = () => {
+      const isPreview = preview.style.display === "block";
+      preview.style.display = isPreview ? "none" : "block";
+      editorContainer.style.display = isPreview ? "block" : "none";
+      toggleBtn.textContent = isPreview ? "👁️ Preview" : "✏️ Edit";
+      
+      if (!isPreview) {
+        preview.innerHTML = marked.parse(editor.getValue());
+      }
+    };
+    
+    deleteBtn.onclick = () => {
+      wrapper.remove();
+      editors = editors.filter(e => e.editor !== editor);
+    };
+  }
+
   function renderPlot(container, plotData) {
     container.innerHTML = `
       <div class="plot-container">
@@ -188,9 +318,62 @@
     `;
   }
 
+  function saveNotebook() {
+    const name = prompt("Notebook name:");
+    const notebook = editors.map(e => ({
+      type: e.type,
+      content: e.editor.getValue()
+    }));
+    
+    fetch("/app/sequential/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, notebook })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message || "✅ Saved"))
+    .catch(err => alert("❌ Save failed: " + err.message));
+  }
+  let draggedElement = null;
+  
+  cellsDiv.addEventListener("dragstart", (e) => {
+    draggedElement = e.target.closest(".cell");
+    if (draggedElement) draggedElement.classList.add("dragging");
+  });
+  
+  cellsDiv.addEventListener("dragend", (e) => {
+    if (draggedElement) draggedElement.classList.remove("dragging");
+    draggedElement = null;
+  });
+  
+  cellsDiv.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(cellsDiv, e.clientY);
+    const dragging = document.querySelector(".cell.dragging");
+    if (afterElement == null) {
+      cellsDiv.appendChild(dragging);
+    } else {
+      cellsDiv.insertBefore(dragging, afterElement);
+    }
+  });
+  
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll(".cell:not(.dragging)")];
+    
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
   // Initialize Monaco Editor
   require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" }});
-  require(["vs/editor/editor.main"], function() {
+  require(["vs/editor/editor.main"], function(monaco) {
     // Add initial code cell
     createCodeCell(monaco, `import matplotlib.pyplot as plt
 import numpy as np
@@ -203,6 +386,7 @@ plt.show()`);
 
     // Add toolbar event listeners
     document.getElementById("addCode").onclick = () => createCodeCell(monaco);
+    document.getElementById("addMarkdown").onclick = () => createMarkdownCell(monaco);
     document.getElementById("runAll").onclick = () => {
       editors.forEach(e => {
         if (e.type === "code") {
@@ -210,6 +394,7 @@ plt.show()`);
         }
       });
     };
+    document.getElementById("save").onclick = saveNotebook;
   });
 </script>
 </body>

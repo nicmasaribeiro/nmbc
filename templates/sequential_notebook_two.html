@@ -150,6 +150,22 @@
         color: #666;
         margin-top: 4px;
       }
+      .resizable {
+        resize: vertical;
+        overflow: auto;
+        min-height: 80px;
+        max-height: 800px;
+      }
+      .resizable::after {
+        content: "⇳";
+        position: absolute;
+        bottom: 4px;
+        right: 10px;
+        font-size: 14px;
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
     </style>
     
     <!-- Monaco + Markdown support -->
@@ -191,7 +207,10 @@ require(["vs/editor/editor.main"], function () {
     const wrapper = createCellWrapper();
     const editorDiv = document.createElement("div");
     editorDiv.style.height = "160px";
+    editorDiv.classList.add("resizable");
+
     wrapper.appendChild(editorDiv);
+
 
     const outputDiv = document.createElement("div");
     outputDiv.className = "output";

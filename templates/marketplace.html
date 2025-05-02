@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Notebook Marketplace</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f7f9fc;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    li {
+      background: white;
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    li strong {
+      font-size: 1.1em;
+      color: #34495e;
+    }
+
+    .price {
+      font-weight: bold;
+      color: #27ae60;
+    }
+
+    form {
+      margin-top: 10px;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <h2>Notebook Marketplace</h2>
+  <ul>
+    {% for nb in listings %}
+    <li>
+      <strong>{{ nb.name }}</strong>
+      <span class="price">${{ nb.price }}</span>
+      <span>by user {{ nb.user_id }}</span>
+      <form action="{{ url_for('app.buy_notebook', notebook_id=nb.id) }}" method="post">
+        <button type="submit">Buy</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
