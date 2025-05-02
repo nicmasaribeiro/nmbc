@@ -1,6 +1,7 @@
 import requests
 import yfinance as yf
 import random
+import time
 
 class YFinanceProxyWrapper:
 	def __init__(self, proxy_list, rotate=True, max_retries=3, delay=2):
@@ -42,7 +43,7 @@ class YFinanceProxyWrapper:
 				session.headers.update({
 					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 				})
-				return yf.Ticker(ticker, session=session).history(**kwargs)
+				return yf.Ticker(ticker.upper(), session=session).history(**kwargs)
 			except Exception as e:
 				print(f"Proxy failed: {proxy}. Error: {e}")
 		raise RuntimeError(f"All proxies failed for {ticker}.")

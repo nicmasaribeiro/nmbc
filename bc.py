@@ -178,7 +178,7 @@ def process_investment(self, investor_wallet_address, txid ,value, coin, blockch
 		db.session.commit()
 		return result
 
-class BCBlockchain(Network):
+class BCBlockchain():
 	def __init__(self):
 		super(Network).__init__()
 		self.chain = [self.create_genesis_block()]
