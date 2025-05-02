@@ -254,7 +254,7 @@ wrapt==1.17.2
 wsproto==1.2.0
 xyzservices==2024.9.0
 yarl==1.11.1
-yfinance==0.2.54
+yfinance==0.2.57
 zipp==3.21.0
 zope.event==5.0
 zope.interface==7.1.1
