@@ -188,7 +188,6 @@
     <!-- Monaco + Markdown support -->
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
   </head>
 <body>
 <h3><a href="/app">Back</a></h3>
@@ -368,7 +367,7 @@ require(["vs/editor/editor.main"], function () {
       type: e.type,
       content: e.editor.getValue()
     }));
-    
+
     fetch("/app/sequential/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -378,7 +377,6 @@ require(["vs/editor/editor.main"], function () {
     .then(data => alert(data.message || "✅ Saved"))
     .catch(err => alert("❌ Save failed: " + err.message));
   }
-
 
   function openPyFile(file) {
     const reader = new FileReader();
@@ -445,7 +443,7 @@ require(["vs/editor/editor.main"], function () {
   document.getElementById("openSaved").onclick = loadNotebookList;
 
   // Init
-//addCodeCell();
+  addCodeCell();
 });
 </script>
 

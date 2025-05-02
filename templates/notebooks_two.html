@@ -186,7 +186,7 @@
           <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}" class="action-button">✏️ Edit</a>
           <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}?editor=plotting" class="action-button plotting-button">📊 Plotting</a>
           {% if nb.is_sequential %}
-            <a href="{{ url_for('app.open_sequential_notebook', notebook_id=nb.id) }}" class="action-button">📘 Sequential</a>
+          <a href="{{ url_for('app.sequential_notebook') }}?id={{ nb.id }}" class="action-button">📘 Sequential</a>
           {% endif %}
         </div>
 

@@ -125,12 +125,20 @@
       margin-top: 10px;
     }
   </style>
+  <script>
+    const preloadedCells = {{ saved_cells | default([]) | tojson | safe }};
+    const notebookId = {{ notebook_id | default("null") }};
+    const notebookTitle = "{{ notebook_name | default('Untitled') }}";
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 </head>
 
 <body>
+  <h3><a href="/app">Back</a></h3>
 <div class="toolbar">
+
   <h2 style="margin: 0; flex-grow: 1;">📓 Notebook Editor</h2>
   <button id="addCode">➕ Add Code Cell</button>
   <button id="addMarkdown">➕ Add Markdown</button>
@@ -142,8 +150,11 @@
 
 <script>
   // Initialize with empty array if no cells provided
-  const preloadedCells = [];
-  const notebookTitle = "Untitled Notebook";
+  const notebook = {
+    cells: preloadedCells,
+    title: notebookTitle,
+    id: notebookId
+  };
   
   let editors = [];
   const cellsDiv = document.getElementById("cells");
@@ -371,20 +382,30 @@
     }, { offset: Number.NEGATIVE_INFINITY }).element;
   }
 
-  // Initialize Monaco Editor
   require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" }});
   require(["vs/editor/editor.main"], function(monaco) {
-    // Add initial code cell
-    createCodeCell(monaco, `import matplotlib.pyplot as plt
+    // Defensive fallback if no cells loaded
+    const cells = Array.isArray(notebook.cells) ? notebook.cells : [];
+    
+    if (cells.length > 0) {
+      for (const cell of cells) {
+        if (cell.type === "code") {
+          createCodeCell(monaco, cell.content, (cell.output || [])[0] || "");
+        } else if (cell.type === "markdown") {
+          createMarkdownCell(monaco, cell.content);
+        }
+      }
+    } else {
+      // Fallback initial code cell
+      createCodeCell(monaco, `import matplotlib.pyplot as plt
 import numpy as np
 
-# Sample plot
 x = np.linspace(0, 10, 100)
 plt.plot(x, np.sin(x))
 plt.title('Sine Wave')
 plt.show()`);
-
-    // Add toolbar event listeners
+    }
+    
     document.getElementById("addCode").onclick = () => createCodeCell(monaco);
     document.getElementById("addMarkdown").onclick = () => createMarkdownCell(monaco);
     document.getElementById("runAll").onclick = () => {
@@ -397,5 +418,21 @@ plt.show()`);
     document.getElementById("save").onclick = saveNotebook;
   });
 </script>
+
+
+<!---->
+<!--// Add toolbar event listeners-->
+<!--document.getElementById("addCode").onclick = () => createCodeCell(monaco);-->
+<!--document.getElementById("addMarkdown").onclick = () => createMarkdownCell(monaco);-->
+<!--document.getElementById("runAll").onclick = () => {-->
+<!--  editors.forEach(e => {-->
+<!--    if (e.type === "code") {-->
+<!--      e.wrapper.querySelector("button").click();-->
+<!--    }-->
+<!--  });-->
+<!--};-->
+<!--document.getElementById("save").onclick = saveNotebook;-->
+<!--  });-->
+<!--</script>-->
 </body>
 </html>
