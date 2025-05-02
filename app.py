@@ -135,11 +135,11 @@ node_bc = NodeBlockchain()
 app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-app.register_blueprint(kaggle_bp, url_prefix="/app")
-app.register_blueprint(sequential_bp, url_prefix="/seq")
+# app.register_blueprint(kaggle_bp, url_prefix="/app")
+# app.register_blueprint(sequential_bp, url_prefix="/seq")
 
 register_template_filters(app)
-# # # 
+# # 
 # app.config['CELERY_BROKER_URL'] = 'redis://localhçost:6379/0'
 # app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
