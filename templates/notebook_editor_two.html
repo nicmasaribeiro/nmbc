@@ -203,7 +203,7 @@
                 }
                 
                 const editor = monaco.editor.create(editorContainer, {
-                    value: content,
+                    value: Array.isArray(content) ? content.join('') : content.split('\\n').join('\n'),
                     language: cellType === 'code' ? 'python' : 'markdown',
                     theme: 'vs',
                     automaticLayout: true,
@@ -342,13 +342,14 @@
             const editorContainer = newCell.querySelector('.editor-container, .markdown-editor-container');
             
             const editor = monaco.editor.create(editorContainer, {
-                value: content,
+                value: Array.isArray(content) ? content.join('') : content.split('\\n').join('\n'),
                 language: type === 'code' ? 'python' : 'markdown',
                 theme: 'vs',
                 automaticLayout: true,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false
             });
+
             
             editors.push({
                 editor,
@@ -401,24 +402,22 @@
                 return cell;
             });
             
+            console.log("Saving notebook:", notebookData, notebookTitle);
+            
             fetch("/app/save_user_notebook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     notebook: notebookData,
-                    name: notebookTitle
+                    name: notebookTitle  // ✅ Use actual JS variable
                 })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 alert(data.message || "Notebook saved successfully!");
             })
             .catch(error => {
+                console.error("Save error:", error);
                 alert("Error saving notebook: " + error.message);
             });
         }

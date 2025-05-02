@@ -266,6 +266,8 @@
   <button id="download">📥 Download .py</button>
   <button id="export">📦 Export .ipynb</button>
   <button id="open">📂 Open File</button>
+  <button id="openSaved">📚 Open Saved</button>
+  
   <input type="file" id="upload" accept=".py,.ipynb" style="display:none;">
   <button class="theme-toggle" id="toggleTheme">🌙</button>
 </div>
@@ -706,7 +708,8 @@
         const cell = {
           cell_type: e.type,
           metadata: {},
-          source: e.editor.getValue().split("\n")
+          source: e.editor.getValue().split('\n').map(line => line + '\n')
+          
         };
         
         if (e.type === "code") {
@@ -808,7 +811,43 @@
       }
     });
   });
+  function loadNotebookList() {
+    const panel = document.getElementById("notebookList");
+    const container = document.getElementById("notebookItems");
+    panel.style.display = "block";
+    container.innerHTML = "Loading...";
+    
+    fetch("/app/list_user_notebooks")  // Make sure this endpoint exists
+    .then(res => res.json())
+    .then(data => {
+      container.innerHTML = "";
+      if (!data.length) {
+        container.innerHTML = "<p>No notebooks found.</p>";
+        return;
+      }
+      data.forEach(nb => {
+        const item = document.createElement("div");
+        item.style.padding = "10px";
+        item.style.border = "1px solid #ccc";
+        item.style.marginBottom = "10px";
+        item.style.borderRadius = "6px";
+        item.style.cursor = "pointer";
+        item.innerHTML = `<strong>${nb.name}</strong><br><small>${new Date(nb.updated_at).toLocaleString()}</small>`;
+        item.onclick = () => window.location.href = `/app/editor/${nb.id}`;
+        container.appendChild(item);
+      });
+    });
+  }
+  
+  document.getElementById("openSaved").addEventListener("click", loadNotebookList);
+
 </script>
+  
+  <div id="notebookList" style="display:none; position:fixed; top:0; right:0; width:320px; height:100vh; background:white; border-left:1px solid #ccc; overflow-y:auto; padding:20px; z-index:1000;">
+  <button onclick="document.getElementById('notebookList').style.display='none'" style="float:right;">✖</button>
+  <h3 style="margin-top:0;">My Saved Notebooks</h3>
+  <div id="notebookItems">Loading...</div>
+  </div>
 
 </body>
 </html>

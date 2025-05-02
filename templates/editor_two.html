@@ -16,6 +16,24 @@
       --success-color: #4CAF50;
       --error-color: #f44336;
       --toolbar-bg: #252526;
+      --drag-placeholder: rgba(76, 175, 80, 0.2);
+      --resize-handle-color: #666;
+    }
+
+    .light-mode {
+      --bg-color: #fefefe;
+      --text-color: #333;
+      --cell-bg: #ffffff;
+      --border-color: #e0e0e0;
+      --button-bg: #f5f5f5;
+      --button-hover: #e0e0e0;
+      --output-bg: #f8f8f8;
+      --output-color: #333;
+      --success-color: #388e3c;
+      --error-color: #d32f2f;
+      --toolbar-bg: #f5f5f5;
+      --drag-placeholder: rgba(56, 142, 60, 0.2);
+      --resize-handle-color: #ccc;
     }
 
     body {
@@ -24,15 +42,22 @@
       color: var(--text-color);
       margin: 0;
       padding: 20px;
-    }
-    .drag-handle {
-      cursor: grab;
-      user-select: none;
-      font-size: 18px;
-      margin-bottom: 8px;
-      color: #888;
+      transition: background-color 0.3s, color 0.3s;
     }
 
+    h2, h3 {
+      color: var(--text-color);
+      margin-top: 0;
+    }
+
+    a {
+      color: #4dabf7;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
 
     .toolbar {
       background-color: var(--toolbar-bg);
@@ -40,8 +65,11 @@
       border-radius: 6px;
       margin-bottom: 20px;
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s;
     }
 
     button {
@@ -51,6 +79,15 @@
       padding: 8px 12px;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background-color: var(--button-hover);
     }
 
     .cell {
@@ -59,12 +96,82 @@
       border-radius: 6px;
       padding: 15px;
       margin-bottom: 20px;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .cell:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .cell.dragging {
+      opacity: 0.5;
+      transform: scale(0.98);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .drag-handle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 20px;
+      height: 20px;
+      cursor: grab;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    .cell:hover .drag-handle {
+      opacity: 1;
+    }
+
+    .drag-handle::before {
+      content: "⠿";
+      font-size: 18px;
+    }
+
+    .drag-placeholder {
+      background-color: var(--drag-placeholder);
+      border: 2px dashed var(--success-color);
+      border-radius: 6px;
+      margin-bottom: 20px;
+      height: 60px;
     }
 
     .editor-wrapper {
-      height: 200px;
-      border: 1px solid var(--border-color);
+      position: relative;
+      min-height: 100px;
+      max-height: 800px;
+      overflow: hidden;
+      border-radius: 4px;
       margin-bottom: 10px;
+      border: 1px solid var(--border-color);
+      margin-left: 30px;
+    }
+
+    .editor-resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 15px;
+      height: 15px;
+      background: linear-gradient(135deg, var(--resize-handle-color) 50%, transparent 50%);
+      cursor: se-resize;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .editor-wrapper:hover .editor-resize-handle {
+      opacity: 1;
+    }
+
+    .monaco-editor {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
     }
 
     .output {
@@ -73,8 +180,11 @@
       padding: 12px;
       border-left: 4px solid var(--success-color);
       border-radius: 4px;
-      font-family: monospace;
+      font-family: 'Consolas', 'Courier New', monospace;
       white-space: pre-wrap;
+      margin-top: 10px;
+      overflow-x: auto;
+      margin-left: 30px;
     }
 
     .output.error {
@@ -92,11 +202,28 @@
       max-width: 100%;
     }
 
+    .cell-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      margin-left: 30px;
+    }
+
+    .theme-toggle {
+      margin-left: auto;
+      background: none;
+      border: none;
+      font-size: 20px;
+      padding: 5px;
+      cursor: pointer;
+    }
+
     .markdown-preview {
       padding: 12px;
       background-color: var(--cell-bg);
       border-radius: 4px;
       border-left: 4px solid #ffc107;
+      margin-left: 30px;
     }
 
     .markdown-preview h1, 
@@ -119,64 +246,178 @@
       overflow-x: auto;
     }
 
-    .cell-controls {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
+    input[type="file"] {
+      display: none;
+    }
+
+    #notebookList {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 340px;
+      height: 100vh;
+      background: var(--cell-bg);
+      box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      border-left: 1px solid var(--border-color);
+    }
+    
+    #notebookList.show {
+      transform: translateX(0);
+    }
+    
+    .notebook-item {
+      background-color: var(--button-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    
+    .notebook-item:hover {
+      background-color: var(--button-hover);
+    }
+    
+    .notebook-item strong {
+      font-size: 15px;
+      color: var(--text-color);
+    }
+    
+    .notebook-item small {
+      display: block;
+      font-size: 12px;
+      color: var(--text-color);
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    
+    .close-sidebar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-color);
+    }
+
+    @media (max-width: 768px) {
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .theme-toggle {
+        margin-left: 0;
+      }
     }
   </style>
-  <script>
-    const preloadedCells = {{ saved_cells | default([]) | tojson | safe }};
-    const notebookId = {{ notebook_id | default("null") }};
-    const notebookTitle = "{{ notebook_name | default('Untitled') }}";
-  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 </head>
 
-<body>
-  <h3><a href="/app">Back</a></h3>
+<body class="dark-mode">
+<h3><a href="/app">Back</a></h3>
 <div class="toolbar">
-
-  <h2 style="margin: 0; flex-grow: 1;">📓 Notebook Editor</h2>
+  <h2 style="margin: 0; flex-grow: 1;">📓 Notebook Editor with Plots</h2>
   <button id="addCode">➕ Add Code Cell</button>
   <button id="addMarkdown">➕ Add Markdown</button>
   <button id="runAll">▶️ Run All</button>
   <button id="save">💾 Save Notebook</button>
+  <button id="download">📥 Download .py</button>
+  <button id="export">📦 Export .ipynb</button>
+  <button id="open">📂 Open File</button>
+  <button id="openSaved">📚 Open Saved</button>
+  <input type="file" id="upload" accept=".py,.ipynb" style="display:none;">
+  <button class="theme-toggle" id="toggleTheme">🌙</button>
 </div>
 
 <div id="cells"></div>
 
+<!-- Notebook list sidebar -->
+<div id="notebookList">
+  <button class="close-sidebar" onclick="document.getElementById('notebookList').classList.remove('show')">✖</button>
+  <h3>My Saved Notebooks</h3>
+  <div id="notebookItems">Loading...</div>
+</div>
+
 <script>
   // Initialize with empty array if no cells provided
   const notebook = {
-    cells: preloadedCells,
-    title: notebookTitle,
-    id: notebookId
+    cells: {{ saved_cells | default([]) | tojson | safe }},
+    title: "{{ notebook_name | default('Untitled') }}",
+    id: {{ notebook_id | default("null") }}
   };
   
   let editors = [];
+  let darkMode = true;
   const cellsDiv = document.getElementById("cells");
+  let draggedItem = null;
+  let dragPlaceholder = null;
+
+  // Theme switching
+  function toggleTheme() {
+    darkMode = !darkMode;
+    document.body.classList.toggle("dark-mode", darkMode);
+    document.body.classList.toggle("light-mode", !darkMode);
+    
+    // Update Monaco editor themes
+    editors.forEach(editor => {
+      if (editor.type === "code") {
+        editor.editor.updateOptions({
+          theme: darkMode ? "vs-dark" : "vs"
+        });
+      } else {
+        editor.editor.updateOptions({
+          theme: darkMode ? "vs-dark" : "vs-light"
+        });
+      }
+    });
+    
+    // Update theme button icon
+    document.getElementById("toggleTheme").textContent = darkMode ? "🌙" : "☀️";
+    
+    // Save preference to localStorage
+    localStorage.setItem("editorTheme", darkMode ? "dark" : "light");
+  }
+  
+  // Initialize theme from localStorage
+  if (localStorage.getItem("editorTheme") === "light") {
+    toggleTheme();
+  }
 
   function createCodeCell(monaco, content = "", output = "") {
     const wrapper = document.createElement("div");
     wrapper.className = "cell";
-    wrapper.setAttribute("draggable", "true");
+    
+    // Add drag handle
     const dragHandle = document.createElement("div");
     dragHandle.className = "drag-handle";
-    dragHandle.innerHTML = "☰ Drag";
+    dragHandle.draggable = true;
     wrapper.appendChild(dragHandle);
-
     
     const editorContainer = document.createElement("div");
     editorContainer.className = "editor-wrapper";
+    editorContainer.style.height = "200px";
     wrapper.appendChild(editorContainer);
+    
+    // Add resize handle
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "editor-resize-handle";
+    editorContainer.appendChild(resizeHandle);
     
     const outputDiv = document.createElement("div");
     outputDiv.className = "output";
     if (output) {
-      if (output.plot) {
+      if (typeof output === "object" && output.plot) {
         renderPlot(outputDiv, output.plot);
       } else {
         outputDiv.innerHTML = `<pre>${output}</pre>`;
@@ -188,30 +429,107 @@
     controls.className = "cell-controls";
     
     const runBtn = document.createElement("button");
-    runBtn.textContent = "▶️ Run";
-    controls.appendChild(runBtn);
+    runBtn.innerHTML = "▶️ Run";
     
     const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "🗑️ Delete";
-    controls.appendChild(deleteBtn);
+    deleteBtn.innerHTML = "🗑️ Delete";
     
+    controls.appendChild(runBtn);
+    controls.appendChild(deleteBtn);
     wrapper.appendChild(controls);
     cellsDiv.appendChild(wrapper);
     
     const editor = monaco.editor.create(editorContainer, {
       value: content,
       language: "python",
-      theme: "vs-dark",
-      automaticLayout: true
+      theme: darkMode ? "vs-dark" : "vs",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      fontSize: 14,
+      quickSuggestions: true,
+      suggestOnTriggerCharacters: true,
+      snippetSuggestions: 'inline',
+      parameterHints: { enabled: true },
+      wordBasedSuggestions: true,
+      scrollbar: {
+        vertical: 'auto',
+        horizontal: 'auto',
+        useShadows: true
+      }
     });
-    
+
+    // Enhanced resize handling
+    let isResizing = false;
+    let startY, startHeight;
+
+    const handleMouseDown = (e) => {
+      if (e.target === resizeHandle) {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = parseInt(document.defaultView.getComputedStyle(editorContainer).height, 10);
+        document.body.style.cursor = 'se-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      }
+    };
+
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      
+      const newHeight = startHeight + e.clientY - startY;
+      if (newHeight > 100 && newHeight < 800) {
+        editorContainer.style.height = `${newHeight}px`;
+        editor.layout();
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    editorContainer.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    // Handle automatic resize when content changes
+    editor.onDidChangeModelContent(() => {
+      if (!isResizing) {
+        const contentHeight = Math.min(
+          Math.max(editor.getContentHeight(), 100),
+          800
+        );
+        editorContainer.style.height = `${contentHeight}px`;
+        editor.layout();
+      }
+    });
+
+    // Handle window resize
+    const handleWindowResize = () => {
+      editor.layout();
+    };
+    window.addEventListener('resize', handleWindowResize);
+
     const record = { 
       type: "code", 
       editor, 
       outputDiv,
-      wrapper 
+      wrapper,
+      cleanup: () => {
+        editorContainer.removeEventListener('mousedown', handleMouseDown);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('resize', handleWindowResize);
+      }
     };
     editors.push(record);
+    
+    // Setup drag events
+    setupDragEvents(wrapper, dragHandle, record);
     
     runBtn.onclick = () => {
       outputDiv.innerHTML = "<pre>⏳ Running...</pre>";
@@ -232,26 +550,28 @@
       })
       .catch(err => {
         outputDiv.className = "output error";
-        outputDiv.innerHTML = `<pre>❌ Error: ${err.message || "Failed to execute code"}</pre>`;
+        outputDiv.innerHTML = `<pre>❌ Error: ${err.message || "Execution failed"}</pre>`;
       });
     };
     
     deleteBtn.onclick = () => {
+      record.cleanup();
       wrapper.remove();
       editors = editors.filter(e => e.editor !== editor);
     };
+    
+    return wrapper;
   }
-
-  function createMarkdownCell(monaco, content = "# Markdown Cell") {
+  
+  function createMarkdownCell(monaco, content = "# Markdown") {
     const wrapper = document.createElement("div");
     wrapper.className = "cell";
-    wrapper.setAttribute("draggable", "true");
+    
+    // Add drag handle
     const dragHandle = document.createElement("div");
     dragHandle.className = "drag-handle";
-    dragHandle.innerHTML = "☰ Drag";
+    dragHandle.draggable = true;
     wrapper.appendChild(dragHandle);
-
-    
     
     const editorContainer = document.createElement("div");
     editorContainer.className = "editor-wrapper";
@@ -267,21 +587,24 @@
     controls.className = "cell-controls";
     
     const toggleBtn = document.createElement("button");
-    toggleBtn.textContent = "👁️ Preview";
-    controls.appendChild(toggleBtn);
+    toggleBtn.innerHTML = "👁️ Preview";
     
     const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "🗑️ Delete";
-    controls.appendChild(deleteBtn);
+    deleteBtn.innerHTML = "🗑️ Delete";
     
+    controls.appendChild(toggleBtn);
+    controls.appendChild(deleteBtn);
     wrapper.appendChild(controls);
     cellsDiv.appendChild(wrapper);
     
     const editor = monaco.editor.create(editorContainer, {
       value: content,
       language: "markdown",
-      theme: "vs-dark",
-      automaticLayout: true
+      theme: darkMode ? "vs-dark" : "vs-light",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      fontSize: 14
     });
     
     const record = { 
@@ -291,6 +614,9 @@
       wrapper 
     };
     editors.push(record);
+    
+    // Setup drag events
+    setupDragEvents(wrapper, dragHandle, record);
     
     // Initial render if content exists
     if (content.trim()) {
@@ -308,7 +634,7 @@
       const isPreview = preview.style.display === "block";
       preview.style.display = isPreview ? "none" : "block";
       editorContainer.style.display = isPreview ? "block" : "none";
-      toggleBtn.textContent = isPreview ? "👁️ Preview" : "✏️ Edit";
+      toggleBtn.innerHTML = isPreview ? "👁️ Preview" : "✏️ Edit";
       
       if (!isPreview) {
         preview.innerHTML = marked.parse(editor.getValue());
@@ -319,6 +645,86 @@
       wrapper.remove();
       editors = editors.filter(e => e.editor !== editor);
     };
+    
+    return wrapper;
+  }
+
+  function setupDragEvents(wrapper, dragHandle, record) {
+    dragHandle.addEventListener('dragstart', (e) => {
+      draggedItem = record;
+      wrapper.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+      dragStartY = e.clientY;
+      
+      // Create placeholder
+      dragPlaceholder = document.createElement('div');
+      dragPlaceholder.className = 'drag-placeholder';
+      cellsDiv.insertBefore(dragPlaceholder, wrapper.nextSibling);
+    });
+    
+    dragHandle.addEventListener('dragend', () => {
+      wrapper.classList.remove('dragging');
+      if (dragPlaceholder && dragPlaceholder.parentNode) {
+        dragPlaceholder.parentNode.removeChild(dragPlaceholder);
+      }
+      draggedItem = null;
+      dragPlaceholder = null;
+    });
+    
+    wrapper.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedItem || draggedItem === record) return;
+      
+      e.dataTransfer.dropEffect = 'move';
+      
+      const rect = wrapper.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      
+      if (e.clientY < midpoint) {
+        cellsDiv.insertBefore(dragPlaceholder, wrapper);
+      } else {
+        cellsDiv.insertBefore(dragPlaceholder, wrapper.nextSibling);
+      }
+    });
+    
+    wrapper.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (!draggedItem || draggedItem === record) return;
+      
+      // Remove placeholder
+      if (dragPlaceholder && dragPlaceholder.parentNode) {
+        cellsDiv.removeChild(dragPlaceholder);
+      }
+      
+      // Get the index of the dragged item
+      const draggedIndex = editors.indexOf(draggedItem);
+      const targetIndex = editors.indexOf(record);
+      
+      // Determine position to insert (before or after)
+      const rect = wrapper.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      const insertBefore = e.clientY < midpoint;
+      
+      // Remove from old position
+      editors.splice(draggedIndex, 1);
+      
+      // Calculate new position
+      let newIndex;
+      if (insertBefore) {
+        newIndex = targetIndex > draggedIndex ? targetIndex - 1 : targetIndex;
+      } else {
+        newIndex = targetIndex > draggedIndex ? targetIndex : targetIndex + 1;
+      }
+      
+      // Insert at new position
+      editors.splice(newIndex, 0, draggedItem);
+      
+      // Reorder DOM elements
+      const cells = Array.from(cellsDiv.children).filter(el => el.classList.contains('cell'));
+      cells.forEach(cell => cellsDiv.removeChild(cell));
+      editors.forEach(editor => cellsDiv.appendChild(editor.wrapper));
+    });
   }
 
   function renderPlot(container, plotData) {
@@ -339,64 +745,153 @@
     fetch("/app/sequential/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, notebook })
+      body: JSON.stringify({ 
+        name, 
+        notebook, 
+        notebook_type: "generic"  // <-- Prevent automatic misclassification
+      })
     })
     .then(res => res.json())
     .then(data => alert(data.message || "✅ Saved"))
     .catch(err => alert("❌ Save failed: " + err.message));
   }
-  let draggedElement = null;
-  
-  cellsDiv.addEventListener("dragstart", (e) => {
-    draggedElement = e.target.closest(".cell");
-    if (draggedElement) draggedElement.classList.add("dragging");
-  });
-  
-  cellsDiv.addEventListener("dragend", (e) => {
-    if (draggedElement) draggedElement.classList.remove("dragging");
-    draggedElement = null;
-  });
-  
-  cellsDiv.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    const afterElement = getDragAfterElement(cellsDiv, e.clientY);
-    const dragging = document.querySelector(".cell.dragging");
-    if (afterElement == null) {
-      cellsDiv.appendChild(dragging);
-    } else {
-      cellsDiv.insertBefore(dragging, afterElement);
-    }
-  });
-  
-  function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll(".cell:not(.dragging)")];
-    
-    return draggableElements.reduce((closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset: offset, element: child };
+
+
+  function downloadAsPython() {
+    const pyContent = editors.map((e, i) => {
+      if (e.type === "code") {
+        return `# Cell ${i+1}\n${e.editor.getValue()}`;
       } else {
-        return closest;
+        return `'''\n# Markdown Cell ${i+1}\n${e.editor.getValue()}\n'''`;
       }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }).join("\n\n");
+    
+    const blob = new Blob([pyContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${notebook.title.replace(/\s+/g, '_')}.py`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function exportAsIPythonNotebook() {
+    const notebookData = {
+      cells: editors.map(e => {
+        const cell = {
+          cell_type: e.type,
+          metadata: {},
+          source: e.editor.getValue().split('\n').map(line => line + '\n')
+        };
+        
+        if (e.type === "code") {
+          cell.outputs = [];
+          cell.execution_count = null;
+        }
+        
+        return cell;
+      }),
+      metadata: {
+        kernelspec: { name: "python3", display_name: "Python 3" },
+        language_info: { name: "python" }
+      },
+      nbformat: 4,
+      nbformat_minor: 4
+    };
+    
+    const blob = new Blob([JSON.stringify(notebookData, null, 2)], { 
+      type: "application/json" 
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${notebook.title.replace(/\s+/g, '_')}.ipynb`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function handleFileUpload(file) {
+    if (file.name.endsWith(".py")) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        createCodeCell(monaco, e.target.result);
+      };
+      reader.readAsText(file);
+    } else if (file.name.endsWith(".ipynb")) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const notebook = JSON.parse(e.target.result);
+          notebook.cells.forEach(cell => {
+            const content = Array.isArray(cell.source) 
+              ? cell.source.join("") 
+              : cell.source;
+            
+            if (cell.cell_type === "code") {
+              createCodeCell(monaco, content);
+            } else {
+              createMarkdownCell(monaco, content);
+            }
+          });
+        } catch (err) {
+          alert("Failed to parse notebook: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      alert("Only .py or .ipynb files are supported");
+    }
   }
 
-  require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" }});
-  require(["vs/editor/editor.main"], function(monaco) {
-    // Defensive fallback if no cells loaded
-    const cells = Array.isArray(notebook.cells) ? notebook.cells : [];
+  function loadNotebookList() {
+    const panel = document.getElementById("notebookList");
+    const container = document.getElementById("notebookItems");
     
-    if (cells.length > 0) {
-      for (const cell of cells) {
+    panel.style.display = "block";            // Already exists
+    panel.classList.add("show");              // <-- ADD THIS
+    container.innerHTML = "Loading...";
+    
+    fetch("/app//sequential/list")
+    .then(res => res.json())
+    .then(data => {
+      container.innerHTML = "";
+      if (!data.length) {
+        container.innerHTML = "<p>No notebooks found.</p>";
+        return;
+      }
+      data.forEach(nb => {
+        const item = document.createElement("div");
+        item.className = "notebook-item";
+        item.innerHTML = `<strong>${nb.name}</strong><br><small>${new Date(nb.updated_at).toLocaleString()}</small>`;
+        item.onclick = () => window.location.href = `/app/editor/${nb.id}`;
+        container.appendChild(item);
+      });
+    })
+    .catch(err => {
+      container.innerHTML = `<p>Error loading notebooks: ${err.message}</p>`;
+    });
+  }
+
+  
+
+  // Initialize the editor
+  require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs" } });
+  require(["vs/editor/editor.main"], function(monaco) {
+    // Load preexisting cells
+    if (Array.isArray(notebook.cells) && notebook.cells.length > 0) {
+      notebook.cells.forEach(cell => {
         if (cell.type === "code") {
-          createCodeCell(monaco, cell.content, (cell.output || [])[0] || "");
+          createCodeCell(
+            monaco, 
+            cell.content, 
+            cell.output || ""
+          );
         } else if (cell.type === "markdown") {
           createMarkdownCell(monaco, cell.content);
         }
-      }
+      });
     } else {
-      // Fallback initial code cell
+      // Default empty code cell with plotting example
       createCodeCell(monaco, `import matplotlib.pyplot as plt
 import numpy as np
 
@@ -406,33 +901,28 @@ plt.title('Sine Wave')
 plt.show()`);
     }
     
-    document.getElementById("addCode").onclick = () => createCodeCell(monaco);
-    document.getElementById("addMarkdown").onclick = () => createMarkdownCell(monaco);
-    document.getElementById("runAll").onclick = () => {
+    // Set up event listeners
+    document.getElementById("toggleTheme").addEventListener("click", toggleTheme);
+    document.getElementById("addCode").addEventListener("click", () => createCodeCell(monaco));
+    document.getElementById("addMarkdown").addEventListener("click", () => createMarkdownCell(monaco));
+    document.getElementById("runAll").addEventListener("click", () => {
       editors.forEach(e => {
         if (e.type === "code") {
-          e.wrapper.querySelector("button").click();
+          e.wrapper.querySelector(".cell-controls button").click();
         }
       });
-    };
-    document.getElementById("save").onclick = saveNotebook;
+    });
+    document.getElementById("save").addEventListener("click", saveNotebook);
+    document.getElementById("download").addEventListener("click", downloadAsPython);
+    document.getElementById("export").addEventListener("click", exportAsIPythonNotebook);
+    document.getElementById("open").addEventListener("click", () => document.getElementById("upload").click());
+    document.getElementById("upload").addEventListener("change", e => {
+      if (e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+    document.getElementById("openSaved").addEventListener("click", loadNotebookList);
   });
 </script>
-
-
-<!---->
-<!--// Add toolbar event listeners-->
-<!--document.getElementById("addCode").onclick = () => createCodeCell(monaco);-->
-<!--document.getElementById("addMarkdown").onclick = () => createMarkdownCell(monaco);-->
-<!--document.getElementById("runAll").onclick = () => {-->
-<!--  editors.forEach(e => {-->
-<!--    if (e.type === "code") {-->
-<!--      e.wrapper.querySelector("button").click();-->
-<!--    }-->
-<!--  });-->
-<!--};-->
-<!--document.getElementById("save").onclick = saveNotebook;-->
-<!--  });-->
-<!--</script>-->
 </body>
 </html>

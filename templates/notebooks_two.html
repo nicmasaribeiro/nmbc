@@ -85,6 +85,13 @@
       background-color: #e05d00;
     }
 
+    .html-button {
+      background-color: #17a2b8;
+    }
+    .html-button:hover {
+      background-color: #138496;
+    }
+
     .input-inline {
       width: calc(100% - 100px);
       padding: 6px;
@@ -173,6 +180,7 @@
       </td>
 
       <td>{{ nb.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      
 
       <td>
         <form method="POST" action="{{ url_for('app.set_notebook_tags', notebook_id=nb.id) }}">
@@ -186,8 +194,9 @@
           <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}" class="action-button">✏️ Edit</a>
           <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}?editor=plotting" class="action-button plotting-button">📊 Plotting</a>
           {% if nb.is_sequential %}
-          <a href="{{ url_for('app.sequential_notebook') }}?id={{ nb.id }}" class="action-button">📘 Sequential</a>
+<!--      <a href="{{ url_for('app.sequential_notebook') }}?id={{ nb.id }}" class="action-button">📘 Sequential</a>-->
           {% endif %}
+          <a href="{{ url_for('app.convert_notebook_to_html', notebook_id=nb.id) }}" class="action-button html-button">🖥️ Export HTML</a>
         </div>
 
         <form method="POST" action="{{ url_for('app.toggle_publish_status', notebook_id=nb.id) }}" style="display: inline;">
