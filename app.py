@@ -85,8 +85,16 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from kaggle_ui import register_template_filters
 from sequential_bp import sequential_bp
+from proxies import YFinanceProxyWrapper
 
 
+proxy_list = [
+"http://24.249.199.12:4145",
+"http://45.77.67.203:8080",
+"http://138.68.60.8:3128"
+"http://50.174.7.157:80"
+]
+	
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -120,16 +128,16 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(sequential_bp, url_prefix="/seq")
 
 register_template_filters(app)
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -159,8 +167,9 @@ def execute_swap_double_check():
 		session = requests.Session()
 		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 		# Fetch historical stock data
-		ticker = yf.Ticker(s.equity.upper(),session=session)
-		historical_data = ticker.history(period='5d', interval='1m')["Close"]
+		proxy = YFinanceProxyWrapper(proxy_list=proxy_list)
+		# ticker =  #yf.Ticker(s.equity.upper(),session=session)
+		historical_data = proxy.fetch(s.equity.upper(),period='5d', interval='1m')['Close']
 
 		if len(historical_data) < 2:
 			print(f"Not enough historical data for {s.equity}")
@@ -702,11 +711,11 @@ def update_portfolio():
 def change_value_update():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
-		session = requests.Session()
-		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-		t = yf.Ticker(i.investment_name.upper(),session=session)
-		prices_vector = t.history(period='5d',interval='1m')
-		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+		proxy = YFinanceProxyWrapper(proxy_list) #requests.Session()
+		# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		# t = #yf.Ticker(i.investment_name.upper(),session=session)
+		prices_vector = proxy.fetch(i.investment_name.upper(),period='5d',interval='1m')#t.history(period='5d',interval='1m')
+		price = proxy.fetch(i.investment_name.upper(),period='1d',interval='1m')['Close'].iloc[-1]#t.history(period='1d',interval='1m')
 		change = np.log(price) - np.log(i.starting_price)
 		i.change_value = change
 		db.session.commit()
@@ -723,12 +732,13 @@ def update_prices():
 
 	for i in invests:
 		try:
-			session = requests.Session()
-			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+			# session = requests.Session()
+			# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+			proxy = YFinanceProxyWrapper(proxy_list)
 			# Fetch current market data
-			t = yf.Ticker(i.investment_name.upper(),session=session)
-			prices_vector = t.history(period='5d', interval='1m')
-			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
+			# t = #yf.Ticker(i.investment_name.upper(),session=session)
+			prices_vector = proxy.fetch(i.investment_name.upper(),period='5d', interval='1m')#t.history(period='5d', interval='1m')
+			price = prices_vector['Close'].iloc[-1]
 			
 			# Update market price
 			i.market_price = price
@@ -773,12 +783,13 @@ def update():
 
 	for i in invests:
 		try:
-			session = requests.Session()
-			session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+			# session = requests.Session()
+			# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 			# Fetch current market data
-			t = yf.Ticker(i.investment_name.upper(),session=session)
-			prices_vector = t.history(period='5d', interval='1m')
-			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
+			proxy = YFinanceProxyWrapper(proxy_list)
+			t = proxy.fetch(i.investment_name.upper(),period='5d', interval='1m')#yf.Ticker(i.investment_name.upper(),session=session)
+			prices_vector =  t #t.history(period='5d', interval='1m')
+			price = t['Close'].iloc[-1]
 			
 			# Update market price
 			i.market_price = price
@@ -1580,6 +1591,7 @@ def mine():
 	return render_template('mine.html')
 
 
+proxy_create_investment = YFinanceProxyWrapper(proxy_list)
 @app.route('/create/investment', methods=['GET', 'POST'])
 def buy_or_sell():
     def normal_pdf(x, mean=0, std_dev=1):
@@ -1588,6 +1600,7 @@ def buy_or_sell():
     def C(s):
         K = s ** 3 - 3 * s ** 2 * (1 - s)
         return (s * (s - 1 / K)) ** (1 / s) * normal_pdf(s)
+		
 
     if request.method == "POST":
         try:
@@ -1610,13 +1623,12 @@ def buy_or_sell():
             coins, qt, target_price, maturity = map(float, [coins, qt, target_price, maturity])
             risk_neutral, spread, reversion = map(float, [risk_neutral, spread, reversion])
             option_type = option_type.lower()
-
             user_db = Users.query.filter_by(username=user).first()
             if not user_db:
                 return "<h3>User not found</h3>"
-	
-            ticker = yf.Ticker(invest_name)
-            history = ticker.history(period='1d', interval='1m')
+            history = proxy_create_investment.fetch(invest_name,period='1d', interval='1m') 
+			#yf.Ticker(invest_name,session=requests.session())
+            # history = ticker.history(period='1d', interval='1m')
 
             if history.empty:
                 return "<h3>Invalid ticker symbol</h3>"
@@ -3522,11 +3534,8 @@ def mu_sigma():
 		ticker = request.values.get("ticker").upper()
 		period = request.values.get("period")
 		interval = request.values.get("interval")
-		session = requests.Session()
-		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-# data = yf.Ticker("AAPL", session=session)
-		t = yf.Ticker(ticker,session=session)
-		h = t.history(period=period,interval=interval)
+		proxy = YFinanceProxyWrapper(proxy_list=proxy_list)
+		h = proxy.fetch(ticker,period=period,interval=interval)
 		df = h["Close"] 
 		ret = df.pct_change()[1:]
 		mu = ret.rolling(3).mean()
@@ -4346,10 +4355,12 @@ def drift_vol():
 		ticker = request.values.get("ticker").upper()
 		p = request.values.get("p")
 		i = request.values.get("i")
-		session = requests.Session()
-		session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+		# session = requests.Session()
+		proxy_drift = YFinanceProxyWrapper(proxy_list=proxy_list)
+		# session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 # data = yf.Ticker("AAPL", session=session)
-		data = yf.Ticker(ticker,session=session).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
+		data = proxy_drift.fetch(ticker,period=p,interval=i)
+		#yf.Ticker(ticker,session=session).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
 		data['Log Returns'] = np.log(data['Close'] / data['Close'].shift(1))
 		# Time step (e.g., daily returns, assume 252 trading days in a year)
 		delta_t = 1 / 252
@@ -4805,6 +4816,7 @@ def download_file():
         return send_from_directory(DOWNLOAD_FOLDER, 'return_on_capital.xlsx', as_attachment=True)
     except FileNotFoundError:
         abort(404)
+
 
 # update.delay()
 schedule.every(1).minutes.do(update)

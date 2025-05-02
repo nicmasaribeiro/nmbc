@@ -263,35 +263,31 @@ def open_notebook():
             return "Only .ipynb files are supported", 400
 
         try:
-            # Read the notebook content
             nb_content = file.read().decode('utf-8')
-            
-            # Parse the notebook with proper error handling
+
             try:
                 nb = nbformat.reads(nb_content, as_version=4)
             except Exception as e:
                 return f"Failed to parse notebook: {str(e)}", 400
 
-            # Verify the notebook structure
             if not hasattr(nb, 'cells') or not isinstance(nb.cells, list):
                 return "Invalid notebook format: missing cells", 400
 
-            # Process cells
             processed_cells = []
             for cell in nb.cells:
                 if not hasattr(cell, 'cell_type') or not hasattr(cell, 'source'):
-                    continue  # skip invalid cells
-                    
+                    continue
+                
+                source_lines = cell.source.splitlines(keepends=True) if isinstance(cell.source, str) else cell.source
+
                 cell_data = {
                     "type": cell.cell_type,
-                    "content": cell.source,
+                    "content": ''.join(source_lines),  # Keep as string but joined correctly
                     "output": []
                 }
 
                 if cell.cell_type == "code":
-                    # Handle outputs if they exist
-                    outputs = getattr(cell, 'outputs', [])
-                    for output in outputs:
+                    for output in getattr(cell, 'outputs', []):
                         if output.output_type == "stream":
                             cell_data["output"].append(output.text)
                         elif output.output_type == "execute_result":
@@ -313,6 +309,7 @@ def open_notebook():
             return f"Error processing notebook: {str(e)}", 500
 
     return render_template("upload_notebook_two.html")
+
 
 @kaggle_bp.route("/save_notebook", methods=["POST"])
 @login_required
@@ -1208,3 +1205,68 @@ def unlist_notebook(notebook_id):
 
     return redirect(url_for("app.my_notebooks"))
 
+
+@kaggle_bp.route("/notebook/convert_to_html/<int:notebook_id>", methods=["GET"])
+@login_required
+def convert_notebook_to_html(notebook_id):
+    """Convert a notebook to HTML format"""
+    from nbconvert import HTMLExporter
+    import nbformat
+    from io import BytesIO
+    
+    # Get the notebook from database
+    notebook = UserNotebook.query.filter_by(id=notebook_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        # Convert notebook content to standard ipynb format
+        notebook_content = json.loads(notebook.content)
+        
+        # Create a new notebook structure
+        nb = nbformat.v4.new_notebook()
+        nb.cells = []
+        
+        for cell in notebook_content:
+            if cell.get("type") == "markdown":
+                nb.cells.append(nbformat.v4.new_markdown_cell(cell.get("content", "")))
+            else:  # default to code cell
+                nb.cells.append(nbformat.v4.new_code_cell(cell.get("content", "")))
+        
+        # Convert to HTML
+        html_exporter = HTMLExporter()
+        html_exporter.exclude_input_prompt = True
+        html_exporter.exclude_output_prompt = True
+        (body, resources) = html_exporter.from_notebook_node(nb)
+        
+        # Create in-memory file for download
+        buffer = BytesIO()
+        buffer.write(body.encode('utf-8'))
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"{notebook.name.replace(' ', '_')}.html",
+            mimetype="text/html"
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Conversion error: {str(e)}")
+        return f"Error converting notebook: {str(e)}", 500
+
+@kaggle_bp.route("/list_user_notebooks")
+@login_required
+def list_user_notebooks():
+    notebooks = UserNotebook.query.filter_by(user_id=current_user.id).order_by(UserNotebook.updated_at.desc()).all()
+    return jsonify([
+        {"id": nb.id, "name": nb.name, "updated_at": nb.updated_at.isoformat()} for nb in notebooks
+    ])
+
+@kaggle_bp.route("/editor/<int:notebook_id>")
+@login_required
+def open_saved_notebook(notebook_id):
+    notebook = UserNotebook.query.get_or_404(notebook_id)
+    cells = json.loads(notebook.content)  # or notebook.cells depending on your model
+    return render_template("editor.html",
+                           saved_cells=cells,
+                           notebook_id=notebook.id,
+                           notebook_name=notebook.name)
