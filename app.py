@@ -4814,7 +4814,7 @@ def run_periodic_task():
 	# while True:
 	update.delay()
 	time.sleep(60)
-	celery.start(argv=["worker", "--loglevel=info"])
+	celery.start()#argv=["worker", "--loglevel=info"])
 
 
 if __name__ == '__main__':

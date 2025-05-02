@@ -699,11 +699,12 @@ def edit_saved_notebook(notebook_id):
     template = "editor_two.html" if force_plotting or is_plotting_notebook(notebook_content) else "editor.html"
     
     return render_template(
-        template, 
-        saved_cells=notebook_content,
-        notebook_id=nb.id,
-        notebook_name=nb.name
-    )
+    template,
+    saved_cells=notebook_content,  # this must contain all code/markdown cells
+    notebook_id=nb.id,
+    notebook_name=nb.name
+)
+
 
 
 @kaggle_bp.route("/notebook/open/<filename>")
@@ -994,7 +995,7 @@ def open_sequential_notebook(notebook_id):
         content = []
     
     return render_template(
-        "sequential_view.html",
+        "sequential_notebook_two.html",
         notebook=notebook,
         notebook_content=json.dumps(content)  # Properly formatted JSON string
     )
