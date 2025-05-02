@@ -144,44 +144,6 @@ class Users(UserMixin, db.Model):
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=True)
     wallet = db.relationship('WalletDB', backref='user', uselist=False)
 
-
-class NotebookSubmission(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    notebook_filename = db.Column(db.String(128))
-    score = db.Column(db.Float)
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-
-
-class UserNotebook(db.Model):
-    published = db.Column(db.Boolean, default=False)
-    published_at = db.Column(db.DateTime, default=db.func.now())
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    name = db.Column(db.String(128))
-    content = db.Column(db.Text)  # JSON string (list of cells)
-    created_at = db.Column(db.DateTime, default=db.func.now())
-    updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
-    tags = db.Column(db.String, default="")
-    is_sequential = db.Column(db.Boolean, default=False)
-    is_for_sale = db.Column(db.Boolean, default=False)
-    price = db.Column(db.Float, default=0.0)
-
-
-
-
-class DatasetMeta(db.Model):
-    __tablename__ = 'dataset_meta'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    filename = db.Column(db.String, nullable=False)
-    description = db.Column(db.String, default="")
-    uploaded_at = db.Column(db.DateTime, default=db.func.now())
-
-
 class TransactionType(enum.Enum):
     send = "send"
     SEND = "SEND"
@@ -578,7 +540,6 @@ class OptimizationToken(db.Model):
     file_data = db.Column(db.LargeBinary, nullable=False)  # Store the file as binary (BLOB)
     receipt = db.Column(db.String)
     modified_data = db.Column(db.LargeBinary, nullable=False)
-    input_data = db.Column(db.LargeBinary, nullable=False)
     grade = db.Column(db.Integer, default=0)
     output_data = db.Column(db.LargeBinary, nullable=False)
     additional_data = db.Column(db.LargeBinary, nullable=False)
@@ -598,7 +559,6 @@ class Optimization(db.Model):
     filename = db.Column(db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     price = db.Column(db.Float)
-    input_data = db.Column(db.LargeBinary, nullable=False)
 
 
 class TrackInvestors(db.Model):

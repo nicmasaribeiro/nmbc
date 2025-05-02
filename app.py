@@ -1028,7 +1028,7 @@ def signup_val():
 @app.route('/investments', methods=['GET'])
 def get_investments():
 	update.delay()
-	update_prices()
+	# update_prices()
 	page = request.args.get('page', 1, type=int)
 	per_page = 5
 
@@ -1256,7 +1256,6 @@ def html_trans_database():
 @app.route('/mine/investments',methods=['GET','POST'])
 def mine_investments():
 	update.delay()
-	update_prices()
 	return """<a href='/'><h1>Home</h1></a><h3>Success</h3>"""
 
 
@@ -1264,7 +1263,6 @@ def mine_investments():
 @app.route('/html/investment/ledger',methods=['GET'])
 def html_investment_ledger():
 	update.delay()
-	update_prices()
 	t = InvestmentDatabase.query.all()
 	return render_template("html-invest-ledger.html", invs=t)
 
@@ -1317,7 +1315,6 @@ def add_portfolio():
 @login_required
 def get_user_wallet():
 	update.delay()
-	update_prices()
 	user = current_user
 	
 	# Fetch the user's wallet
@@ -4664,14 +4661,8 @@ def token_parameters(id):
 		return str(e), 500
 
 # update.delay()
-schedule.every(1).minutes.do(update)
+schedule.every(1).minutes.do(update.delay)
 schedule.every(1).minutes.do(update_prices)
-
-def run_periodic_task():
-	while True:
-		update.delay()
-		time.sleep(60)
-		celery.start()
 
 if __name__ == '__main__':
 	with app.app_context():
@@ -4681,12 +4672,13 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
-				run_periodic_task()
+				execute_swap()
+				update_prices()
 				time.sleep(10)  #
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
-	# update_thread = threading.Thread(target=update_prices, daemon=True)
-	# swap_thread = threading.Thread(target=execute_swap_double_check, daemon=True)
+	update_thread = threading.Thread(target=update_prices, daemon=True)
+	swap_thread = threading.Thread(target=execute_swap_double_check, daemon=True)
 	schedule_thread.start()
-	# update_thread.start()
-	# swap_thread.start()
-	app.run(host="0.0.0.0",port=3000)
+	update_thread.start()
+	swap_thread.start()
+	app.run(host="0.0.0.0",port=8080)
