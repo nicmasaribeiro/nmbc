@@ -80,6 +80,7 @@ from flask_login import LoginManager
 import redis
 from sklearn.decomposition import PCA
 import subprocess
+from kaggle_ui import kaggle_bp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -92,11 +93,13 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_REDIS'] = redis.StrictRedis(host='redis-server', port=6379)
 
+
 cache = Cache(app)
 executor = Executor(app)
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
+# app.register_blueprint(kaggle_bp, url_prefix="/app")
 
 global nmbc
 nmbc = NMCYBlockchain()
@@ -182,7 +185,7 @@ def execute_swap_double_check():
 		schedule.every(int(execution_interval)).days.do(logic)
 
 	print("All swaps scheduled successfully.")
-schedule.every(1).minutes.do(execute_swap_double_check)
+# schedule.every(1).minutes.do(execute_swap_double_check)
 
 @celery.task
 def execute_swap():
@@ -237,7 +240,7 @@ def execute_swap():
 
 # Run the function every 10 seconds (for testing purposes)
 execute_swap.delay()
-schedule.every(1).minutes.do(execute_swap)
+# schedule.every(1).minutes.do(execute_swap)
 
 def make_payment():
 	"""Executes swap transactions at scheduled intervals"""
@@ -749,7 +752,7 @@ def update_prices():
 
 	return 0
 
-schedule.every(1).minutes.do(update_prices)
+# schedule.every(1).minutes.do(update_prices)
 
 
 @celery.task	
@@ -4346,6 +4349,7 @@ def option_density():
         print("Option Value:\t", option_value)
         return render_template("option_density.html", option_value=option_value)
     return render_template("option_density.html")
+
 ########################################################################
 # LKSE PAGES
 ########################################################################
@@ -4414,8 +4418,8 @@ def token_parameters(id):
 		return str(e), 500
 
 # update.delay()
-schedule.every(1).minutes.do(update.delay)
-schedule.every(1).minutes.do(update_prices)
+# schedule.every(1).minutes.do(update.delay)
+# schedule.every(1).minutes.do(update_prices)
 
 if __name__ == '__main__':
 	with app.app_context():
