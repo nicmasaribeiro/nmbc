@@ -114,11 +114,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
