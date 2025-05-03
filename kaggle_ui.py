@@ -118,7 +118,7 @@ def execute_notebook_and_capture(path):
 @kaggle_bp.route("/index")
 def kaggle_home():
     # submissions = NotebookSubmission.query.order_by(NotebookSubmission.score.desc()).all()
-    return render_template("kaggle_index.html", submissions=submissions)
+    return render_template("kaggle_index.html")#, submissions=submissions)
 
 
 @kaggle_bp.route("/submit", methods=["GET", "POST"])
