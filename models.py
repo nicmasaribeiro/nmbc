@@ -30,6 +30,7 @@ ALLOWED_EXTENSIONS = {'txt', 'html','py','pdf','cpp'}
 # Initialize Flask app
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/blockchain.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blockchain.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.urandom(24).hex()
@@ -151,6 +152,7 @@ class NotebookSubmission(db.Model):
     notebook_filename = db.Column(db.String(128))
     score = db.Column(db.Float)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
@@ -167,6 +169,8 @@ class UserNotebook(db.Model):
     is_sequential = db.Column(db.Boolean, default=False)
     is_for_sale = db.Column(db.Boolean, default=False)
     price = db.Column(db.Float, default=0.0)
+
+
 
 
 class DatasetMeta(db.Model):
@@ -187,6 +191,18 @@ class TransactionType(enum.Enum):
     swap = "swap"
     INVESTMENT = "INVESTMENT"
     investment = "investment"# <-- Add this if needed
+
+class DualFactor(db.Model):
+    __tablename__ = 'dual_factor'
+
+    id = db.Column(db.Integer, primary_key=True)
+    dual_factor_signature = db.Column(db.String, nullable=False)
+    identifier =  db.Column(db.String, nullable=False)
+    username = db.Column(db.String)
+    from_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)  # Ensure Not NULL
+    to_address = db.Column(db.String, db.ForeignKey('wallets.address'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class TransactionDatabase(db.Model):
@@ -249,6 +265,37 @@ class Peer(db.Model):
         db.session.commit()
 
 
+class Swap(db.Model):
+    __tablename__ = 'swap'
+
+    id = db.Column(db.Integer, primary_key=True)
+    notional = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(), nullable=False)
+    fixed_rate = db.Column(db.Float, nullable=False)
+    floating_rate_spread = db.Column(db.Float, nullable=False)
+    equity = db.Column(db.String, nullable=False)
+    equity_rate = db.Column(db.Float, default=0)
+    amount = db.Column(db.Float, nullable=False)
+    total_amount = db.Column(db.Float,default=0)
+    fee = .01 #db.Column(db.Float, default=0)
+    maturity = db.Column(db.Float, default=0)
+    counterparty_a = db.Column(db.String(100), nullable=False)
+    counterparty_b = db.Column(db.String(100), nullable=False)
+    receipt = db.Column(db.String(100), nullable=False)
+    blocks = db.relationship('SwapBlock', backref='swap', lazy=True)
+
+class SwapBlock(db.Model):
+    __tablename__ = 'swap_block'
+
+    id = db.Column(db.Integer, primary_key=True)
+    index = db.Column(db.Integer, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    data = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String, nullable=True)  # ✅ Allow NULL values
+    previous_hash = db.Column(db.String, nullable=False)
+    hash = db.Column(db.String, nullable=False)
+    swap_id = db.Column(db.Integer, db.ForeignKey('swap.id'), nullable=False)
+
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
@@ -262,6 +309,18 @@ class Notification(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('Users', foreign_keys=[sender_id])
     receiver = db.relationship('Users', foreign_keys=[receiver_id])
+
+class SwapTransaction(db.Model):
+    __tablename__ = 'swap_transactions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    swap_id = db.Column(db.Integer, nullable=False)
+    receipt = db.Column(db.String(100), nullable=False)
+    sender = db.Column(db.String, nullable=False)
+    receiver = db.Column(db.String, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String, default="Pending")
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Block(db.Model):
     __tablename__ = 'blocks'
@@ -492,6 +551,8 @@ class ValuationDatabase(db.Model):
     price = db.Column(db.Float(),default=1)
     receipt = db.Column(db.String(),unique=True)
     valuation_model = db.Column(db.LargeBinary()) # tokenized_value
+
+
 
 class ValuationType(enum.Enum):
     dcf = 'dcf'
