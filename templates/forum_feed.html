@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forum Feed</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .tag-cloud {
+            margin: 10px 0;
+        }
+        .tag-cloud a {
+            text-decoration: none;
+        }
+        .badge {
+            font-weight: normal;
+        }
+        .active-tag {
+            background-color: #0d6efd !important;
+            color: white !important;
+        }
+        .post-card {
+            transition: transform 0.2s;
+        }
+        .post-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="display-6">Forum Feed</h1>
+                <p class="text-muted">Browse discussions and share your knowledge</p>
+                
+                <!-- Search and Filter Row -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <form method="get" action="{{ url_for('forum_feed') }}" class="input-group">
+                            <input type="text" name="q" class="form-control" 
+                                   placeholder="Search posts..." value="{{ search_query if search_query }}">
+                            {% if tag %}
+                            <input type="hidden" name="tag" value="{{ tag }}">
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('new_post') }}" class="btn btn-success w-100">
+                            <i class="bi bi-plus-circle"></i> New Post
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Active Filters -->
+                {% if tag or search_query %}
+                <div class="alert alert-info d-flex align-items-center">
+                    <div class="me-2">
+                        <i class="bi bi-funnel"></i>
+                    </div>
+                    <div>
+                        {% if tag %}
+                        <span class="me-2">Filtering by tag: <strong>{{ tag }}</strong></span>
+                        {% endif %}
+                        {% if search_query %}
+                        <span>Search results for: <strong>{{ search_query }}</strong></span>
+                        {% endif %}
+                        <a href="{{ url_for('forum_feed') }}" class="ms-2 text-decoration-none">
+                            <i class="bi bi-x-circle"></i> Clear filters
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Tag Cloud -->
+                {% if posts %}
+                <div class="mb-4">
+                    <h5>Popular Tags:</h5>
+                
+                        <div class="tag-cloud">
+                            {% for tag in all_tags %}
+                            <a href="{{ url_for('forum_feed', tag=tag) }}" 
+                                class="btn btn-sm {% if tag == request.args.get('tag') %}btn-primary{% else %}btn-outline-secondary{% endif %} me-2 mb-2">
+                                {{ tag }}
+                            </a>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Posts List -->
+        <div class="row">
+            <div class="col">
+                {% if posts %}
+                    {% for post in posts %}
+                    <div class="card mb-4 post-card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('forum_post', post_id=post.id) }}" class="text-decoration-none">
+                                    {{ post.title }}
+                                </a>
+                            </h5>
+                            
+                            <p class="card-text">{{ post.content|truncate(200) }}</p>
+                            
+                            <!-- Tags -->
+                            {% if post.tags %}
+                            <div class="mb-3">
+                                {% for tag in post.tags.split(',') %}
+                                    {% if tag.strip() %}
+                                    <a href="{{ url_for('forum_feed', tag=tag.strip()) }}" 
+                                       class="badge {% if tag.strip() == request.args.get('tag') %}bg-primary{% else %}bg-light text-dark{% endif %} me-1 text-decoration-none">
+                                        {{ tag.strip() }}
+                                    </a>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-person"></i> {{ post.user.username }}
+                                        <span class="mx-2">•</span>
+                                        <i class="bi bi-calendar"></i> {{ post.created_at.strftime('%b %d, %Y') }}
+                                    </small>
+                                </div>
+                                <div>
+                                    {% if post.comments %}
+                                    <small class="text-muted me-3">
+                                        <i class="bi bi-chat"></i> {{ post.comments|length }} comments
+                                    </small>
+                                    {% endif %}
+                                    {% if post.attachments %}
+                                    <small class="text-muted">
+                                        <i class="bi bi-paperclip"></i> {{ post.attachments|length }} files
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        {% if search_query or tag %}
+                            No posts found matching your criteria.
+                        {% else %}
+                            No posts available yet. Be the first to create one!
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>💬 Finance LLM Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+
+    .chat-box {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #343a40;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ced4da;
+      border-radius: 5px;
+      resize: vertical;
+      margin-top: 10px;
+    }
+
+    button {
+      margin-top: 15px;
+      background-color: #007bff;
+      color: white;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    pre {
+      background-color: #f1f3f5;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-box">
+    <h2>🧠 Finance Assistant</h2>
+    <form id="chat-form">
+      <label for="message">Ask a question about your investments, swaps, or portfolio:</label>
+      <textarea id="message" rows="5" placeholder="e.g., What is the risk-neutral return on my AAPL tokens?"></textarea>
+      <button type="submit">Submit</button>
+    </form>
+
+    <div id="response" style="display: none;">
+      <h3>LLM Response</h3>
+      <pre id="llm-output"></pre>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('message').value;
+
+      const response = await fetch('/llm/chat/finance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+
+      const data = await response.json();
+      const output = data.response || data.error || "No response.";
+
+      document.getElementById('response').style.display = 'block';
+      document.getElementById('llm-output').textContent = output;
+    });
+  </script>
+</body>
+</html>
