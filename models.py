@@ -107,6 +107,48 @@ class WalletDB(db.Model):
         db.session.commit()
 
 
+class ForumPost(db.Model):
+    __tablename__ = 'forum_posts'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    file_path = db.Column(db.String(512))
+    tags = db.Column(db.String, default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("Users", backref="forum_posts")
+    attachments = db.relationship("ForumAttachment", back_populates="post", lazy=True)  # ✅
+
+
+class ForumAttachment(db.Model):
+    __tablename__ = 'forum_attachments'
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(200), nullable=False)
+    filedata = db.Column(db.LargeBinary, nullable=False)  # 🆕 store the file content
+    post_id = db.Column(db.Integer, db.ForeignKey("forum_posts.id"), nullable=False)
+    post = db.relationship("ForumPost", back_populates="attachments")
+
+
+
+
+class ForumComment(db.Model):
+    __tablename__ = 'forum_comments'
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("forum_posts.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey("forum_comments.id"), nullable=True)  # 🆕
+    content = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, default=0)  # 🆕
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    post = db.relationship("ForumPost", backref="comments")
+    user = db.relationship("Users", backref="forum_comments")
+    replies = db.relationship("ForumComment", backref=db.backref("parent", remote_side=[id]), lazy=True)
+
+
+
+
 
 class SocialNetwork(db.Model):
     __tablename__ = 'social'

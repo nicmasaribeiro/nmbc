@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file,render_template_string,flash
-from flask import Blueprint
+from flask import Blueprint, send_from_directory
 from flask_caching import Cache
 import asyncio
 import socket
@@ -56,6 +56,7 @@ from bc2 import NodeBlockchain
 from Transaction import Transaction
 from p2pnode import P2PNode
 import socket
+from werkzeug.utils import secure_filename
 import websocket as ws
 import asyncio
 import threading
@@ -81,9 +82,17 @@ import redis
 from sklearn.decomposition import PCA
 import subprocess
 from kaggle_ui import kaggle_bp
+from get_price import get_price
+from finance_llm import finance_llm_bp
+from flask_migrate import Migrate
+# from forum_bp import forum_bp
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+UPLOAD_FOLDER = 'local'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config['SECRET_KEY'] = os.urandom(32).hex()  # Change to a strong secret
 app.config['CACHE_TYPE'] = 'simple'  # Simple in-memory cache
@@ -92,14 +101,21 @@ app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_REDIS'] = redis.StrictRedis(host='redis-server', port=6379)
+app.config['UPLOAD_FOLDER'] = 'local'  # or wherever
+
 
 
 cache = Cache(app)
 executor = Executor(app)
+migrate = Migrate(app, db)
+
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
+
 app.register_blueprint(kaggle_bp, url_prefix="/app")
+app.register_blueprint(finance_llm_bp, url_prefix="/llm")
+# app.register_blueprint(forum_bp, url_prefix=x"/forum")
 
 global nmbc
 nmbc = NMCYBlockchain()
@@ -114,11 +130,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -679,9 +695,9 @@ def recalculate():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
 		try:
-			t = yf.Ticker(i.investment_name.upper())
-			prices_vector = t.history(period='5d',interval='1m')
-			price = t.history()['Close'].iloc[-1]
+			t = get_price(i.investment_name.upper()) #yf.Ticker()
+			prices_vector = t #t.history(period='5d',interval='1m')
+			price = t['Close'].iloc[0]
 			s = stoch_price(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
 			i.stoch_price = s
 			# i.tokenized_price
@@ -692,18 +708,18 @@ def recalculate():
 def update_portfolio():
 	portfolio = Portfolio.query.all()
 	for i in portfolio:
-		t = yf.Ticker(i.token_name.upper())
-		prices_vector = t.history(period='5d',interval='1m')
-		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+		t = get_price(i.token_name.upper()) #yf.Ticker(i.token_name.upper())
+		prices_vector = t #t.history(period='5d',interval='1m')
+		price = t['close'].iloc[0]
 		i.price = price
 		db.session.commit()
 
 def change_value_update():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
-		t = yf.Ticker(i.investment_name.upper())
-		prices_vector = t.history(period='5d',interval='1m')
-		price = t.history(period='1d',interval='1m')['Close'].iloc[-1]
+		t = get_price(i.investment_name.upper())#yf.Ticker(i.investment_name.upper())
+		prices_vector = t #t.history(period='5d',interval='1m')
+		price = t['close'].iloc[0]
 		change = np.log(price) - np.log(i.starting_price)
 		i.change_value = change
 		db.session.commit()
@@ -724,7 +740,7 @@ def update_prices():
 			t = yf.Ticker(i.investment_name.upper())
 			prices_vector = t.history(period='5d', interval='1m')
 			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
-			
+			time.sleep(2)
 			# Update market price
 			i.market_price = price
 
@@ -751,8 +767,6 @@ def update_prices():
 			db.session.rollback()  # Rollback in case of errors
 
 	return 0
-
-# schedule.every(1).minutes.do(update_prices)
 
 
 @celery.task	
@@ -764,14 +778,15 @@ def update():
 	recalculate()
 	change_value_update()
 	update_portfolio()
+	update_prices()
 	invests = InvestmentDatabase.query.all()
 
 	for i in invests:
 		try:
 			# Fetch current market data
-			t = yf.Ticker(i.investment_name.upper())
-			prices_vector = t.history(period='5d', interval='1m')
-			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
+			t = get_price(i.investment_name.upper())#yf.Ticker(i.investment_name.upper())
+			prices_vector = t #t.history(period='5d', interval='1m')
+			price = t['close'].iloc[0]
 			
 			# Update market price
 			i.market_price = price
@@ -800,17 +815,11 @@ def update():
 
 	return 0
 
+schedule.every(10).minutes.do(update.delay)
 
 
 @login_manager.user_loader
 def load_user(user_id):
-#	update.delay()
-#	coin_db = CoinDB()
-#	db.session.add(coin_db)
-#	db.session.commit()
-#	betting_house = BettingHouse()
-#	db.session.add(betting_house)
-#	db.session.commit()
 	return Users.query.get(int(user_id))
 
 @app.route('/chat', methods=['GET','POST'])
@@ -1047,19 +1056,20 @@ def signup_val():
 
 @app.route('/investments', methods=['GET'])
 def get_investments():
-    page = request.args.get('page', 1, type=int)
-    per_page = 5
+	page = request.args.get('page', 1, type=int)
+	per_page = 5
 
-    investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
+	investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
+	update.delay()
 
-    return render_template(
-        'investments.html',
-        investments=investments,
-        page=investments.page,
-        total_pages=investments.pages,
-        has_next=investments.has_next,
-        has_prev=investments.has_prev
-    )
+	return render_template(
+		'investments.html',
+		investments=investments,
+		page=investments.page,
+		total_pages=investments.pages,
+		has_next=investments.has_next,
+		has_prev=investments.has_prev
+	)
 
 @app.route('/get/vals')
 def get_vals():
@@ -1588,18 +1598,18 @@ def buy_or_sell():
             if not user_db:
                 return "<h3>User not found</h3>"
 
-            ticker = yf.Ticker(invest_name)
-            history = ticker.history(period='1d', interval='1m')
-
-            if history.empty:
+            ticker = get_price(invest_name)['close']#yf.download(invest_name)['Close'] #get_price(invest_name)# yf.Ticker(invest_name)
+            history = np.array(ticker) #get_price(invest_name)#ticker #ticker.history(period='1d', interval='1m')
+			
+            if ticker.empty:
                 return "<h3>Invalid ticker symbol</h3>"
 
-            price = history['Close'].iloc[-1]
-            sigma = np.std(history['Close'].pct_change().dropna()) * np.sqrt(525960)
+            price = history[0]
+            sigma = np.std(ticker.pct_change().dropna()) * np.sqrt(252)
             option = black_scholes(price, target_price, maturity, 0.05, sigma, option_type)
 
             stoch = stoch_price(0.003968253968, maturity, risk_neutral, spread, reversion, price, target_price, option_type)
-            token_price = max(0, option + derivative_price(history['Close'], risk_neutral, reversion, spread)) + C(coins)
+            token_price = max(0, option + derivative_price(ticker, risk_neutral, reversion, spread)) + C(coins)
 
             wal = WalletDB.query.filter_by(address=user).first()
             if wal and wal.coins >= coins:
@@ -4054,12 +4064,13 @@ def drift_vol():
 		ticker = request.values.get("ticker").upper()
 		p = request.values.get("p")
 		i = request.values.get("i")
-		data = yf.Ticker(ticker).history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
-		data['Log Returns'] = np.log(data['Close'] / data['Close'].shift(1))
+		data = get_price(ticker) #yf.download(ticker)#.history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
+		data['Log Returns'] = np.log(data['close'] / data['close'].shift(1))
 		# Time step (e.g., daily returns, assume 252 trading days in a year)
 		delta_t = 1 / 252
 		# Drift (mean of log returns divided by time step)
 		mu = data['Log Returns'].mean() / delta_t
+		print(mu)
 		# Volatility (standard deviation of log returns divided by square root of time step)
 		sigma = data['Log Returns'].std() / np.sqrt(delta_t)
 		return render_template("drift&vol.html",mu=mu,sigma=sigma)
@@ -4422,9 +4433,197 @@ def token_parameters(id):
 	except Exception as e:
 		return str(e), 500
 
-# update.delay()
-# schedule.every(1).minutes.do(update.delay)
-# schedule.every(1).minutes.do(update_prices)
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file
+from flask_login import login_required, current_user
+from models import db, ForumPost, ForumComment, ForumAttachment
+from werkzeug.utils import secure_filename
+import io
+import os
+
+forum_bp = Blueprint('forum', __name__)
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'py', 'zip'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/forum")
+def forum_feed():
+    tag = request.args.get("tag")
+    search_query = request.args.get("q", "").strip()
+    
+    query = ForumPost.query.options(
+        db.joinedload(ForumPost.user),
+        db.joinedload(ForumPost.attachments)
+    )
+    
+    # Filter by tag if specified
+    if tag:
+        query = query.filter(ForumPost.tags.ilike(f"%{tag}%"))
+        current_app.logger.debug(f"Filtering posts by tag: {tag}")
+    
+    # Search across title, content, and tags if search query exists
+    if search_query:
+        query = query.filter(
+            db.or_(
+                ForumPost.title.ilike(f"%{search_query}%"),
+                ForumPost.content.ilike(f"%{search_query}%"),
+                ForumPost.tags.ilike(f"%{search_query}%")
+            )
+        )
+        current_app.logger.debug(f"Searching posts for: {search_query}")
+    
+    posts = query.order_by(ForumPost.created_at.desc()).all()
+    
+    # Debug output
+    current_app.logger.debug(f"Found {len(posts)} posts")
+    for post in posts:
+        current_app.logger.debug(f"Post ID: {post.id}, Tags: {post.tags}")
+    
+    return render_template("forum_feed.html", posts=posts, tag=tag, search_query=search_query)
+
+@app.route("/forum/post/<int:post_id>", methods=["GET", "POST"])
+def forum_post(post_id):
+    post = ForumPost.query.options(
+        db.joinedload(ForumPost.attachments),
+        db.joinedload(ForumPost.comments).joinedload(ForumComment.user)
+    ).get_or_404(post_id)
+
+    # Debugging output
+    print("\n=== DEBUG: Viewing Post ===")
+    print(f"Post ID: {post.id}")
+    print(f"Title: {post.title}")
+    print(f"Attachments count: {len(post.attachments)}")
+    for i, attachment in enumerate(post.attachments, 1):
+        print(f"Attachment #{i}: {attachment.filename} (ID: {attachment.id})")
+        print(f" - Size: {len(attachment.filedata)} bytes")
+
+    if request.method == "POST":
+        content = request.form.get("content", "")
+        files = request.files.getlist("files")
+        
+        print("\n=== DEBUG: Form Submission ===")
+        print(f"Content length: {len(content)} chars")
+        print(f"Files received: {len(files)}")
+        for i, file in enumerate(files, 1):
+            print(f"File #{i}:")
+            print(f" - Name: {file.filename}")
+            print(f" - Content type: {file.content_type}")
+            print(f" - Size: {file.content_length} bytes")
+            print(f" - Allowed: {allowed_file(file.filename)}")
+
+        comment = ForumComment(
+            post_id=post.id,
+            user_id=current_user.id,
+            content=content
+        )
+        db.session.add(comment)
+        
+        saved_files = 0
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                try:
+                    filedata = file.read()
+                    print(f"\nSaving attachment: {filename}")
+                    print(f" - Read {len(filedata)} bytes")
+                    
+                    attachment = ForumAttachment(
+                        filename=filename,
+                        filedata=filedata,
+                        post_id=post.id
+                    )
+                    db.session.add(attachment)
+                    saved_files += 1
+                    print(" - Successfully added to database session")
+                except Exception as e:
+                    print(f" - Error saving file: {str(e)}")
+            else:
+                print(f"\nSkipping file: {file.filename}")
+                print(f" - Valid: {file and file.filename}")
+                print(f" - Allowed: {allowed_file(file.filename) if file and file.filename else False}")
+
+        try:
+            db.session.commit()
+            print("\nDatabase commit successful")
+            print(f"Saved {saved_files} attachments")
+            flash("Comment submitted successfully!", "success")
+        except Exception as e:
+            db.session.rollback()
+            print(f"\nDatabase commit failed: {str(e)}")
+            flash("Error saving your comment.", "danger")
+
+        return redirect(url_for("forum_post", post_id=post_id))
+    
+    return render_template("forum_post.html", post=post)
+
+@app.route("/forum/new", methods=["GET", "POST"])
+@login_required
+def new_post():
+    if request.method == "POST":
+        title = request.form.get("title", "")
+        content = request.form.get("content", "")
+        files = request.files.getlist("files")
+        
+        print("\n=== DEBUG: New Post Submission ===")
+        print(f"Title: {title}")
+        print(f"Content length: {len(content)} chars")
+        print(f"Files received: {len(files)}")
+        
+        post = ForumPost(
+            title=title,
+            content=content,
+            user_id=current_user.id,
+			tags = request.form.get("tags","")
+        )
+        db.session.add(post)
+        db.session.flush()  # Generate ID without committing
+        print(f"Post ID generated: {post.id}")
+
+        saved_files = 0
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                try:
+                    filedata = file.read()
+                    print(f"\nSaving attachment: {filename}")
+                    print(f" - Read {len(filedata)} bytes")
+                    
+                    attachment = ForumAttachment(
+                        filename=filename,
+                        filedata=filedata,
+                        post_id=post.id
+                    )
+                    db.session.add(attachment)
+                    saved_files += 1
+                    print(" - Successfully added to database session")
+                except Exception as e:
+                    print(f" - Error saving file: {str(e)}")
+            else:
+                print(f"\nSkipping file: {file.filename}")
+                print(f" - Valid: {file and file.filename}")
+                print(f" - Allowed: {allowed_file(file.filename) if file and file.filename else False}")
+
+        try:
+            db.session.commit()
+            print("\nDatabase commit successful")
+            print(f"Saved {saved_files} attachments")
+            flash("Post created successfully!", "success")
+            return redirect(url_for("forum_feed"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"\nDatabase commit failed: {str(e)}")
+            flash("Error creating your post.", "danger")
+
+    return render_template("new_post.html")
+
+@app.route('/forum/download/<int:attachment_id>')
+def download_file(attachment_id):
+    attachment = ForumAttachment.query.get_or_404(attachment_id)
+    return send_file(
+        io.BytesIO(attachment.filedata),
+        as_attachment=True,
+        download_name=attachment.filename
+    )
 
 if __name__ == '__main__':
 	with app.app_context():
@@ -4434,7 +4633,8 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
-				time.sleep(1)  #
+				update.delay()
+				time.sleep(10) 
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	schedule_thread.start()
 	app.run(host="0.0.0.0",port=90)
