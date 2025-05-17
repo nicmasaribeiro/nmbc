@@ -85,7 +85,7 @@ from kaggle_ui import kaggle_bp
 from get_price import get_price
 from finance_llm import finance_llm_bp
 from flask_migrate import Migrate
-from nativecoin import nativecoin_bp
+# from nativecoin import nativecoin_bp
 
 
 logging.basicConfig(level=logging.INFO)
@@ -107,45 +107,12 @@ cache = Cache(app)
 executor = Executor(app)
 migrate = Migrate(app, db)
 
-from web3 import Web3
-import os, json
-from eth_account import Account
-from dotenv import load_dotenv
-from nativecoin import TOKEN_ABI,TOKEN_ADDRESS,INFURA_URL,PRIVATE_KEY
-
-load_dotenv()
-
-# Setup
-w3 = Web3(Web3.HTTPProvider(INFURA_URL))
-PRIVATE_KEY = '0x800c1f8346f0453218f23f1d4d254cd534e62ebdab65a28d361d49ee4b72845a' #PRIVATE_KEY #' # PRIVATE_KEY #os.getenv("NTC_FAUCET_PRIVATE_KEY")
-TOKEN_ADDRESS = Web3.to_checksum_address(TOKEN_ADDRESS)
-TOKEN_ABI = TOKEN_ABI
-
-ntc = w3.eth.contract(address=TOKEN_ADDRESS, abi=TOKEN_ABI)
-
-def send_ntc(to_address, amount):
-    from_acct = w3.eth.account.from_key(PRIVATE_KEY)
-    to_address = Web3.to_checksum_address(to_address)
-    decimals = 18  # or fetch dynamically if needed
-
-    tx = ntc.functions.transfer(to_address, w3.to_wei(amount, 'ether')).build_transaction({
-        'from': from_acct.address,
-        'nonce': w3.eth.get_transaction_count(from_acct.address),
-        'gas': 100_000,
-        'gasPrice': w3.to_wei('10', 'gwei')
-    })
-
-    signed_tx = w3.eth.account.sign_transaction(tx, from_acct.key)
-    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    return w3.to_hex(tx_hash)
-
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(finance_llm_bp, url_prefix="/llm")
-app.register_blueprint(nativecoin_bp,url_prefix="/ntc")
 
 global nmbc
 nmbc = NMCYBlockchain()
@@ -175,17 +142,6 @@ celery.conf.beat_schedule = {
     },
 }
 celery.autodiscover_tasks()
-
-
-@app.route("/ntc/wallet")
-def wallet():
-    return render_template("ntc_wallet.html")
-
-@app.route("/abi")
-def abi():
-    with open("ethereum/artifacts/contracts/NmbcCoin.sol/NativeCoin.json") as f:
-        contract_data = json.load(f)
-    return jsonify(contract_data["abi"])
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
