@@ -66,6 +66,8 @@ class WalletDB(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     address = db.Column(db.String, unique=True, nullable=False)
+    eth_address = db.Column(db.String, unique=True, nullable=False)
+    private_key = db.Column(db.String, unique=True, nullable=False)
     balance = db.Column(db.Float, default=0)
     password = db.Column(db.String(1024))
     coins = db.Column(db.Float, default=10000)

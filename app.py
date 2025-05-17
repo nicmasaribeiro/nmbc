@@ -85,7 +85,7 @@ from kaggle_ui import kaggle_bp
 from get_price import get_price
 from finance_llm import finance_llm_bp
 from flask_migrate import Migrate
-# from forum_bp import forum_bp
+from nativecoin import nativecoin_bp
 
 
 logging.basicConfig(level=logging.INFO)
@@ -103,11 +103,41 @@ app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_REDIS'] = redis.StrictRedis(host='redis-server', port=6379)
 app.config['UPLOAD_FOLDER'] = 'local'  # or wherever
 
-
-
 cache = Cache(app)
 executor = Executor(app)
 migrate = Migrate(app, db)
+
+from web3 import Web3
+import os, json
+from eth_account import Account
+from dotenv import load_dotenv
+from nativecoin import TOKEN_ABI,TOKEN_ADDRESS,INFURA_URL,PRIVATE_KEY
+
+load_dotenv()
+
+# Setup
+w3 = Web3(Web3.HTTPProvider(INFURA_URL))
+PRIVATE_KEY = '0x800c1f8346f0453218f23f1d4d254cd534e62ebdab65a28d361d49ee4b72845a' #PRIVATE_KEY #' # PRIVATE_KEY #os.getenv("NTC_FAUCET_PRIVATE_KEY")
+TOKEN_ADDRESS = Web3.to_checksum_address(TOKEN_ADDRESS)
+TOKEN_ABI = TOKEN_ABI
+
+ntc = w3.eth.contract(address=TOKEN_ADDRESS, abi=TOKEN_ABI)
+
+def send_ntc(to_address, amount):
+    from_acct = w3.eth.account.from_key(PRIVATE_KEY)
+    to_address = Web3.to_checksum_address(to_address)
+    decimals = 18  # or fetch dynamically if needed
+
+    tx = ntc.functions.transfer(to_address, w3.to_wei(amount, 'ether')).build_transaction({
+        'from': from_acct.address,
+        'nonce': w3.eth.get_transaction_count(from_acct.address),
+        'gas': 100_000,
+        'gasPrice': w3.to_wei('10', 'gwei')
+    })
+
+    signed_tx = w3.eth.account.sign_transaction(tx, from_acct.key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    return w3.to_hex(tx_hash)
 
 
 openai.api_key = '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'
@@ -115,6 +145,7 @@ stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb40
 
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(finance_llm_bp, url_prefix="/llm")
+app.register_blueprint(nativecoin_bp,url_prefix="/ntc")
 
 global nmbc
 nmbc = NMCYBlockchain()
@@ -129,11 +160,11 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -143,6 +174,18 @@ celery.conf.beat_schedule = {
         'schedule': 60.0,  # Run every 60 seconds
     },
 }
+celery.autodiscover_tasks()
+
+
+@app.route("/ntc/wallet")
+def wallet():
+    return render_template("ntc_wallet.html")
+
+@app.route("/abi")
+def abi():
+    with open("ethereum/artifacts/contracts/NmbcCoin.sol/NativeCoin.json") as f:
+        contract_data = json.load(f)
+    return jsonify(contract_data["abi"])
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -254,8 +297,13 @@ def execute_swap():
 	print("All swaps scheduled successfully.")
 
 # Run the function every 10 seconds (for testing purposes)
-execute_swap.delay()
+# execute_swap.delay() 
 # schedule.every(1).minutes.do(execute_swap)
+
+@app.route('/base')
+def base_2():
+	return render_template('base_2.html')
+
 
 def make_payment():
 	"""Executes swap transactions at scheduled intervals"""
@@ -696,7 +744,7 @@ def recalculate():
 		try:
 			t = get_price(i.investment_name.upper()) #yf.Ticker()
 			prices_vector = t #t.history(period='5d',interval='1m')
-			price = t['Close'].iloc[0]
+			price = prices_vector.iloc[-1]
 			s = stoch_price(1/52, i.time_float, i.risk_neutral, i.spread, i.reversion, price, i.target_price)
 			i.stoch_price = s
 			# i.tokenized_price
@@ -709,7 +757,7 @@ def update_portfolio():
 	for i in portfolio:
 		t = get_price(i.token_name.upper()) #yf.Ticker(i.token_name.upper())
 		prices_vector = t #t.history(period='5d',interval='1m')
-		price = t['close'].iloc[0]
+		price = prices_vector.iloc[0]
 		i.price = price
 		db.session.commit()
 
@@ -718,7 +766,7 @@ def change_value_update():
 	for i in invests:
 		t = get_price(i.investment_name.upper())#yf.Ticker(i.investment_name.upper())
 		prices_vector = t #t.history(period='5d',interval='1m')
-		price = t['close'].iloc[0]
+		price = prices_vector.iloc[-1] #['close'].iloc[0]
 		change = np.log(price) - np.log(i.starting_price)
 		i.change_value = change
 		db.session.commit()
@@ -728,18 +776,18 @@ def update_prices():
 	Update investment data, including market price, time_float, tokenized price, and coins.
 	"""
 	print("Update")
-	recalculate()
-	change_value_update()
-	update_portfolio()
+	# recalculate()
+	# change_value_update()
+	# update_portfolio()
 	invests = InvestmentDatabase.query.all()
 
 	for i in invests:
 		try:
 			# Fetch current market data
-			t = yf.Ticker(i.investment_name.upper())
-			prices_vector = t.history(period='5d', interval='1m')
-			price = t.history(period='1d', interval='1m')['Close'].iloc[-1]
-			time.sleep(2)
+			t = get_price(i.investment_name.upper())#yf.Ticker()
+			prices_vector = t #t.history(period='5d', interval='1m')
+			price = prices_vector.iloc[-1]#.history(period='1d', interval='1m')['Close'].iloc[-1]
+			# time.sleep(2)
 			# Update market price
 			i.market_price = price
 
@@ -768,53 +816,54 @@ def update_prices():
 	return 0
 
 
-@celery.task	
+@celery.task(name='models.update')
 def update():
 	"""
 	Update investment data, including market price, time_float, tokenized price, and coins.
 	"""
 	print("Update")
-	recalculate()
-	change_value_update()
-	update_portfolio()
-	update_prices()
-	invests = InvestmentDatabase.query.all()
+	with app.app_context():
+		recalculate()
+		change_value_update()
+		update_portfolio()
+		update_prices()
+		invests = InvestmentDatabase.query.all()
 
-	for i in invests:
-		try:
-			# Fetch current market data
-			t = get_price(i.investment_name.upper())#yf.Ticker(i.investment_name.upper())
-			prices_vector = t #t.history(period='5d', interval='1m')
-			price = t['close'].iloc[0]
-			
-			# Update market price
-			i.market_price = price
+		for i in invests:
+			try:
+				# Fetch current market data
+				t = get_price(i.investment_name.upper())#yf.Ticker(i.investment_name.upper())
+				prices_vector = t #t.history(period='5d', interval='1m')
+				price = t.iloc[-1]
+				
+				# Update market price
+				i.market_price = price
 
-			# Calculate time difference since the last update
-			current_time = datetime.now()
-			time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
+				# Calculate time difference since the last update
+				current_time = datetime.now()
+				time_difference = (current_time - i.timestamp).total_seconds()  # Time elapsed in seconds
 
-			# Update time_float (time remaining until maturity)
-			i.time_float -= time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
+				# Update time_float (time remaining until maturity)
+				i.time_float -= time_difference / (365.25 * 24 * 3600)  # Convert seconds to years
 
-			# Update timestamp to the current time
-			i.timestamp = current_time
+				# Update timestamp to the current time
+				i.timestamp = current_time
 
-			# Calculate tokenized price and coins
-			i.tokenized_price = i.market_price / i.quantity  # Simplified for now
-			i.coins = i.tokenized_price * (1 + i.spread) ** i.time_float
+				# Calculate tokenized price and coins
+				i.tokenized_price = i.market_price / i.quantity  # Simplified for now
+				i.coins = i.tokenized_price * (1 + i.spread) ** i.time_float
 
-			# Commit changes to the database
-			db.session.commit()
+				# Commit changes to the database
+				db.session.commit()
 
-		except Exception as e:
-			# Log the exception for debugging
-			print(f"Error updating investment {i.investment_name}: {e}")
-			db.session.rollback()  # Rollback in case of errors
+			except Exception as e:
+				# Log the exception for debugging
+				print(f"Error updating investment {i.investment_name}: {e}")
+				db.session.rollback()  # Rollback in case of errors
 
-	return 0
+		return 0
 
-schedule.every(10).minutes.do(update.delay)
+schedule.every(1).minutes.do(update.delay)
 
 
 @login_manager.user_loader
@@ -967,7 +1016,7 @@ def sell_cash():
 
 @app.route('/index/base')
 def index_base():
-	return render_template('index_base.html')
+	return render_template('base_2.html')
 
 @app.route('/')
 def base():
@@ -991,22 +1040,49 @@ def signup():
 		return jsonify({'message': 'User created!'}), 201
 	return render_template("signup.html")
 
-@app.route('/signup/wallet', methods=['POST','GET'])
+from eth_account import Account
+import os
+from datetime import datetime
+
+@app.route('/signup/wallet', methods=['POST', 'GET'])
+@login_required
 def create_wallet():
-	if request.method =="POST":
-		username = request.values.get("username")
-		password = request.values.get("password")
-		users = Users.query.all()
-		ls = [user.username for user in users]
-		passwords = [user.username for user in users]
-		if username in ls:
-			if password in passwords:
-				data = os.urandom(10).hex()
-				new_wallet = WalletDB(address=username,token=username,password=password,coinbase_wallet=data)
-				db.session.add(new_wallet)
-				db.session.commit()
-				return jsonify({'message': 'Wallet Created!'}), 201
+	if request.method == "POST":
+		username = request.form.get("username")
+		password = request.form.get("password")
+
+		# Check if user already has a wallet
+		existing_wallet = WalletDB.query.filter_by(address=current_user.username).first()
+		if existing_wallet:
+			return jsonify({'message': '❌ Wallet already exists for this user'}), 409
+
+		# ✅ Create Ethereum wallet
+		acct = Account.create()
+		eth_address = acct.address
+		private_key = acct.key.hex()
+
+		# ✅ Create WalletDB entry
+		new_wallet = WalletDB(
+			address=current_user.username,
+			eth_address=eth_address,
+			password=password,
+			token=os.urandom(32).hex(),
+			coinbase_wallet=os.urandom(10).hex(),
+			created_at=datetime.utcnow(),
+			private_key=private_key  # optional: only if you store it
+		)
+		# tx_hash = send_ntc(eth_address, amount=10)  # Give 10 NTC
+
+		db.session.add(new_wallet)
+		db.session.commit()
+
+		return jsonify({
+			'message': '✅ Wallet Created!',
+			'eth_address': eth_address
+		}), 201
+
 	return render_template("signup-wallet.html")
+
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
@@ -1597,13 +1673,13 @@ def buy_or_sell():
             if not user_db:
                 return "<h3>User not found</h3>"
 
-            ticker = get_price(invest_name)['close']#yf.download(invest_name)['Close'] #get_price(invest_name)# yf.Ticker(invest_name)
+            ticker = get_price(invest_name)#yf.download(invest_name)['Close'] #get_price(invest_name)# yf.Ticker(invest_name)
             history = np.array(ticker) #get_price(invest_name)#ticker #ticker.history(period='1d', interval='1m')
 			
             if ticker.empty:
                 return "<h3>Invalid ticker symbol</h3>"
 
-            price = history[0]
+            price = history[-1]
             sigma = np.std(ticker.pct_change().dropna()) * np.sqrt(252)
             option = black_scholes(price, target_price, maturity, 0.05, sigma, option_type)
 
@@ -1843,84 +1919,142 @@ def invest_double_check_post():
 
 
 
-@app.route('/invest/asset',methods=['GET','POST'])
-@login_required
+@app.route('/invest/asset', methods=['GET', 'POST'])
+# @login_required
 def invest():
-	update.delay()
-	if request.method =="POST":
-		user = request.values.get('name')
-		receipt = request.values.get('address')
-		staked_coins = float(request.values.get('amount'))
-		password = request.values.get('password')
-		user_name = Users.query.filter_by(username=user).first()
-		inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
-		wal = WalletDB.query.filter_by(address=user_name.username).first()
-		owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
-		if password == wal.password:
-			if inv.quantity >= 0:
-				if wal.coins >= staked_coins:
-					inv.quantity -= staked_coins
-					db.session.commit()
-					total_value = inv.tokenized_price*staked_coins
-					house = BettingHouse.query.get_or_404(1)
-					house.coin_fee(0.1*total_value)
-					owner_wallet.coins += 0.1*total_value
-					db.session.commit()
-					new_value = 0.8*total_value
-					wal.coins -= total_value
-					inv.coins_value += new_value
-					db.session.commit()
-					new_transaction = TransactionDatabase(
-											username=user,
-											txid=inv.receipt,
-											from_address=user_name.personal_token,
-											to_address=inv.investment_name,
-											amount=new_value,
-											type='investment',
-											signature=os.urandom(10).hex())
-					db.session.add(new_transaction)
-					db.session.commit()
-					inv.add_investor()
-					inv.append_investor_token(
-								name=user, 
-								address=user_name.personal_token, 
-								receipt=inv.receipt,
-								amount=staked_coins,
-								currency='coins')
-					a_tk = AssetToken(
-						username=user,
-						token_name=inv.investment_name,
-						token_address=os.urandom(10).hex(),
-						user_address=user_name.personal_token,
-						transaction_receipt=inv.receipt,
-						quantity = staked_coins,
-						cash = coin.dollar_value*inv.tokenized_price,
-						coins = inv.tokenized_price)
-					db.session.add(a_tk)
-					db.session.commit()
-					track = TrackInvestors(
+	try:
+		update.delay()
+		if request.method == "POST":
+			print("Processing POST request for /invest/asset")
+			
+			user = request.values.get('name')
+			receipt = request.values.get('address')
+			staked_coins = float(request.values.get('amount'))
+			password = request.values.get('password')
+			print(f"User: {user}, Receipt: {receipt}, Amount: {staked_coins}, Password: {password}")
+
+			user_name = Users.query.filter_by(username=user).first()
+			if not user_name:
+				print("User not found.")
+				return "<h3>User not found</h3>"
+
+			inv = InvestmentDatabase.query.filter_by(receipt=receipt).first()
+			if not inv:
+				print("Investment not found.")
+				return "<h3>Investment not found</h3>"
+
+			wal = WalletDB.query.filter_by(address=user_name.username).first()
+			if not wal:
+				print("Wallet not found.")
+				return "<h3>Wallet not found</h3>"
+
+			owner_wallet = WalletDB.query.filter_by(address=inv.owner).first()
+			if not owner_wallet:
+				print("Owner wallet not found.")
+				return "<h3>Owner wallet not found</h3>"
+
+			if password == wal.password:
+				if inv.quantity >= 0:
+					if wal.coins >= staked_coins:
+						print("Sufficient conditions met, proceeding with investment...")
+
+						inv.quantity -= staked_coins
+						db.session.commit()
+
+						total_value = inv.tokenized_price * staked_coins
+						print(f"Total value of investment: {total_value}")
+
+						house = BettingHouse.query.get(1)
+						if not house:
+							house = BettingHouse(id=1, coins=0.0)  # default fallback
+							db.session.add(house)
+							db.session.commit()
+						house.coin_fee(0.1 * total_value)
+						owner_wallet.coins += 0.1 * total_value
+						db.session.commit()
+
+						new_value = 0.8 * total_value
+						wal.coins -= total_value
+						inv.coins_value += new_value
+						db.session.commit()
+
+						new_transaction = TransactionDatabase(
+							username=user,
+							txid=inv.receipt,
+							from_address=user_name.personal_token,
+							to_address=inv.investment_name,
+							amount=new_value,
+							type='investment',
+							signature=os.urandom(10).hex()
+						)
+						db.session.add(new_transaction)
+						db.session.commit()
+
+						inv.add_investor()
+						inv.append_investor_token(
+							name=user,
+							address=user_name.personal_token,
+							receipt=inv.receipt,
+							amount=staked_coins,
+							currency='coins'
+						)
+
+						a_tk = AssetToken(
+							username=user,
+							token_name=inv.investment_name,
+							token_address=os.urandom(10).hex(),
+							user_address=user_name.personal_token,
+							transaction_receipt=inv.receipt,
+							quantity=staked_coins,
+							cash=coin.dollar_value * inv.tokenized_price,  # ⚠️ Ensure `coin` is defined
+							coins=inv.tokenized_price
+						)
+						db.session.add(a_tk)
+						db.session.commit()
+
+						track = TrackInvestors(
 							receipt=receipt,
 							tokenized_price=inv.tokenized_price,
-							owner = sha512(str(inv.owner).encode()).hexdigest(),
+							owner=sha512(str(inv.owner).encode()).hexdigest(),
 							investment_name=inv.investment_name,
 							investor_name=sha512(str(user_name.username).encode()).hexdigest(),
-							investor_token=user_name.personal_token)
-					db.session.add(track)
-					db.session.commit()
-					blockchain.add_transaction({
-									'index':len(blockchain.chain)+1,
-									"previous_hash":str(blockchain.get_latest_block()).encode().hex(),
-									'timestamp':str(dt.date.today()),
-									'data':str({'receipt':receipt,
-												'tokenized_price':inv.tokenized_price,
-												'owner':inv.owner,
-												'investment_name':inv.investment_name,
-												'investor_name':user_name.username,
-												'investor_token':user_name.personal_token})})
-					return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {new_value} in {inv.investment_name}"""
+							investor_token=user_name.personal_token
+						)
+						db.session.add(track)
+						db.session.commit()
+
+						blockchain.add_transaction({
+							'index': len(blockchain.chain) + 1,
+							"previous_hash": str(blockchain.get_latest_block()).encode().hex(),
+							'timestamp': str(dt.date.today()),
+							'data': str({
+								'receipt': receipt,
+								'tokenized_price': inv.tokenized_price,
+								'owner': inv.owner,
+								'investment_name': inv.investment_name,
+								'investor_name': user_name.username,
+								'investor_token': user_name.personal_token
+							})
+						})
+
+						return f"""<a href='/'><h1>Home</h1></a><h3>Success</h3><p>You've successfully invested {new_value} in {inv.investment_name}</p>"""
+					else:
+						print("Insufficient wallet coins.")
+						return "<h3>Insufficient coins in wallet</h3>"
 				else:
-					return "<h3>Insufficient coins in wallet</h3>"
+					print("Invalid investment quantity.")
+					return "<h3>Invalid investment quantity</h3>"
+			else:
+				print("Incorrect password.")
+				return "<h3>Incorrect wallet password</h3>"
+
+	except Exception as e:
+		import traceback
+		traceback.print_exc()
+		return f"<h3>Exception occurred: {str(e)}</h3>"
+
 	return render_template("invest-in-asset.html")
+
 
 @app.route('/profile')
 @login_required
@@ -2249,7 +2383,7 @@ def info(id):
 	update.delay()
 	asset = InvestmentDatabase.query.get_or_404(id)
 	name = asset.investment_name.upper()
-	url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=name)
+	url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol=AAPL&apikey=6ZGEV2QOT0TMHMPZ'.format(ticker=name)
 	r = requests.get(url)
 	data = r.json()
 
@@ -2261,7 +2395,7 @@ def info(id):
 	description = data['Description']
 
 	# res = asset_info(name)
-	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"]
+	df = get_price(name)#yf.Ticker(name).history(period='2y', interval='1d')["Close"]
 	df = df.dropna()
 	# Compute rolling mean and standard deviation
 	rolling_window = 20  # Adjust the window size as needed
@@ -4632,7 +4766,7 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
-				update.delay()
+				# update.delay()
 				time.sleep(10) 
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	schedule_thread.start()
