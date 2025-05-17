@@ -150,7 +150,7 @@
 </head>
 
 <body>
-<h3><a href="/app">← Back</a></h3>
+<h3><a href="/app/index">← Back</a></h3>
 <h2>📓 My Notebooks</h2>
 
 {% if notebooks %}
@@ -193,7 +193,7 @@
         <div style="margin-bottom: 6px;">
           <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}" class="action-button">✏️ Edit</a>
           <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}?editor=plotting" class="action-button plotting-button">📊 Plotting</a>
-          {% if nb.is_sequential %}
+<!--      {% if nb.is_sequential %}-->
 <!--      <a href="{{ url_for('app.sequential_notebook') }}?id={{ nb.id }}" class="action-button">📘 Sequential</a>-->
           {% endif %}
           <a href="{{ url_for('app.convert_notebook_to_html', notebook_id=nb.id) }}" class="action-button html-button">🖥️ Export HTML</a>
@@ -240,7 +240,6 @@
 <div class="nav-links">
   <a href="{{ url_for('app.monaco_editor') }}">🧠 New Notebook</a>
   <a href="{{ url_for('app.monaco_editor_two') }}">📊 New Plotting Notebook</a>
-  <a href="{{ url_for('app.sequential_notebook') }}">📘 New Sequential Notebook</a>
   <a href="{{ url_for('app.explore_notebooks') }}">🌍 Explore Public Notebooks</a>
   <a href="{{ url_for('app.notebook_marketplace') }}">💱 Marketplace</a>
 </div>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<h2>Your Tokenized Investments</h2>
+		<ul>
+			{% for t in tokens %}
+			<li>{{ t.token_name }} → <a href="/trade/{{ t.transaction_receipt }}">{{ t.transaction_receipt }}</a></li>
+			{% endfor %}
+		</ul>
+
+	</body>
+</html>

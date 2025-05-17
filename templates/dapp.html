@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>DApp UI</title>
+	<script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+</head>
+<body>
+	<h1>🪙 Token Transfer</h1>
+	<p>Connected address: <span id="wallet"></span></p>
+	<input id="to" placeholder="Recipient Address">
+	<input id="amount" placeholder="Amount">
+	<button onclick="sendToken()">Send</button>
+	
+	<script>
+		let web3;
+		let contract;
+		let account;
+		
+		async function loadContract() {
+			const res = await fetch("/api/contract_info");
+			const data = await res.json();
+			contract = new web3.eth.Contract(data.abi, data.address);
+		}
+
+		async function enableWeb3() {
+			if (window.ethereum) {
+				web3 = new Web3(window.ethereum);
+				const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+				account = accounts[0];
+				document.getElementById("wallet").innerText = account;
+				await loadContract();
+			} else {
+				alert("MetaMask not installed!");
+			}
+		}
+
+		async function sendToken() {
+			const to = document.getElementById("to").value;
+			const amount = document.getElementById("amount").value;
+			const value = web3.utils.toWei(amount, 'ether');
+			
+			contract.methods.transfer(to, value).send({ from: account })
+				.on('receipt', receipt => {
+					alert("✅ Transfer successful: " + receipt.transactionHash);
+				})
+				.on('error', err => {
+					alert("❌ Error: " + err.message);
+				});
+		}
+
+		window.onload = enableWeb3;
+	</script>
+</body>
+</html>

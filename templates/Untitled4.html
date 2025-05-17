@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Deploy Token Contract</title>
+	<script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+</head>
+<body>
+	<h1>🚀 Deploy ERC20 Contract</h1>
+	<label>Token Name: <input id="name"></label><br>
+	<label>Symbol: <input id="symbol"></label><br>
+	<label>Initial Supply: <input id="supply"></label><br>
+	<button onclick="deployContract()">Deploy</button>
+	
+	<p id="status"></p>
+	
+	<script>
+		let web3;
+		let account;
+		
+		const abi = [...];  // Paste ABI array here
+		const bytecode = "0x...";  // Paste bytecode string here
+		
+		async function enableWeb3() {
+			if (window.ethereum) {
+				web3 = new Web3(window.ethereum);
+				const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+				account = accounts[0];
+			} else {
+				alert("Install MetaMask.");
+			}
+		}
+
+		async function deployContract() {
+			const name = document.getElementById("name").value;
+			const symbol = document.getElementById("symbol").value;
+			const supply = document.getElementById("supply").value;
+			
+			const contract = new web3.eth.Contract(abi);
+			
+			contract.deploy({
+				data: bytecode,
+				arguments: [name, symbol, web3.utils.toWei(supply, 'ether')]
+			})
+			.send({
+				from: account,
+				gas: 3000000
+			})
+			.on("transactionHash", (hash) => {
+				document.getElementById("status").innerText = "⛏️ Mining: " + hash;
+			})
+			.on("receipt", (receipt) => {
+				document.getElementById("status").innerHTML = `
+					✅ Deployed at: <code>${receipt.contractAddress}</code>
+				`;
+				// Optionally POST to Flask
+				fetch("/api/store_contract", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ address: receipt.contractAddress, tx: receipt.transactionHash })
+				});
+			})
+			.on("error", (err) => {
+				document.getElementById("status").innerText = "❌ Error: " + err.message;
+			});
+		}
+
+		window.onload = enableWeb3;
+	</script>
+</body>
+</html>

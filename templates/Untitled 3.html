@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<h1>Trade Investment Token: {{ receipt }}</h1>
+		<form method="POST">
+			<label>Recipient Address:</label><br>
+			<input name="recipient" type="text" required><br><br>
+			
+			<label>Amount to Transfer:</label><br>
+			<input name="amount" type="number" step="0.0001" required><br><br>
+			
+			<button type="submit">Send</button>
+		</form>
+
+	</body>
+</html>

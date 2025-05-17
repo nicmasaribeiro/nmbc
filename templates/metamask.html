@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Connect MetaMask</title>
+</head>
+<body>
+  <button id="connectButton">🔗 Connect Wallet</button>
+  <p id="status"></p>
+
+  <script>
+    async function connectWallet() {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const address = accounts[0];
+          document.getElementById('status').innerText = "Connected: " + address;
+
+          // Send address to Flask backend
+          const response = await fetch('/wallet/submit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ address: address })
+          });
+
+          const result = await response.json();
+          alert(result.message);
+        } catch (err) {
+          document.getElementById('status').innerText = 'Connection failed: ' + err.message;
+        }
+      } else {
+        alert('MetaMask not found. Please install MetaMask.');
+      }
+    }
+
+    document.getElementById('connectButton').onclick = connectWallet;
+  </script>
+</body>
+</html>

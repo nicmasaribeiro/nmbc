@@ -1,10 +1,506 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title></title>
-	</head>
-	<body>
-		
-	</body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📓 My Notebooks</title>
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --success-color: #4cc9f0;
+      --warning-color: #f8961e;
+      --danger-color: #f94144;
+      --light-color: #f8f9fa;
+      --dark-color: #212529;
+      --border-color: #e9ecef;
+      --hover-bg: rgba(0, 0, 0, 0.03);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 24px;
+      color: var(--dark-color);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    a {
+      color: var(--primary-color);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    a:hover {
+      color: #3a56d4;
+      text-decoration: underline;
+    }
+
+    h2 {
+      color: var(--dark-color);
+      margin: 24px 0;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      margin-top: 0;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      background: white;
+      margin-bottom: 32px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px;
+    }
+
+    th, td {
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background-color: #f8fafc;
+      font-weight: 500;
+      color: #64748b;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover {
+      background-color: var(--hover-bg);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      gap: 6px;
+      margin: 2px;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #3a56d4;
+    }
+
+    .btn-success {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #3db5d8;
+    }
+
+    .btn-warning {
+      background-color: var(--warning-color);
+      color: white;
+    }
+
+    .btn-warning:hover {
+      background-color: #e68a19;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #e03134;
+    }
+
+    .btn-secondary {
+      background-color: #64748b;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #475569;
+    }
+
+    .btn-light {
+      background-color: var(--light-color);
+      color: var(--dark-color);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-light:hover {
+      background-color: #e9ecef;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    /* Forms */
+    .form-control {
+      padding: 8px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      width: 100%;
+      max-width: 300px;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.1);
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-inline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Status messages */
+    .status-message {
+      font-size: 13px;
+      margin-top: 6px;
+      height: 18px;
+    }
+
+    .text-success {
+      color: #10b981;
+    }
+
+    .text-error {
+      color: var(--danger-color);
+    }
+
+    .text-loading {
+      color: #64748b;
+    }
+
+    /* Empty state */
+    .empty-state {
+      background: white;
+      padding: 48px;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      color: #64748b;
+      margin: 32px 0;
+    }
+
+    .empty-state p {
+      margin: 16px 0;
+      font-size: 16px;
+    }
+
+    /* Navigation */
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 32px 0;
+    }
+
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background-color: white;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .nav-links a:hover {
+      background-color: #f8fafc;
+      text-decoration: none;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      background-color: #e2e8f0;
+      color: #334155;
+    }
+
+    .badge-warning {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    /* Marketplace */
+    .marketplace-note {
+      font-size: 13px;
+      color: #334155;
+      margin: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .price-tag {
+      font-weight: 600;
+      color: #10b981;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 16px;
+      }
+      
+      .nav-links {
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      .form-inline {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .form-control {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h3><a href="/app/index">← Back to Dashboard</a></h3>
+  <h2>📓 My Notebooks</h2>
+
+  {% if notebooks %}
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Notebook</th>
+          <th>Last Updated</th>
+          <th>Tags</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for nb, is_plotting in notebooks %}
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong id="notebook-name-{{ nb.id }}">{{ nb.name }}</strong>
+              {% if is_plotting %}
+                <span class="badge badge-warning">Plotting</span>
+              {% endif %}
+              {% if nb.published %}
+                <span class="badge">Public</span>
+              {% endif %}
+              {% if nb.is_for_sale %}
+                <span class="badge">💰 Marketplace</span>
+              {% endif %}
+            </div>
+            <div class="form-group">
+              <div class="form-inline">
+                <input type="text" id="rename-input-{{ nb.id }}" class="form-control" value="{{ nb.name }}" aria-label="Rename notebook">
+                <button class="btn btn-primary btn-sm" onclick="renameNotebook({{ nb.id }})">
+                  <span>Rename</span>
+                </button>
+              </div>
+              <div id="rename-status-{{ nb.id }}" class="status-message"></div>
+            </div>
+          </td>
+          <td>
+            {{ nb.updated_at.strftime('%b %d, %Y') }}<br>
+            <small style="color: #64748b;">{{ nb.updated_at.strftime('%I:%M %p') }}</small>
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('app.set_notebook_tags', notebook_id=nb.id) }}">
+              <div class="form-inline">
+                <input type="text" name="tags" class="form-control" placeholder="Comma-separated tags" value="{{ nb.tags or '' }}">
+                <button type="submit" class="btn btn-warning btn-sm">Save Tags</button>
+              </div>
+            </form>
+          </td>
+          <td>
+            <div class="btn-group">
+              <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}" class="btn btn-light btn-sm">
+                ✏️ Edit
+              </a>
+              <a href="{{ url_for('app.edit_saved_notebook', notebook_id=nb.id) }}?editor=plotting" class="btn btn-warning btn-sm">
+                📊 Plotting
+              </a>
+              <a href="{{ url_for('app.convert_notebook_to_html', notebook_id=nb.id) }}" class="btn btn-success btn-sm">
+                🖥️ Export HTML
+              </a>
+            </div>
+            
+            <div class="btn-group">
+              <form method="POST" action="{{ url_for('app.toggle_publish_status', notebook_id=nb.id) }}" style="display: inline;">
+                {% if nb.published %}
+                  <button type="submit" class="btn btn-secondary btn-sm">🔒 Private</button>
+                {% else %}
+                  <button type="submit" class="btn btn-primary btn-sm">🌐 Public</button>
+                {% endif %}
+              </form>
+              
+              <form method="POST" action="{{ url_for('app.delete_notebook', notebook_id=nb.id) }}" style="display: inline;">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this notebook?')">
+                  🗑️ Delete
+                </button>
+              </form>
+            </div>
+            
+            {% if nb.is_for_sale %}
+              <p class="marketplace-note">
+                <span>Listed for</span>
+                <span class="price-tag">${{ '%.2f' % nb.price }}</span>
+              </p>
+              <form method="POST" action="{{ url_for('app.unlist_notebook', notebook_id=nb.id) }}">
+                <button type="submit" class="btn btn-secondary btn-sm">
+                  ❌ Remove from Marketplace
+                </button>
+              </form>
+            {% else %}
+              <form method="POST" action="{{ url_for('app.sell_notebook', notebook_id=nb.id) }}">
+                <div class="form-inline">
+                  <input type="number" name="price" step="0.01" min="0.01" class="form-control" placeholder="Set price ($)" required style="max-width: 120px;">
+                  <button type="submit" class="btn btn-primary btn-sm">💰 Sell</button>
+                </div>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p><strong>📭 You don't have any notebooks yet</strong></p>
+    <p>
+      Get started by creating a new notebook or exploring public notebooks from the community
+    </p>
+    <div style="margin-top: 24px;">
+      <a href="{{ url_for('app.monaco_editor') }}" class="btn btn-primary">➕ Create New Notebook</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="nav-links">
+    <a href="{{ url_for('app.monaco_editor') }}">
+      <span>🧠</span>
+      <span>New Notebook</span>
+    </a>
+    <a href="{{ url_for('app.monaco_editor_two') }}">
+      <span>📊</span>
+      <span>New Plotting Notebook</span>
+    </a>
+    <a href="{{ url_for('app.explore_notebooks') }}">
+      <span>🌍</span>
+      <span>Explore Public Notebooks</span>
+    </a>
+    <a href="{{ url_for('app.notebook_marketplace') }}">
+      <span>💱</span>
+      <span>Marketplace</span>
+    </a>
+  </div>
+</div>
+
+<script>
+  async function renameNotebook(notebookId) {
+    const input = document.getElementById(`rename-input-${notebookId}`);
+    const label = document.getElementById(`notebook-name-${notebookId}`);
+    const status = document.getElementById(`rename-status-${notebookId}`);
+    const newName = input.value.trim();
+
+    if (!newName) {
+      status.textContent = "Please enter a name";
+      status.className = "status-message text-error";
+      return;
+    }
+
+    if (newName === label.textContent) {
+      status.textContent = "Name unchanged";
+      status.className = "status-message";
+      return;
+    }
+
+    status.textContent = "Saving...";
+    status.className = "status-message text-loading";
+
+    try {
+      const response = await fetch(`/app/notebook/rename/${notebookId}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ new_name: newName })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        label.textContent = newName;
+        status.textContent = "✓ Renamed successfully";
+        status.className = "status-message text-success";
+        setTimeout(() => { status.textContent = ""; }, 2000);
+      } else {
+        throw new Error(result.message || "Rename failed");
+      }
+    } catch (e) {
+      status.textContent = "❌ Error: " + e.message;
+      status.className = "status-message text-error";
+      setTimeout(() => { status.textContent = ""; }, 3000);
+    }
+  }
+</script>
+
+</body>
 </html>

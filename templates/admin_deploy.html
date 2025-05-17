@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Deploy Token Contract</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+</head>
+<body>
+  <h1>🚀 Deploy ERC20 Contract</h1>
+
+  <label>Token Name: <input id="name"></label><br>
+  <label>Symbol: <input id="symbol"></label><br>
+  <label>Initial Supply: <input id="supply"></label><br>
+  <button onclick="deployContract()">Deploy</button>
+
+  <p id="status"></p>
+
+  <script>
+    let web3;
+    let account;
+    let contractABI, contractBytecode;
+
+    async function enableWeb3() {
+      if (typeof window.ethereum !== "undefined") {
+        try {
+          web3 = new Web3(window.ethereum);
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          const accounts = await web3.eth.getAccounts();
+          account = accounts[0];
+          document.getElementById("status").innerText = "🟢 Connected: " + account;
+        } catch (error) {
+          document.getElementById("status").innerText = "❌ MetaMask connection denied.";
+        }
+      } else {
+        alert("🦊 Please install MetaMask to use this feature.");
+      }
+    }
+
+    async function loadContractMetadata() {
+      try {
+        const res = await fetch("/api/contract_metadata");
+        const data = await res.json();
+        contractABI = data.abi;
+        contractBytecode = data.bytecode;
+      } catch (error) {
+        document.getElementById("status").innerText = "❌ Failed to load ABI/Bytecode.";
+      }
+    }
+
+    async function deployContract() {
+      const name = document.getElementById("name").value;
+      const symbol = document.getElementById("symbol").value;
+      const supply = document.getElementById("supply").value;
+
+      if (!web3 || !contractABI || !contractBytecode) {
+        document.getElementById("status").innerText = "❌ Web3 or contract not ready.";
+        return;
+      }
+
+      const contract = new web3.eth.Contract(contractABI);
+
+      contract.deploy({
+        data: contractBytecode,
+        arguments: [name, symbol, web3.utils.toWei(supply, 'ether')]
+      })
+
+      .send({ from: account, gas: 3000000 })
+      .on("transactionHash", hash => {
+        document.getElementById("status").innerText = "⛏️ Transaction sent: " + hash;
+      })
+      .on("receipt", receipt => {
+        const address = receipt.contractAddress;
+        const tx = receipt.transactionHash;
+        document.getElementById("status").innerHTML = `
+          ✅ Contract deployed at: <code>${address}</code><br>
+          📦 Transaction: <code>${tx}</code>
+        `;
+        // Store in backend
+        fetch("/api/store_contract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address, tx })
+        });
+      })
+      .on("error", error => {
+        document.getElementById("status").innerText = "❌ Error: " + error.message;
+      });
+    }
+
+    window.onload = async () => {
+      await enableWeb3();
+      await loadContractMetadata();
+    };
+  </script>
+</body>
+</html>

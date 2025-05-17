@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NativeCoin Wallet</title>
+
+  <!-- ✅ Load ethers UMD (Universal Module Definition) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+
+  <style>
+    body { font-family: Arial; padding: 2rem; background: #f0f0f0; }
+    .card { background: #fff; padding: 2rem; border-radius: 8px; max-width: 500px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input, button { display: block; margin-top: 1rem; padding: 0.6rem; width: 100%; }
+    #status, #error { margin-top: 1rem; font-weight: bold; }
+    #error { color: red; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>NativeCoin Wallet</h1>
+    <button id="connect">🔌 Connect Wallet</button>
+    <p>Account: <span id="account">Not connected</span></p>
+    <p>Balance: <span id="balance">0</span> NTC</p>
+
+    <h3>Send NativeCoin</h3>
+    <input id="to" placeholder="Recipient address">
+    <input id="amount" type="number" placeholder="Amount">
+    <button id="send">🚀 Send</button>
+
+    <p id="status"></p>
+    <p id="error"></p>
+  </div>
+
+  <!-- ✅ Load your logic AFTER ethers -->
+  <script src="{{ url_for('static', filename='nativecoin.js') }}"></script>
+</body>
+</html>
