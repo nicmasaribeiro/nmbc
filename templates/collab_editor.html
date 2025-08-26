@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ notebook_name }} — Collaborative</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+  <style>
+    :root { --bg:#0b0e11; --panel:#12161c; --muted:#9aa0a6; --line:#222; --btn:#1f6feb; --btn2:#2a2f36; --text:#e6e6e6; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; background:var(--bg); color:var(--text); }
+    header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,14,17,.9); backdrop-filter: blur(6px); }
+    button { background:var(--btn); color:#fff; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; }
+    button.secondary { background:var(--btn2); }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .cell { background:var(--panel); border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden; }
+    .cell-head { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); }
+    select, input[type="number"], input[type="text"] { background:var(--bg); color:var(--text); border:1px solid #333; border-radius:8px; padding:6px 8px; }
+    .type { min-width:110px; }
+    /* Code editor = textarea (caret-safe) */
+    .editor {
+      width:100%; min-height:140px; padding:12px; border:0; resize:vertical; outline:none;
+      background:#0b0e11; color:var(--text);
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      caret-color: #4cd964; /* Highlight caret for visibility */
+    }
+    .editor[readonly] { background:#0e1116; color:#c9c9c9; caret-color: transparent; }
+    .md-preview { padding:12px; border-top:1px dashed #333; }
+    .output { background:#0b0e11; border-top:1px dashed #333; padding:10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; }
+    .toolbar { display:flex; gap:8px; align-items:center; margin-left:auto; }
+    dialog { border:none; border-radius:12px; padding:16px; background:#0f141a; color:var(--text); width:540px; }
+    .row { display:flex; gap:8px; margin:8px 0; }
+    .muted { color:var(--muted); }
+    .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; background:#ff6b6b; vertical-align:middle; }
+    .status-dot.ok { background:#4cd964; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:2px 6px; border:1px solid #444; border-radius:6px; background:#0b0e11; color:#cfcfcf; }
+    /* Fix bug with cursor jumping: preserve selection/caret after updates */
+    textarea.editor:focus {
+      /* Chrome and Safari: prevent scroll jump on value set */
+      caret-color: #4cd964;
+      /* Make sure line-height matches font for caret stability */
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>{{ notebook_name }}</strong>
+    <span class="muted">#{{ notebook_id }} • role: {{ user_role }}</span>
+    <div class="toolbar">
+      <button id="add-code">+ Code</button>
+      <button class="secondary" id="add-md">+ Markdown</button>
+      <button id="save">Save</button>
+      <button class="secondary" id="share">Share</button>
+      <span id="save-status" class="muted">idle</span>
+      <span id="ws-status" class="muted"><span class="status-dot" id="ws-dot"></span><span id="ws-label">offline</span></span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <p class="muted">
+      Tips: <span class="kbd">Shift</span>+<span class="kbd">Enter</span> new cell •
+      <span class="kbd">Ctrl/Cmd</span>+<span class="kbd">Enter</span> run cell
+    </p>
+    <div id="cells"></div>
+  </div>
+
+  <!-- Share dialog -->
+  <dialog id="shareDlg">
+    <h3>Share notebook</h3>
+    <div class="row">
+      <input id="shareUser" placeholder="username or email" style="flex:1" type="text" autocomplete="off">
+      <select id="shareRole">
+        <option value="viewer">viewer</option>
+        <option value="editor">editor</option>
+      </select>
+      <button id="shareAdd">Add</button>
+    </div>
+    <div class="row">
+      <select id="inviteRole">
+        <option value="viewer">viewer</option>
+        <option value="editor">editor</option>
+      </select>
+      <input id="inviteTTL" type="number" min="1" value="120" style="width:120px" />
+      <button id="makeInvite">Create invite link</button>
+    </div>
+    <div class="row">
+      <input id="inviteLink" readonly style="flex:1">
+      <button id="copyInvite">Copy</button>
+    </div>
+    <div>
+      <h4>Collaborators</h4>
+      <ul id="collabList"></ul>
+    </div>
+    <div class="row" style="justify-content:flex-end; margin-top:12px;">
+      <button class="secondary" id="closeShare">Close</button>
+    </div>
+  </dialog>
+
+  <script>
+    // ===== Server context =====
+    const NOTEBOOK_ID = {{ notebook_id|tojson }};
+    const USERNAME    = {{ username|tojson }};
+    const USER_ROLE   = {{ user_role|tojson }};
+    let VERSION       = {{ (initial_version or 0)|int }};
+    let CELLS         = {{ initial_cells|tojson }} || [];
+
+    // ===== Socket / status =====
+    const socket = io({ transports: ["websocket"] });
+    const wsDot   = document.getElementById("ws-dot");
+    const wsLabel = document.getElementById("ws-label");
+    function setWsStatus(ok, extra=""){ wsDot.classList.toggle("ok", ok); wsLabel.textContent = ok ? ("online"+extra) : "offline"; }
+    setWsStatus(false);
+    socket.on("connect", () => { setWsStatus(true); socket.emit("join_notebook", { notebook_id: NOTEBOOK_ID, username: USERNAME }); });
+    socket.on("disconnect", () => setWsStatus(false));
+    setInterval(() => {
+      const t0 = performance.now();
+      if (socket.connected) socket.timeout(2000).emit("ping", {}, () => setWsStatus(true, ` (${Math.round(performance.now()-t0)}ms)`));
+    }, 5000);
+
+    // ===== Markdown helper =====
+    function safeMarkdown(src){
+      if (typeof marked === "undefined" || typeof DOMPurify === "undefined") return (src || "");
+      const html = marked.parse(src || "", { mangle:false, headerIds:false });
+      return DOMPurify.sanitize(html);
+    }
+
+    // ===== Mount UI =====
+    const cellsEl = document.getElementById("cells");
+
+    function buildCellNode(cell, i){
+      const wrap = document.createElement("div");
+      wrap.className = "cell"; wrap.dataset.index = i;
+
+      const head = document.createElement("div");
+      head.className = "cell-head";
+
+      const select = document.createElement("select");
+      select.className = "type";
+      ["code","markdown"].forEach(t => {
+        const op = document.createElement("option");
+        op.value = t; op.textContent = t;
+        if ((cell.type||"code") === t) op.selected = true;
+        select.appendChild(op);
+      });
+      select.disabled = (USER_ROLE === "viewer");
+      select.onchange = () => applyCellType(i, select.value);
+
+      const run = document.createElement("button");
+      run.textContent = "Run";
+      run.disabled = (USER_ROLE === "viewer" || (cell.type||"code") !== "code");
+      run.onclick = () => {
+        const code = getEditorValue(i);
+        socket.emit("run_cell", { notebook_id: NOTEBOOK_ID, index: i, code });
+      };
+
+      const del = document.createElement("button");
+      del.className = "secondary"; del.textContent = "Delete";
+      del.disabled = (USER_ROLE === "viewer");
+      del.onclick = () => socket.emit("delete_cell", { notebook_id: NOTEBOOK_ID, index: i });
+
+      head.appendChild(select); head.appendChild(run); head.appendChild(del);
+
+      // --- Code editor (textarea) ---
+      const ed = document.createElement("textarea");
+      ed.className = "editor";
+      ed.dataset.index = i;
+      ed.readOnly = (USER_ROLE === "viewer");
+      ed.value = cell.content || "";
+
+      // IME-friendly debounced sync
+      let composing = false;
+      ed.addEventListener("compositionstart", () => composing = true);
+      ed.addEventListener("compositionend",   () => { composing = false; debouncedSync(); });
+
+      // ======= CURSOR FIX: Save/restore selection on update =======
+      function setEditorValuePreserveCaret(ed, newValue) {
+        if (!ed) return;
+        const focused = (document.activeElement === ed);
+        if (focused) {
+          // Save selection
+          const start = ed.selectionStart, end = ed.selectionEnd;
+          ed.value = newValue;
+          // Restore selection
+          ed.setSelectionRange(start, end);
+        } else {
+          ed.value = newValue;
+        }
+      }
+
+      // Use this function in any code that updates editor .value in socket state_sync, cell_applied, etc.
+
+      const debouncedSync = debounce(() => {
+        if (!CELLS[i]) return;
+        const content = ed.value;
+        CELLS[i].content = content; // local source of truth
+        if (!composing) {
+          socket.emit("cell_update", { notebook_id: NOTEBOOK_ID, index: i, content, version: VERSION, username: USERNAME });
+        }
+        updateMdPreview(i);
+      }, 120);
+
+      ed.addEventListener("input", debouncedSync);
+
+      // Hotkeys
+      ed.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run.click(); }
+        else if (e.shiftKey && e.key === "Enter") { e.preventDefault(); addCellAfter(i, (cell.type || "code")); }
+      });
+
+      // --- Markdown preview + output ---
+      const md = document.createElement("div");
+      md.className = "md-preview"; md.dataset.index = i;
+
+      const out = document.createElement("div");
+      out.className = "output"; out.dataset.index = i;
+
+      const isMd = (cell.type || "code") === "markdown";
+      md.style.display = isMd ? "block" : "none";
+      out.style.display = isMd ? "none"  : "block";
+      if (isMd) md.innerHTML = safeMarkdown(cell.content || "");
+
+      wrap.appendChild(head);
+      wrap.appendChild(ed);
+      wrap.appendChild(md);
+      wrap.appendChild(out);
+      return wrap;
+    }
+
+    function mountInitial(){
+      cellsEl.innerHTML = "";
+      (CELLS || []).forEach((cell, i) => cellsEl.appendChild(buildCellNode(cell, i)));
+    }
+
+    function getCellNode(i){ return cellsEl.querySelector(`.cell[data-index="${i}"]`); }
+    function getEditor(i){   return cellsEl.querySelector(`.editor[data-index="${i}"]`); }
+    function getMd(i){       return cellsEl.querySelector(`.md-preview[data-index="${i}"]`); }
+    function getOut(i){      return cellsEl.querySelector(`.output[data-index="${i}"]`); }
+    function getEditorValue(i){ const ed = getEditor(i); return ed ? ed.value : (CELLS[i]?.content || ""); }
+
+    function applyCellType(i, t){
+      CELLS[i].type = t;
+      const ed = getEditor(i);
+      const md = getMd(i);
+      const out = getOut(i);
+      const txt = getEditorValue(i);
+      if (md && out) {
+        md.style.display = (t === "markdown") ? "block" : "none";
+        out.style.display = (t === "markdown") ? "none"  : "block";
+        if (t === "markdown") md.innerHTML = safeMarkdown(txt);
+      }
+    }
+
+    function updateMdPreview(i){
+      const c = CELLS[i];
+      if (!c || (c.type || "code") !== "markdown") return;
+      const md = getMd(i);
+      if (md) md.innerHTML = safeMarkdown(c.content || "");
+    }
+
+    function addCellAfter(i, type="code"){
+      socket.emit("add_cell", { notebook_id: NOTEBOOK_ID, after: i, type });
+    }
+
+    // ===== Socket events (focus-safe, CURSOR FIX applied) =====
+    socket.on("state_sync", ({ cells, version }) => {
+      if (!Array.isArray(cells) || typeof version !== "number") return;
+      const oldLen = CELLS.length;
+      CELLS = cells; VERSION = version;
+
+      // Trim extra nodes
+      if (cells.length < oldLen) {
+        for (let i = cells.length; i < oldLen; i++) {
+          const node = getCellNode(i);
+          if (node) node.remove();
+        }
+      }
+      // Ensure all exist / update text where safe
+      for (let i = 0; i < cells.length; i++) {
+        if (!getCellNode(i)) {
+          // mount in order
+          const built = buildCellNode(cells[i], i);
+          const before = getCellNode(i);
+          if (before) cellsEl.insertBefore(built, before);
+          else cellsEl.appendChild(built);
+          continue;
+        }
+        // type toggle
+        const isMd = (cells[i]?.type || "code") === "markdown";
+        const md = getMd(i), out = getOut(i);
+        if (md && out) {
+          md.style.display = isMd ? "block" : "none";
+          out.style.display = isMd ? "none" : "block";
+          if (isMd) md.innerHTML = safeMarkdown(cells[i]?.content || "");
+        }
+        // text update for non-focused editors only (CURSOR FIX)
+        const ed = getEditor(i);
+        const focused = (document.activeElement === ed);
+        const newText = cells[i]?.content || "";
+        if (ed && !focused && ed.value !== newText) {
+          ed.value = newText;
+        }
+      }
+    });
+
+    socket.on("cell_applied", ({ index, content, version }) => {
+      if (!Number.isInteger(index) || index < 0) return;
+      if (typeof version === "number" && version <= VERSION) return;
+      VERSION = version;
+
+      // ensure mounted
+      if (!getCellNode(index)) {
+        const built = buildCellNode(CELLS[index] || {type:"code", content:""}, index);
+        cellsEl.appendChild(built);
+      }
+      const ed = getEditor(index);
+      // CURSOR FIX: only update .value when not focused, else preserve caret
+      const focused = (document.activeElement === ed);
+      if (ed) {
+        if (!focused && ed.value !== content) {
+          ed.value = content;
+        }
+        // If focused, don't overwrite to avoid cursor jump
+      }
+      if (CELLS[index]) CELLS[index].content = content;
+      updateMdPreview(index);
+    });
+
+    socket.on("cell_inserted", ({ index, cell, version }) => {
+      if (!cell || !Number.isInteger(index)) return;
+      CELLS.splice(Math.max(0, Math.min(index, CELLS.length)), 0, cell);
+      if (typeof version === "number") VERSION = version;
+
+      // shift indices of following nodes
+      const nodes = Array.from(cellsEl.children);
+      for (let k = nodes.length - 1; k >= index; k--) {
+        const node = getCellNode(k);
+        if (node) {
+          node.dataset.index = k + 1;
+          node.querySelectorAll('[data-index]').forEach(el => el.dataset.index = String(k + 1));
+        }
+      }
+      const built = buildCellNode(cell, index);
+      const before = getCellNode(index + 1);
+      if (before) cellsEl.insertBefore(built, before);
+      else cellsEl.appendChild(built);
+    });
+
+    socket.on("cell_deleted", ({ index, version }) => {
+      if (!Number.isInteger(index) || index < 0 || index >= CELLS.length) return;
+      CELLS.splice(index, 1);
+      if (typeof version === "number") VERSION = version;
+
+      const node = getCellNode(index);
+      if (node) node.remove();
+
+      // reindex
+      Array.from(cellsEl.children).forEach((node, idx) => {
+        node.dataset.index = idx;
+        node.querySelectorAll('[data-index]').forEach(el => el.dataset.index = String(idx));
+      });
+    });
+
+    socket.on("update_rejected", ({ version }) => {
+      fetch(`/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/state`)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(st => { CELLS = st.cells || []; VERSION = st.version || 0; mountInitial(); })
+        .catch(() => console.warn("Failed to refresh state"));
+    });
+
+    socket.on("cell_running", ({ index }) => {
+      const out = getOut(index);
+      if (out) out.textContent = "⏳ Running…";
+    });
+    socket.on("cell_output", ({ index, output }) => {
+      const out = getOut(index);
+      if (out) out.textContent = output || "";
+    });
+
+    // ===== Toolbar & save =====
+    document.getElementById("add-code").onclick = () => addCellAfter(CELLS.length - 1, "code");
+    document.getElementById("add-md").onclick   = () => addCellAfter(CELLS.length - 1, "markdown");
+
+    document.getElementById("save").onclick = () => {
+      const el = document.getElementById("save-status");
+      el.textContent = "saving…";
+      fetch(`/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/save`, { method:"POST" })
+        .then(r => r.json())
+        .then(res => el.textContent = res.ok ? `saved v${res.version}` : "save failed")
+        .catch(() => el.textContent = "save failed");
+    };
+
+    window.addEventListener("beforeunload", () => {
+      if (navigator.sendBeacon) {
+        const url = `/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/save`;
+        const blob = new Blob([JSON.stringify({})], { type: "application/json" });
+        navigator.sendBeacon(url, blob);
+      }
+    });
+
+    // ===== Share UI =====
+    const shareDlg = document.getElementById("shareDlg");
+    document.getElementById("share").onclick = () => {
+      if (USER_ROLE !== "owner") { alert("Only owner can manage sharing"); return; }
+      loadCollaborators(); shareDlg.showModal();
+    };
+    document.getElementById("closeShare").onclick = () => shareDlg.close();
+
+    document.getElementById("shareAdd").onclick = () => {
+      const user = document.getElementById("shareUser").value.trim();
+      const role = document.getElementById("shareRole").value;
+      if (!user) return;
+      fetch(`/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/share`, {
+        method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user, role })
+      }).then(() => { document.getElementById("shareUser").value = ""; loadCollaborators(); });
+    };
+
+    document.getElementById("makeInvite").onclick = () => {
+      const role = document.getElementById("inviteRole").value;
+      const ttl  = Math.max(1, parseInt(document.getElementById("inviteTTL").value || "120", 10));
+      fetch(`/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/invite`, {
+        method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role, ttl_minutes: ttl })
+      }).then(r=>r.json()).then(res => { if (res.ok) document.getElementById("inviteLink").value = res.link; });
+    };
+
+    document.getElementById("copyInvite").onclick = async () => {
+      const link = document.getElementById("inviteLink").value;
+      if (link) await navigator.clipboard.writeText(link);
+    };
+
+    function loadCollaborators(){
+      const list = document.getElementById("collabList");
+      list.innerHTML = "Loading…";
+      fetch(`/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/collaborators`)
+        .then(r=>r.json())
+        .then(res=>{
+          list.innerHTML = "";
+          (res.collaborators || []).forEach(c => {
+            const li = document.createElement("li");
+            li.textContent = `${c.username} — ${c.role} `;
+            const del = document.createElement("button");
+            del.className = "secondary"; del.textContent = "remove";
+            del.onclick = () => fetch(`/api/collab/${encodeURIComponent(NOTEBOOK_ID)}/share/${encodeURIComponent(c.user_id)}`, {method:"DELETE"})
+                              .then(()=>loadCollaborators());
+            li.appendChild(del); list.appendChild(li);
+          });
+        })
+        .catch(() => { list.textContent = "Failed to load collaborators"; });
+    }
+
+    // ===== Utils =====
+    function debounce(fn, ms){
+      let t, raf;
+      return (...a)=>{
+        clearTimeout(t);
+        t = setTimeout(()=>{
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(()=>fn(...a));
+        }, ms);
+      };
+    }
+
+    // ===== Start =====
+    mountInitial();
+  </script>
+</body>
+</html>

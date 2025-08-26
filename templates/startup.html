@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ app_name }} — Startup</title>
+  <style>
+    :root{ --bg:#0b0e11; --panel:#11161c; --muted:#a9b1bd; --text:#e6e6e6; --brand:#4f8cff; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --card:#0f141a; --border:#1f2630;}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;}
+    a{color:inherit;text-decoration:none}
+    .container{max-width:1200px;margin-inline:auto;padding:24px}
+    header{display:flex;align-items:center;gap:14px;padding:16px 0 4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+    .logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--brand),#7aa7ff)}
+    .title{font-weight:700;font-size:20px}
+    .muted{color:var(--muted)}
+    .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:20px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px}
+    .hero h1{margin:6px 0 8px;font-size:28px}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+    .btn.secondary{background:#1e2633}
+    .grid{display:grid;gap:14px}
+    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+    @media (max-width: 980px){
+      .hero{grid-template-columns:1fr}
+      .grid.cols-3{grid-template-columns:1fr}
+      .grid.cols-2{grid-template-columns:1fr}
+    }
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .chip{display:inline-flex;align-items:center;gap:6px;background:#0e1420;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}
+    .kpi{display:flex;gap:12px;flex-wrap:wrap}
+    .kpi .box{flex:1;min-width:150px;background:#0e141b;border:1px solid var(--border);border-radius:12px;padding:12px}
+    .kpi .n{font-weight:800;font-size:20px}
+    .list{display:grid;gap:10px}
+    .list a.item{display:flex;align-items:center;justify-content:space-between;background:#0f141a;border:1px solid var(--border);border-radius:12px;padding:12px}
+    .item .left{display:flex;align-items:center;gap:12px}
+    .icon{width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px;background:#162033;border:1px solid var(--border)}
+    footer{margin-top:24px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--warn)}
+    .status-ok{background:var(--ok)}
+    .status-bad{background:var(--bad)}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+    .small{font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div class="logo"></div>
+      <div class="title">{{ app_name }}</div>
+      <div class="muted">Startup · {{ version }}</div>
+      <div style="flex:1"></div>
+      <div class="actions">
+        <a class="btn secondary" href="/docs">API Docs</a>
+        <a class="btn secondary" href="/admin">Admin</a>
+        <a class="btn" href="/auth/login">Sign In</a>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="panel">
+        <span class="chip">Welcome</span>
+        <h1>Build, analyze, trade, and collaborate — all in one place.</h1>
+        <p class="muted">Jump into collaborative notebooks, explore datasets, run GPU jobs, place prediction market bets, manage wallets, and more.</p>
+        <div class="actions" style="margin-top:8px">
+          <a class="btn" href="/notebooks">Open Notebooks</a>
+          <a class="btn secondary" href="/datasets">Browse Datasets</a>
+          <a class="btn secondary" href="/markets">Prediction Markets</a>
+        </div>
+        <div class="kpi" style="margin-top:16px">
+          <div class="box">
+            <div class="muted small">Notebooks</div>
+            <div class="n">{{ metrics.notebooks }}</div>
+          </div>
+          <div class="box">
+            <div class="muted small">Datasets</div>
+            <div class="n">{{ metrics.datasets }}</div>
+          </div>
+          <div class="box">
+            <div class="muted small">Markets</div>
+            <div class="n">{{ metrics.markets }}</div>
+          </div>
+          <div class="box">
+            <div class="muted small">Queued Jobs</div>
+            <div class="n">{{ metrics.jobs }}</div>
+          </div>
+          <div class="box">
+            <div class="muted small">Users</div>
+            <div class="n">{{ metrics.users }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <span class="chip">Quick Actions</span>
+        <div class="list" style="margin-top:10px">
+          <a class="item" href="/notebooks/new">
+            <div class="left">
+              <div class="icon">📝</div>
+              <div>Create a Collaborative Notebook</div>
+            </div>
+            <span class="muted small">Socket.IO live editing</span>
+          </a>
+          <a class="item" href="/datasets/upload">
+            <div class="left">
+              <div class="icon">🗂️</div>
+              <div>Upload a Dataset</div>
+            </div>
+            <span class="muted small">Tags • pricing • previews</span>
+          </a>
+          <a class="item" href="/jobs/new">
+            <div class="left">
+              <div class="icon">⚡</div>
+              <div>Run a GPU/Async Job</div>
+            </div>
+            <span class="muted small">Queue + notifications</span>
+          </a>
+          <a class="item" href="/markets/create">
+            <div class="left">
+              <div class="icon">📈</div>
+              <div>Create a Prediction Market</div>
+            </div>
+            <span class="muted small">BettingHouse treasury</span>
+          </a>
+          <a class="item" href="/wallet">
+            <div class="left">
+              <div class="icon">👛</div>
+              <div>Open Wallets</div>
+            </div>
+            <span class="muted small">Web3 & Bitcoin</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section style="margin-top:22px">
+      <span class="chip">Platform Features</span>
+      <div class="grid cols-3" style="margin-top:12px">
+        <!-- Collaborative Notebooks -->
+        <div class="card">
+          <div class="icon">🧠</div>
+          <h3 style="margin:0">Collaborative Notebooks</h3>
+          <p class="muted">Live multi-user editing via WebSockets/Socket.IO. Monaco editor, diff awareness, and per-notebook channels.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/notebooks">Open</a>
+            <a class="btn secondary" href="/notebooks/shared">Shared</a>
+          </div>
+        </div>
+        <!-- Royalties & Licensing -->
+        <div class="card">
+          <div class="icon">💰</div>
+          <h3 style="margin:0">Royalties & Licensing</h3>
+          <p class="muted">Notebook marketplace v2 with 5–10% royalties; licensing modes: open, public, private.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/marketplace">Marketplace</a>
+            <a class="btn secondary" href="/notebooks/new?licensing=public">New (Public)</a>
+          </div>
+        </div>
+        <!-- Dataset Marketplace -->
+        <div class="card">
+          <div class="icon">🧬</div>
+          <h3 style="margin:0">Dataset Marketplace</h3>
+          <p class="muted">Extend <code>DatasetMeta</code> with tags, pricing, and previews. Discover, trade, and plug into pipelines.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/datasets">Browse</a>
+            <a class="btn secondary" href="/datasets/upload">Upload</a>
+          </div>
+        </div>
+        <!-- Prediction Markets -->
+        <div class="card">
+          <div class="icon">🪙</div>
+          <h3 style="margin:0">Prediction Markets</h3>
+          <p class="muted">Create markets, take YES/NO positions, and settle via resolution. Backed by the BettingHouse treasury.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/markets">Markets</a>
+            <a class="btn secondary" href="/markets/create">Create</a>
+          </div>
+        </div>
+        <!-- GPU / Async Execution -->
+        <div class="card">
+          <div class="icon">🚀</div>
+          <h3 style="margin:0">GPU / Async Jobs</h3>
+          <p class="muted">Queue long-running tasks with GPU support. Fire-and-forget with completion notifications.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/jobs">Jobs</a>
+            <a class="btn secondary" href="/jobs/new">Submit</a>
+          </div>
+        </div>
+        <!-- Web3 + Bitcoin -->
+        <div class="card">
+          <div class="icon">🔗</div>
+          <h3 style="margin:0">Web3 + Bitcoin Wallets</h3>
+          <p class="muted">Ethereum smart-contracts + integrated Bitcoin wallet flows for deposits, payouts, and purchases.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/wallet">Wallet</a>
+            <a class="btn secondary" href="/web3">Web3</a>
+          </div>
+        </div>
+        <!-- Finance Lab -->
+        <div class="card">
+          <div class="icon">📊</div>
+          <h3 style="margin:0">Finance & Backtesting Lab</h3>
+          <p class="muted">Feature engineering, Ridge/Linear models, risk-neutral pricing, yield-curve pipelines, and backtests.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/lab/finance">Open Lab</a>
+            <a class="btn secondary" href="/lab/yield">Yield Curves</a>
+          </div>
+        </div>
+        <!-- Rap Flow Toolkit -->
+        <div class="card">
+          <div class="icon">🎙️</div>
+          <h3 style="margin:0">Rap Flow Toolkit</h3>
+          <p class="muted">Syllables, stresses, rhyme groups, bar alignment, embeddings, and flow analytics.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/lab/rap">Open Toolkit</a>
+            <a class="btn secondary" href="/lab/rap/analyzer">Analyzer</a>
+          </div>
+        </div>
+        <!-- Admin & Governance -->
+        <div class="card">
+          <div class="icon">🛡️</div>
+          <h3 style="margin:0">Admin & Governance</h3>
+          <p class="muted">Roles, permissions, marketplace rules, and resolution of markets via governance blueprints.</p>
+          <div class="actions">
+            <a class="btn secondary" href="/admin">Admin</a>
+            <a class="btn secondary" href="/governance">Governance</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- System status / helpful links -->
+    <section style="margin-top:22px">
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="icon">📡</div>
+          <h3 style="margin:0">System Status</h3>
+          <p class="muted small">Live pings to core services.</p>
+          <div id="status-rows" class="list" style="margin-top:10px">
+            <div class="item">
+              <div class="left">
+                <span class="status-dot" id="status-api"></span>
+                <span>API</span>
+              </div>
+              <span class="muted small" id="status-api-text">Checking…</span>
+            </div>
+            <div class="item">
+              <div class="left">
+                <span class="status-dot" id="status-socket"></span>
+                <span>Socket.IO</span>
+              </div>
+              <span class="muted small" id="status-socket-text">Checking…</span>
+            </div>
+            <div class="item">
+              <div class="left">
+                <span class="status-dot" id="status-gpu"></span>
+                <span>GPU/Jobs</span>
+              </div>
+              <span class="muted small" id="status-gpu-text">Checking…</span>
+            </div>
+            <div class="item">
+              <div class="left">
+                <span class="status-dot" id="status-chain"></span>
+                <span>Web3 Node</span>
+              </div>
+              <span class="muted small" id="status-chain-text">Checking…</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="icon">🧭</div>
+          <h3 style="margin:0">Helpful Links</h3>
+          <div class="list" style="margin-top:10px">
+            <a class="item" href="/docs">API Docs <span class="muted small">OpenAPI/Swagger</span></a>
+            <a class="item" href="/editor">Code Editor <span class="muted small">Monaco</span></a>
+            <a class="item" href="/jobs">Job Queue <span class="muted small">Async/GPU</span></a>
+            <a class="item" href="/health">/health <span class="muted small">JSON</span></a>
+            <a class="item" href="/auth/logout">Sign Out <span class="muted small">Secure</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="muted small">© {{ app_name }} · All rights reserved</div>
+      <div class="muted small">Build {{ version }}</div>
+    </footer>
+  </div>
+
+  <script>
+    // Lightweight status checks (adjust endpoints to your app)
+    async function ping(idDot, idText, url){
+      const dot = document.getElementById(idDot);
+      const txt = document.getElementById(idText);
+      try{
+        const res = await fetch(url, {cache:"no-store"});
+        if(res.ok){
+          dot.classList.add("status-ok"); dot.classList.remove("status-bad");
+          txt.textContent = "Online";
+        }else{
+          dot.classList.add("status-bad"); dot.classList.remove("status-ok");
+          txt.textContent = "Issue ("+res.status+")";
+        }
+      }catch(e){
+        dot.classList.add("status-bad"); dot.classList.remove("status-ok");
+        txt.textContent = "Offline";
+      }
+    }
+    // Map checks to your real endpoints
+    ping("status-api","status-api-text","/health");
+    ping("status-socket","status-socket-text","/socket.io/?EIO=4&transport=polling");
+    ping("status-gpu","status-gpu-text","/jobs/health");
+    ping("status-chain","status-chain-text","/web3/health");
+  </script>
+</body>
+</html>

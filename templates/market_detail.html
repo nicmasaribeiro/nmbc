@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Market #{{ m.id }}</title>
+  <style>
+    body { font-family: system-ui; margin: 24px; background:#0b0e11; color:#e6e6e6; }
+    a { color:#7cb2ff; text-decoration:none; }
+    .card { background:#12161c; border:1px solid #222; border-radius:12px; padding:16px; margin:12px 0; }
+    input, select, button { padding:8px; border-radius:8px; border:1px solid #333; background:#0b0e11; color:#e6e6e6;}
+    button { background:#1f6feb; border:none; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { padding:6px 8px; border-bottom:1px solid #222; }
+  </style>
+</head>
+<body>
+  <p><a href="/markets">← All markets</a></p>
+
+  <h2>#{{ m.id }} — {{ m.question }}</h2>
+  <div class="card">
+    <div>YES pool: <b>{{ '%.2f' % m.outcome_yes }}</b> | NO pool: <b>{{ '%.2f' % m.outcome_no }}</b></div>
+    <div>Status: {% if m.resolved %}<b>RESOLVED {{ m.result|upper }}</b>{% else %}Open{% endif %}</div>
+  </div>
+
+  {% if not m.resolved %}
+  <div class="card">
+    <h3>Place a bet</h3>
+    <form action="/markets/{{ m.id }}/bet" method="POST">
+      <select name="side">
+        <option value="yes">YES</option>
+        <option value="no">NO</option>
+      </select>
+      <input name="amount" type="number" min="0.01" step="0.01" placeholder="Coins" required>
+      <button>Bet</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if user_bets %}
+  <div class="card">
+    <h3>Your bets</h3>
+    <table>
+      <thead><tr><th>Side</th><th>Amount</th><th>Time</th><th>Payout Claimed</th></tr></thead>
+      <tbody>
+        {% for b in user_bets %}
+          <tr>
+            <td>{{ b.side|upper }}</td>
+            <td>{{ '%.2f' % b.amount }}</td>
+            <td>{{ b.timestamp }}</td>
+            <td>{{ 'Yes' if b.payout_claimed else 'No' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if (current_user.id == m.creator_id) and (not m.resolved) %}
+  <div class="card">
+    <h3>Resolve market</h3>
+    <form action="/markets/{{ m.id }}/resolve" method="POST">
+      <select name="result">
+        <option value="yes">YES wins</option>
+        <option value="no">NO wins</option>
+      </select>
+      <button>Resolve & Payout</button>
+    </form>
+    <p style="opacity:.8; font-size:13px;">On resolve: winners get principal + pro-rata of losing pool (minus 2% fee).</p>
+  </div>
+  {% endif %}
+</body>
+</html>

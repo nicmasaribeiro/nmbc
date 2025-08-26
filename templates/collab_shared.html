@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Shared Notebooks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; background:#0b0e11; color:#e6e6e6;}
+    header { display:flex; align-items:center; gap:12px; padding:16px; border-bottom:1px solid #222;}
+    h1 { font-size:18px; margin:0; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .row { display:flex; align-items:center; gap:10px; }
+    input[type="search"] { background:#0b0e11; color:#e6e6e6; border:1px solid #333; border-radius:10px; padding:10px 12px; width: 320px; }
+    section { margin: 16px 0 28px; }
+    h2 { font-size:16px; margin: 0 0 8px; color:#cbd5e1; }
+    .muted { color:#9aa0a6; font-size:13px; }
+    .grid { display:grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items:center; padding: 10px 12px; border-bottom:1px solid #1a1f25;}
+    .grid.header { font-weight:600; color:#aab4be; border-top:1px solid #1a1f25; background:#0f141a; }
+    .item { padding: 6px 0; }
+    .badge { font-size:12px; padding: 4px 8px; border-radius:999px; background:#2a2f36; }
+    .badge.owner { background:#1f6feb; }
+    .badge.editor { background:#4a7a2f; }
+    .badge.viewer { background:#5a616a; }
+    .btn { background:#1f6feb; color:#fff; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; text-decoration:none; display:inline-block;}
+    .btn.secondary { background:#2a2f36; }
+    .empty { padding:16px 12px; color:#9aa0a6; font-style:italic; }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr auto; }
+      .col-owner, .col-updated { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="row">
+    <h1>Shared Notebooks</h1>
+    <input type="search" id="search" placeholder="Search by name or owner…" />
+  </header>
+
+  <div class="wrap">
+    <section>
+      <h2>Owned by me <span class="muted">({{ owned|length }})</span></h2>
+      <div class="grid header">
+        <div>Name</div>
+        <div class="col-owner">Owner</div>
+        <div class="col-updated">Updated</div>
+        <div></div>
+      </div>
+      <div id="ownedList">
+        {% if owned %}
+          {% for nb in owned %}
+          <div class="grid row-owned" data-name="{{ nb.name|e }}" data-owner="{{ nb.owner_username|e }}">
+            <div class="item">
+              <span class="badge owner">owner</span>
+              <strong style="margin-left:8px">{{ nb.name }}</strong>
+            </div>
+            <div class="item col-owner">{{ nb.owner_username }}</div>
+            <div class="item col-updated">{{ nb.updated_at or '—' }}</div>
+            <div class="item">
+              <a class="btn" href="{{ url_for('display_collab_editor', notebook_id=nb.id) }}">Open</a>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty">No notebooks owned yet.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section>
+      <h2>Shared with me <span class="muted">({{ shared|length }})</span></h2>
+      <div class="grid header">
+        <div>Name</div>
+        <div class="col-owner">Owner</div>
+        <div class="col-updated">Updated</div>
+        <div></div>
+      </div>
+      <div id="sharedList">
+        {% if shared %}
+          {% for nb in shared %}
+          <div class="grid row-shared" data-name="{{ nb.name|e }}" data-owner="{{ nb.owner_username|e }}">
+            <div class="item">
+              <span class="badge {{ nb.role }}">{{ nb.role }}</span>
+              <strong style="margin-left:8px">{{ nb.name }}</strong>
+            </div>
+            <div class="item col-owner">{{ nb.owner_username }}</div>
+            <div class="item col-updated">{{ nb.updated_at or '—' }}</div>
+            <div class="item">
+              <a class="btn" href="{{ url_for('collab.display_collab_editor', notebook_id=nb.id) }}">Open</a>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty">No notebooks shared with you yet.</div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const q = document.getElementById('search');
+    const filterRows = () => {
+      const term = (q.value || "").toLowerCase().trim();
+      const lists = [document.getElementById('ownedList'), document.getElementById('sharedList')];
+      lists.forEach(list => {
+        Array.from(list.querySelectorAll('.grid.row-owned, .grid.row-shared')).forEach(row => {
+          const name = (row.dataset.name || "").toLowerCase();
+          const owner = (row.dataset.owner || "").toLowerCase();
+          row.style.display = (name.includes(term) || owner.includes(term)) ? "" : "none";
+        });
+      });
+    };
+    q.addEventListener('input', filterRows);
+  </script>
+</body>
+</html>
