@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, abort, jsonify,sessions, Response, url_for,send_file,render_template_string,flash
 from flask import Blueprint, send_from_directory
 from flask_caching import Cache
+import sys
 import asyncio
 import socket
 import os
@@ -8,7 +9,6 @@ import html
 import os
 import statsmodels.api as sm
 from quart import Quart
-from web3 import Web3
 import os
 import csv
 import random
@@ -86,8 +86,14 @@ from get_price import get_price
 from finance_llm import finance_llm_bp
 from flask_migrate import Migrate
 # from nativecoin import nativecoin_bp
+from flask_socketio import SocketIO
+from extensions import socketio
+from prediction_markets import markets_bp
+from routes_startup import startup_bp
 
 
+
+# socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -106,13 +112,18 @@ app.config['UPLOAD_FOLDER'] = 'local'  # or wherever
 cache = Cache(app)
 executor = Executor(app)
 migrate = Migrate(app, db)
+socketio.init_app(app, cors_allowed_origins="*", async_mode="threading")
 
 
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
+app.register_blueprint(markets_bp)
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(finance_llm_bp, url_prefix="/llm")
+app.register_blueprint(startup_bp)
+
+
 
 global nmbc
 nmbc = NMCYBlockchain()
@@ -129,9 +140,11 @@ PORT = random.randint(5000,6000)
 
 app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
-# 
+redis_url = "redis://red-cv8uqftumphs738vdlb0:6379"
+
 # app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
 # app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+redis_client = redis.Redis(host=redis_url, port=6379, decode_responses=False)
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(result_backend=app.config['CELERY_RESULT_BACKEND'])
@@ -142,6 +155,304 @@ celery.conf.beat_schedule = {
     },
 }
 celery.autodiscover_tasks()
+
+# --- Collab / sockets ---
+from sock import *
+from helper import *
+from flask_socketio import join_room, leave_room, emit
+from extensions import socketio, redis_client            # use the shared singletons
+from notebook_state import get_notebook_manager
+import datetime as dt
+from notebook_state import get_notebook_manager
+nb_mgr = get_notebook_manager(redis_client)
+
+from flask import Blueprint, render_template, abort
+from flask_login import login_required, current_user
+from models import db, Users, UserNotebook, NotebookShare
+
+collab_bp = Blueprint("collab", __name__, template_folder="templates")
+
+@app.route("/collab/shared", methods=["GET"])
+@login_required
+def view_shared_notebooks():
+    """
+    Shows two sections:
+      - Owned by me (role = owner)
+      - Shared with me (role = viewer/editor)
+    """
+    # Owned by me
+    owned_q = (
+        UserNotebook.query
+        .filter(UserNotebook.user_id == current_user.id)
+        .order_by(UserNotebook.updated_at.desc())
+    )
+    owned = []
+    for nb in owned_q.all():
+        owned.append({
+            "id": nb.id,
+            "name": nb.name or f"Notebook {nb.id}",
+            "role": "owner",
+            "owner_username": current_user.username,
+            "updated_at": nb.updated_at,
+        })
+
+    # Shared with me (via NotebookShare)
+    shared_q = (
+        db.session.query(UserNotebook, NotebookShare)
+        .join(NotebookShare, NotebookShare.notebook_id == UserNotebook.id)
+        .filter(NotebookShare.user_id == current_user.id)
+        .order_by(UserNotebook.updated_at.desc())
+    )
+    shared = []
+    for nb, sh in shared_q.all():
+        owner = Users.query.get(nb.user_id)
+        shared.append({
+            "id": nb.id,
+            "name": nb.name or f"Notebook {nb.id}",
+            "role": sh.role,  # "viewer" or "editor"
+            "owner_username": owner.username if owner else "unknown",
+            "updated_at": nb.updated_at,
+        })
+
+    return render_template("collab_shared.html", owned=owned, shared=shared)
+
+@app.route("/api/collab/<int:notebook_id>/collaborators", methods=["GET"])
+@login_required
+def list_collaborators(notebook_id):
+    nb, err = assert_access(notebook_id, current_user.id, "viewer")
+    if err: abort(403 if err[0]=="forbidden" else 404, err[1])
+    shares = (NotebookShare.query.filter_by(notebook_id=notebook_id).all())
+    data = [{"user_id": s.user_id, "role": s.role,
+             "username": Users.query.get(s.user_id).username} for s in shares]
+    return jsonify({"owner_id": nb.user_id, "collaborators": data})
+
+@app.route("/api/collab/<int:notebook_id>/share", methods=["POST"])
+@login_required
+def add_collaborator(notebook_id):
+    nb, err = assert_access(notebook_id, current_user.id, "owner")
+    if err: abort(403 if err[0]=="forbidden" else 404, err[1])
+    payload = request.get_json() or {}
+    identifier = payload.get("user")  # username or email
+    role = payload.get("role", "viewer")
+    user = find_user_by_username_or_email(identifier)
+    if not user: return jsonify({"ok": False, "message": "User not found"}), 404
+    # upsert
+    share = NotebookShare.query.filter_by(notebook_id=notebook_id, user_id=user.id).first()
+    if not share:
+        share = NotebookShare(notebook_id=notebook_id, user_id=user.id, role=role)
+        db.session.add(share)
+    else:
+        share.role = role
+    db.session.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/collab/<int:notebook_id>/share/<int:user_id>", methods=["DELETE"])
+@login_required
+def remove_collaborator(notebook_id, user_id):
+    nb, err = assert_access(notebook_id, current_user.id, "owner")
+    if err: abort(403 if err[0]=="forbidden" else 404, err[1])
+    NotebookShare.query.filter_by(notebook_id=notebook_id, user_id=user_id).delete()
+    db.session.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/collab/<int:notebook_id>/invite", methods=["POST"])
+@login_required
+def create_invite_link(notebook_id):
+    nb, err = assert_access(notebook_id, current_user.id, "owner")
+    if err: abort(403 if err[0]=="forbidden" else 404, err[1])
+    payload = request.get_json() or {}
+    role = payload.get("role", "viewer")
+    ttl = int(payload.get("ttl_minutes", 120))
+    raw = create_invite(nb.id, created_by=current_user.id, role=role, ttl_minutes=ttl)
+    # The link embeds the raw token; we only stored the hash in DB
+    link = url_for("collab.accept_invite_link", token=raw, _external=True)
+    return jsonify({"ok": True, "link": link})
+
+@app.route("/collab/accept/<token>", methods=["GET"])
+@login_required
+def accept_invite_link(token):
+    share, err = accept_invite(token, current_user.id)
+    if err:
+        return f"Invite error: {err}", 400
+    return redirect(url_for("collab.display_collab_editor", notebook_id=share.notebook_id))
+
+
+@app.route("/collab/<int:notebook_id>/editor", methods=["GET"])
+@login_required
+def display_collab_editor(notebook_id):
+    nb = UserNotebook.query.get(notebook_id)
+    if not nb: abort(404)
+    # allow owner or collaborators
+    role = user_role_for_notebook(current_user.id, nb)
+    if not (nb.user_id == current_user.id or role in ("viewer","editor")):
+        abort(403)
+    state = nb_mgr.get_state(notebook_id)
+    return render_template("collab_editor.html",
+        notebook_id=notebook_id,
+        notebook_name=nb.name or f"Notebook {notebook_id}",
+        username=current_user.username,
+        user_role="owner" if nb.user_id == current_user.id else role,
+        initial_cells=json.dumps(state["cells"]),
+        initial_version=state["version"])
+
+# -------- Optional: REST helpers (useful for debugging/initial loads) --------
+@app.route("/api/collab/<int:notebook_id>/state", methods=["GET"])
+@login_required
+def api_get_state(notebook_id):
+    # permission checks omitted for brevity
+    return jsonify(nb_mgr.get_state(notebook_id))
+
+
+@app.route("/api/collab/<int:notebook_id>/save", methods=["POST"])
+@login_required
+def api_save(notebook_id):
+    return jsonify(nb_mgr.save_to_db(notebook_id))
+
+@app.route("/collab/new", methods=["POST"])
+@login_required
+def create_collab_notebook():
+    """Create a new collaborative notebook."""
+    data = request.get_json()
+    name = data.get("name", "Untitled Collaborative Notebook")
+    cells = data.get("notebook", [])
+
+    # Create DB entry
+    notebook = UserNotebook(
+        user_id=current_user.id,
+        name=name,
+        content=json.dumps(cells),
+        tags="collaborative"
+    )
+    db.session.add(notebook)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Collaborative notebook created",
+        "id": notebook.id,
+        "name": notebook.name
+    })
+
+
+@app.route("/api/collab/<int:notebook_id>/exec", methods=["POST"])
+@login_required
+def exec_cell_rest(notebook_id):
+	nb, err = assert_access(notebook_id, current_user.id, "editor")
+	if err: return jsonify({"ok": False, "message": err[1]}), 403
+	code = (request.get_json() or {}).get("code", "")
+	from sock import _run_code
+	out = _run_code(code)
+	return jsonify({"ok": True, "output": out})
+
+# -------- Socket events --------
+
+# ---- Socket.IO rooms use a single naming scheme: nb:{id} ----
+
+@socketio.on("join_notebook")
+def ws_join(data):
+    notebook_id = int(data["notebook_id"])
+    username = data.get("username", "guest")
+    room = f"nb:{notebook_id}"
+    join_room(room)
+
+    # send latest state only to the joiner
+    state = nb_mgr.get_state(notebook_id)
+    emit("state_sync", {"cells": state["cells"], "version": state["version"]}, to=request.sid)
+
+    # notify others about presence
+    emit("presence", {"user": username, "event": "join"}, to=room, include_self=False)
+
+
+@socketio.on("leave_notebook")
+def ws_leave(data):
+    notebook_id = int(data["notebook_id"])
+    username = data.get("username", "guest")
+    room = f"nb:{notebook_id}"
+    leave_room(room)
+    emit("presence", {"user": username, "event": "leave"}, to=room, include_self=False)
+
+
+@socketio.on("cell_update")
+def ws_cell_update(data):
+    """
+    Payload: { notebook_id, index, content, version, username }
+    """
+    notebook_id = int(data["notebook_id"])
+    idx = int(data["index"])
+    content = data.get("content", "")
+    base_version = int(data.get("version", 0))
+    username = data.get("username", "guest")
+
+    res = nb_mgr.apply_cell_update(notebook_id, idx, content, base_version)
+    if not res.get("accepted"):
+        # client is stale, tell it to resync
+        emit("update_rejected", {"reason": "stale", "version": res["version"]}, to=request.sid)
+        return
+
+    room = f"nb:{notebook_id}"
+    emit(
+        "cell_applied",
+        {"index": res["index"], "content": res["content"], "version": res["version"], "user": username},
+        to=room,
+        include_self=False,
+    )
+
+
+@socketio.on("add_cell")
+def ws_add_cell(data):
+    """
+    Payload: { notebook_id, after, type }
+    """
+    notebook_id = int(data["notebook_id"])
+    after = int(data.get("after", -1))
+    cell_type = data.get("type", "code")
+
+    res = nb_mgr.insert_cell(notebook_id, after + 1, cell_type)
+    room = f"nb:{notebook_id}"
+    emit("cell_inserted", res, to=room)
+
+
+@socketio.on("delete_cell")
+def ws_delete_cell(data):
+    """
+    Payload: { notebook_id, index }
+    """
+    notebook_id = int(data["notebook_id"])
+    idx = int(data["index"])
+
+    res = nb_mgr.delete_cell(notebook_id, idx)
+    if res:
+        room = f"nb:{notebook_id}"
+        emit("cell_deleted", res, to=room)
+
+
+@socketio.on("cursor")
+def ws_cursor(data):
+    """
+    Payload: { notebook_id, index, pos, username }
+    """
+    notebook_id = int(data["notebook_id"])
+    room = f"nb:{notebook_id}"
+    emit(
+        "cursor",
+        {"index": data["index"], "pos": data["pos"], "user": data.get("username", "guest")},
+        to=room,
+        include_self=False,
+    )
+
+
+@socketio.on("save_notebook")
+def ws_save(data):
+    """
+    Payload: { notebook_id }
+    """
+    notebook_id = int(data["notebook_id"])
+    res = nb_mgr.save_to_db(notebook_id)
+    emit("saved", res, to=request.sid)
+
+########################
+# END OF SOCKET ########
+#########################
 
 @app.route('/my_portfolio/<name>', methods=['GET'])
 @login_required
@@ -694,6 +1005,100 @@ def calc_option_greeks():
 		</html>"""
 	return render_template_string(string, html=html)
 
+# # models.py or a tasks.py util
+# from datetime import datetime
+# import numpy as np
+
+def update_once():
+    """One atomic pass over all objects; safe + idempotent."""
+    # --- Recalculate stochastic price ---
+    invests = InvestmentDatabase.query.all()
+    for i in invests:
+        try:
+            t = get_price(i.investment_name.upper())
+            if t is None or len(t) == 0:
+                continue
+            price = t.iloc[-1]  # latest
+            # Guard: timestamp may be None initially
+            prev_ts = i.timestamp or datetime.now()
+            now = datetime.now()
+            dt_years = (now - prev_ts).total_seconds() / (365.25 * 24 * 3600)
+
+            # Your stochastic pricing function (keep try/except light)
+            try:
+                s = stoch_price(
+                    1/52, i.time_float, i.risk_neutral, i.spread, i.reversion,
+                    price, i.target_price
+                )
+                i.stoch_price = s
+            except Exception:
+                pass
+
+            # Update market price
+            i.market_price = float(price)
+
+            # Update time_float (count down)
+            if i.time_float is not None:
+                i.time_float = float(i.time_float) - dt_years
+
+            # Update timestamp
+            i.timestamp = now
+
+            # Tokenization math (guard division)
+            qty = float(i.quantity or 0.0)
+            if qty > 0:
+                i.tokenized_price = float(i.market_price) / qty
+            else:
+                i.tokenized_price = 0.0
+
+            # You don’t have a `coins` field—use `coins_value` which exists
+            # Assuming the intent is some compounding token metric:
+            # coins_value := tokenized_price * (1 + spread) ** time_float
+            tf = float(i.time_float or 0.0)
+            sp = float(i.spread or 0.0)
+            i.coins_value = float(i.tokenized_price) * ((1.0 + sp) ** tf) if i.tokenized_price else 0.0
+
+            # Change value (log return) vs starting_price (guard)
+            sp0 = float(i.starting_price or 0.0)
+            if sp0 > 0 and price > 0:
+                i.change_value = float(np.log(price) - np.log(sp0))
+
+        except Exception as e:
+            # Keep loop resilient; log and continue
+            print(f"[update_once] {i.investment_name} error: {e}")
+
+    # --- Update portfolio prices ---
+    portfolios = Portfolio.query.all()
+    for p in portfolios:
+        try:
+            t = get_price((p.token_name or p.name or "").upper())
+            if t is None or len(t) == 0:
+                continue
+            p.price = float(t.iloc[-1])  # latest
+        except Exception as e:
+            print(f"[update_once] portfolio {p.name} error: {e}")
+
+    db.session.commit()
+
+
+from celery import shared_task
+from flask import current_app
+from utils.locks import redis_lock
+
+@shared_task(name="models.update")
+def update():
+    print("[Celery] update fired")
+    # Ensure Flask context for DB
+    with current_app.app_context():
+        # Prevent overlapping runs for ~55s (beat runs every 60s)
+        with redis_lock("update_lock", ttl=55) as acquired:
+            if not acquired:
+                print("[Celery] update skipped: lock in use")
+                return 0
+            update_once()
+            return 0
+
+
 def recalculate():
 	invests = InvestmentDatabase.query.all()
 	for i in invests:
@@ -818,8 +1223,6 @@ def update():
 				db.session.rollback()  # Rollback in case of errors
 
 		return 0
-
-schedule.every(1).minutes.do(update.delay)
 
 
 @login_manager.user_loader
@@ -1089,7 +1492,7 @@ def signup_val():
 def get_investments():
 	page = request.args.get('page', 1, type=int)
 	per_page = 5
-
+	update_once()
 	investments = InvestmentDatabase.query.paginate(page=page, per_page=per_page, error_out=False)
 	update.delay()
 
@@ -1629,7 +2032,7 @@ def buy_or_sell():
             if not user_db:
                 return "<h3>User not found</h3>"
 
-            ticker = get_price(invest_name)#yf.download(invest_name)['Close'] #get_price(invest_name)# yf.Ticker(invest_name)
+            ticker =  yf.Ticker(invest_name).history()["Close"] #get_price(invest_name)#yf.download(invest_name)['Close'] #get_price(invest_name)#
             history = np.array(ticker) #get_price(invest_name)#ticker #ticker.history(period='1d', interval='1m')
 			
             if ticker.empty:
@@ -2351,7 +2754,7 @@ def info(id):
 	description = data['Description']
 
 	# res = asset_info(name)
-	df = get_price(name)#yf.Ticker(name).history(period='2y', interval='1d')["Close"]
+	df = yf.Ticker(name).history(period='2y', interval='1d')["Close"] #get_price(name)#
 	df = df.dropna()
 	# Compute rolling mean and standard deviation
 	rolling_window = 20  # Adjust the window size as needed
@@ -4153,8 +4556,8 @@ def drift_vol():
 		ticker = request.values.get("ticker").upper()
 		p = request.values.get("p")
 		i = request.values.get("i")
-		data = get_price(ticker) #yf.download(ticker)#.history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
-		data['Log Returns'] = np.log(data['close'] / data['close'].shift(1))
+		data = yf.Ticker(ticker).history(period=p,interval=i)#get_price(ticker) #yf.download(ticker)#.history(period=p,interval=i)#(ticker, start="2020-01-01", end="2023-12-31")
+		data['Log Returns'] = np.log(data['Close'] / data['Close'].shift(1))
 		# Time step (e.g., daily returns, assume 252 trading days in a year)
 		delta_t = 1 / 252
 		# Drift (mean of log returns divided by time step)
@@ -4714,6 +5117,8 @@ def download_file(attachment_id):
         download_name=attachment.filename
     )
 
+
+
 if __name__ == '__main__':
 	with app.app_context():
 		db.create_all()
@@ -4722,8 +5127,9 @@ if __name__ == '__main__':
 		while True:
 			with app.app_context():
 				schedule.run_pending()
-				# update.delay()
+				update.delay()
 				time.sleep(10) 
 	schedule_thread = threading.Thread(target=run_scheduler, daemon=True)
 	schedule_thread.start()
-	app.run(host="0.0.0.0",port=90)
+	# app.run(host="0.0.0.0",port=90)
+	socketio.run(app, host="0.0.0.0", port=90, debug=True)

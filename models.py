@@ -214,6 +214,57 @@ class UserNotebook(db.Model):
     is_for_sale = db.Column(db.Boolean, default=False)
     price = db.Column(db.Float, default=0.0)
 
+# --- Sharing models ---
+
+class NotebookShare(db.Model):
+    __tablename__ = "notebook_share"
+    id = db.Column(db.Integer, primary_key=True)
+    notebook_id = db.Column(db.Integer, db.ForeignKey("user_notebook.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    role = db.Column(db.String(16), default="viewer")  # "viewer" | "editor"
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    __table_args__ = (db.UniqueConstraint("notebook_id", "user_id", name="uq_notebook_share_user"),)
+
+class NotebookInvite(db.Model):
+    __tablename__ = "notebook_invite"
+    id = db.Column(db.Integer, primary_key=True)
+    notebook_id = db.Column(db.Integer, db.ForeignKey("user_notebook.id"), nullable=False)
+    token_hash = db.Column(db.String(128), nullable=False, unique=True)
+    role = db.Column(db.String(16), default="viewer")  # viewer/editor
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    used = db.Column(db.Boolean, default=False)
+
+# --- Prediction Markets ---
+
+class PredictionMarket(db.Model):
+    __tablename__ = "prediction_markets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String, nullable=False)
+    outcome_yes = db.Column(db.Float, default=0.0)  # total YES stake
+    outcome_no  = db.Column(db.Float, default=0.0)  # total NO stake
+    resolved = db.Column(db.Boolean, default=False)
+    result   = db.Column(db.String, nullable=True)  # "yes" or "no"
+    creator_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    creator = db.relationship("Users", backref="created_markets")
+
+
+class PredictionBet(db.Model):
+    __tablename__ = "prediction_bets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    market_id = db.Column(db.Integer, db.ForeignKey("prediction_markets.id"), nullable=False)
+    user_id   = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    side      = db.Column(db.String, nullable=False)  # "yes" or "no"
+    amount    = db.Column(db.Float, nullable=False)
+    payout_claimed = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    market = db.relationship("PredictionMarket", backref="bets")
+    user   = db.relationship("Users")
 
 
 
