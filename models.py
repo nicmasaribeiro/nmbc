@@ -22,6 +22,8 @@ import os
 import sys
 from sqlalchemy.ext.mutable import MutableList
 import datetime as dt
+from datetime import datetime
+from slugify import slugify
 
 
 UPLOAD_FOLDER = 'local'
@@ -149,9 +151,6 @@ class ForumComment(db.Model):
     replies = db.relationship("ForumComment", backref=db.backref("parent", remote_side=[id]), lazy=True)
 
 
-
-
-
 class SocialNetwork(db.Model):
     __tablename__ = 'social'
     
@@ -174,6 +173,13 @@ class BettingHouse(db.Model):
         self.balance += float(value)
         db.session.commit()
     
+
+class Role(enum.Enum):
+    USER = "user"
+    MODERATOR = "moderator"
+    ADMIN = "admin"
+    GOVERNOR = "governor"
+
 class Users(UserMixin, db.Model):
     __tablename__ = 'users'
 
@@ -185,10 +191,41 @@ class Users(UserMixin, db.Model):
     private_wallet = PrivateWallet()
     personal_token = db.Column(db.String(3072))
     private_token = db.Column(db.String(3072))
+    role = db.Column(db.Enum(Role), default=Role.USER, nullable=False)  # ✅ add role
     cell_number = db.Column(db.String())
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=True)
     wallet = db.relationship('WalletDB', backref='user', uselist=False)
 
+    def is_admin(self):
+        return self.role in [Role.ADMIN, Role.GOVERNOR]
+
+    def is_moderator(self):
+        return self.role in [Role.MODERATOR, Role.ADMIN, Role.GOVERNOR]
+
+# models.py
+
+class GovernanceProposal(db.Model):
+    __tablename__ = 'governance_proposals'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    status = db.Column(db.String, default="Pending")  # Pending, Active, Resolved
+    result = db.Column(db.String)  # e.g. "yes", "no", "rejected"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    votes = db.relationship("GovernanceVote", backref="proposal", lazy=True)
+
+class GovernanceVote(db.Model):
+    __tablename__ = 'governance_votes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey("governance_proposals.id"))
+    voter_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    choice = db.Column(db.String, nullable=False)  # yes/no/abstain
+    weight = db.Column(db.Float, default=1.0)  # can tie to WalletDB.coins
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class NotebookSubmission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -196,7 +233,6 @@ class NotebookSubmission(db.Model):
     notebook_filename = db.Column(db.String(128))
     score = db.Column(db.Float)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
@@ -213,6 +249,114 @@ class UserNotebook(db.Model):
     is_sequential = db.Column(db.Boolean, default=False)
     is_for_sale = db.Column(db.Boolean, default=False)
     price = db.Column(db.Float, default=0.0)
+
+# models.py (or wherever your models live)
+# models.py
+
+class Dataset(db.Model):
+    __tablename__ = "datasets"
+    id = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer, index=True, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    tags = db.Column(db.String(400), default="")  # comma-separated
+    license = db.Column(db.String(120), default="CC-BY-4.0")
+    visibility = db.Column(db.String(20), default="public")  # public | private
+    price_cents = db.Column(db.Integer, default=0)  # 0 = free
+    cover_image = db.Column(db.String(400), nullable=True)
+
+    downloads = db.Column(db.Integer, default=0)
+    purchases = db.Column(db.Integer, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    versions = db.relationship("DatasetVersion", backref="dataset", cascade="all, delete-orphan", order_by="desc(DatasetVersion.created_at)")
+
+    def tag_list(self):
+        return [t.strip() for t in self.tags.split(",") if t.strip()]
+
+    def latest_version(self):
+        return self.versions[0] if self.versions else None
+
+class DatasetVersion(db.Model):
+    __tablename__ = "dataset_versions"
+    id = db.Column(db.Integer, primary_key=True)
+    dataset_id = db.Column(db.Integer, db.ForeignKey("datasets.id"), nullable=False)
+    version = db.Column(db.String(40), default="v1")
+
+    filename = db.Column(db.String(300), nullable=False)
+    file_size = db.Column(db.Integer, default=0)
+    file_mime = db.Column(db.String(100), default="application/octet-stream")
+    sha256 = db.Column(db.String(64), index=True)
+
+    rows = db.Column(db.Integer, default=0)
+    cols = db.Column(db.Integer, default=0)
+    sample_json = db.Column(db.Text, default="[]")  # JSON list of preview rows (strings/values)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class DatasetPurchase(db.Model):
+    __tablename__ = "dataset_purchases"
+    id = db.Column(db.Integer, primary_key=True)
+    dataset_id = db.Column(db.Integer, db.ForeignKey("datasets.id"), index=True, nullable=False)
+    buyer_id = db.Column(db.Integer, index=True, nullable=False)
+    amount_cents = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class AsyncJob(db.Model):
+    __tablename__ = "async_jobs"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, index=True, nullable=True)
+
+    task_name = db.Column(db.String(120), nullable=False)
+    celery_id = db.Column(db.String(64), index=True)
+
+    status = db.Column(db.String(32), default="queued")   # queued, running, succeeded, failed
+    progress = db.Column(db.Float, default=0.0)
+
+    prefer_gpu = db.Column(db.Boolean, default=True)
+    gpu_id = db.Column(db.Integer, nullable=True)
+    queue = db.Column(db.String(32), default="cpu")
+
+    payload_json = db.Column(db.Text, nullable=True)
+    result_json = db.Column(db.Text, nullable=True)
+    error = db.Column(db.Text, nullable=True)
+
+    notify_channel = db.Column(db.String(128), nullable=True)  # e.g. f"user:{user_id}" or f"job:{id}"
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Latex(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    content_type = db.Column(db.String(50), nullable=False)  # "markdown" or "latex"
+    content = db.Column(db.Text, nullable=False)
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+class Document(db.Model):
+    __tablename__ = "documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    content_type = db.Column(db.String(50), nullable=False)  # "markdown" or "latex"
+    content = db.Column(db.Text, nullable=False)
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    slug = db.Column(db.String(255), unique=True, index=True)
+    rendered_html_path = db.Column(db.String(512))
+    compiled_pdf_path = db.Column(db.String(512))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    owner = db.relationship("Users", backref="documents")
+
+    def ensure_slug(self):
+        """Generate a slug from the title if not set"""
+        if not self.slug:
+            base = self.title.lower().replace(" ", "-")
+            self.slug = f"{base}-{self.id}"
 
 # --- Sharing models ---
 
@@ -442,6 +586,36 @@ class Chain(db.Model):
     from_wallet = db.relationship('WalletDB', foreign_keys=[from_address])
     to_wallet = db.relationship('WalletDB', foreign_keys=[to_address])
     
+
+# --- Gamified Finance Learning models ---
+
+class FinanceChallenge(db.Model):
+    __tablename__ = "finance_challenges"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(160), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    description = db.Column(db.Text, default="")
+    metric = db.Column(db.String(32), default="rmse")  # rmse | mae
+    prize_coins = db.Column(db.Float, default=0.0)     # coins to top rank
+    data_filename = db.Column(db.String(256), nullable=False)       # downloadable features (CSV/zip)
+    groundtruth_filename = db.Column(db.String(256), nullable=False) # server-only CSV with columns: id,y_true
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    deadline = db.Column(db.DateTime, nullable=True)   # optional
+
+class FinanceSubmission(db.Model):
+    __tablename__ = "finance_submissions"
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("finance_challenges.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    filename = db.Column(db.String(256), nullable=False)  # stored prediction CSV
+    score = db.Column(db.Float, nullable=True)
+    score_detail = db.Column(db.String(120))
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    # relationships
+    challenge = db.relationship("FinanceChallenge", backref="submissions")
+    user = db.relationship("Users", backref="finance_submissions")
+
+
 class PendingTransactionDatabase(db.Model):
     __tablename__ = 'pending_transactions'
     

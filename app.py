@@ -8,7 +8,15 @@ import os
 import html
 import os
 import statsmodels.api as sm
-from quart import Quart
+# from quart import Quart
+# --- Collab / sockets ---
+from sock import *
+from helper import *
+from flask_socketio import join_room, leave_room, emit
+from extensions import socketio, redis_client            # use the shared singletons
+from notebook_state import get_notebook_manager
+import datetime as dt
+from notebook_state import get_notebook_manager
 import os
 import csv
 import random
@@ -64,6 +72,9 @@ import plotly.express as px
 import plotly
 from stoch_greeks import calculate_greeks
 from scipy.integrate import quad
+from flask import Blueprint, render_template, abort
+from flask_login import login_required, current_user
+from models import db, Users, UserNotebook, NotebookShare
 from scipy.stats import poisson
 from sqlalchemy.orm import scoped_session, sessionmaker
 from models import Swap,SwapBlock
@@ -90,6 +101,14 @@ from flask_socketio import SocketIO
 from extensions import socketio
 from prediction_markets import markets_bp
 from routes_startup import startup_bp
+from docs_blueprint import docs_bp
+from docs import docs
+from portfolio_api import portfolio_bp
+from datasets_blueprint import datasets as datasets_bp
+from bitcoin import bp as btc_bp
+from finance_bp import finance_bp
+from models import AsyncJob
+from game_bp import game_bp
 
 
 
@@ -108,6 +127,12 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_REDIS'] = redis.StrictRedis(host='redis-server', port=6379)
 app.config['UPLOAD_FOLDER'] = 'local'  # or wherever
+app.config.update(
+    DOCS_STORAGE_DIR=os.path.join(app.instance_path, "docs"),
+    MAX_CONTENT_LENGTH=5 * 1024 * 1024,  # reasonable limit
+)
+app.config.setdefault("DOCS_STORAGE_DIR", os.path.join(app.instance_path, "docs"))
+
 
 cache = Cache(app)
 executor = Executor(app)
@@ -118,10 +143,21 @@ socketio.init_app(app, cors_allowed_origins="*", async_mode="threading")
 openai.api_key = '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'
 stripe.api_key = 'sk_test_51OncNPGfeF8U30tWYUqTL51OKfcRGuQVSgu0SXoecbNiYEV70bb409fP1wrYE6QpabFvQvuUyBseQC8ZhcS17Lob003x8cr2BQ'
 
+# app.py
+# app.register_blueprint(docs_bp_two)
+app.register_blueprint(game_bp, url_prefix="/game")
+app.register_blueprint(finance_bp, url_prefix="/finance")
+app.register_blueprint(docs)
+app.register_blueprint(docs_bp)
 app.register_blueprint(markets_bp)
 app.register_blueprint(kaggle_bp, url_prefix="/app")
 app.register_blueprint(finance_llm_bp, url_prefix="/llm")
 app.register_blueprint(startup_bp)
+app.register_blueprint(portfolio_bp)
+app.register_blueprint(datasets_bp)
+app.register_blueprint(btc_bp)
+# app.register_blueprint(jobs_bp, url_prefix="/jobs")
+
 
 
 
@@ -138,12 +174,12 @@ network.create_genesis_block()
 node_bc = NodeBlockchain()
 PORT = random.randint(5000,6000)
 
-app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
-redis_url = "redis://red-cv8uqftumphs738vdlb0:6379"
+# app.config['CELERY_BROKER_URL'] = 'redis://red-cv8uqftumphs738vdlb0:6379'
+# app.config['CELERY_RESULT_BACKEND'] = 'redis://red-cv8uqftumphs738vdlb0:6379' 
+redis_url = 'redis://localhost:6379/0' #"redis://red-cv8uqftumphs738vdlb0:6379"
 
-# app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-# app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 redis_client = redis.Redis(host=redis_url, port=6379, decode_responses=False)
 
 celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
@@ -155,22 +191,51 @@ celery.conf.beat_schedule = {
     },
 }
 celery.autodiscover_tasks()
-
-# --- Collab / sockets ---
-from sock import *
-from helper import *
-from flask_socketio import join_room, leave_room, emit
-from extensions import socketio, redis_client            # use the shared singletons
-from notebook_state import get_notebook_manager
-import datetime as dt
-from notebook_state import get_notebook_manager
 nb_mgr = get_notebook_manager(redis_client)
 
-from flask import Blueprint, render_template, abort
-from flask_login import login_required, current_user
-from models import db, Users, UserNotebook, NotebookShare
 
-collab_bp = Blueprint("collab", __name__, template_folder="templates")
+@app.route("/api/create", methods=["POST"])
+def api_create_job():
+    data = request.get_json(force=True, silent=True) or {}
+    task = data.get("task", "gpu.heavy")
+    payload = data.get("payload", {})
+    prefer_gpu = bool(data.get("prefer_gpu", True))
+    gpu_id = data.get("gpu_id")
+    user_id = data.get("user_id")
+    notify_channel = data.get("notify_channel")  # optional custom room
+
+    try:
+        job = submit_job(task, payload, user_id, prefer_gpu, gpu_id, notify_channel)
+        return jsonify({
+            "job_id": job.id,
+            "celery_id": job.celery_id,
+            "queue": job.queue,
+            "gpu_id": job.gpu_id,
+            "status": job.status,
+        }), 202
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/api/<int:job_id>", methods=["GET"])
+def api_job_status(job_id):
+    job = AsyncJob.query.get(job_id)
+    if not job:
+        abort(404)
+    return jsonify({
+        "job_id": job.id,
+        "status": job.status,
+        "progress": job.progress,
+        "result": job.result_json and job.result_json,
+        "error": job.error,
+        "queue": job.queue,
+        "gpu_id": job.gpu_id,
+        "task_name": job.task_name,
+    })
+
+@app.route("/dashboard", methods=["GET"])
+def jobs_dashboard():
+    return render_template("jobs_dashboard.html")
+
 
 @app.route("/collab/shared", methods=["GET"])
 @login_required
@@ -295,6 +360,19 @@ def display_collab_editor(notebook_id):
         initial_cells=json.dumps(state["cells"]),
         initial_version=state["version"])
 
+@app.route("/collab/new/shared")
+@login_required
+def shared_collab_editor():
+    """
+    Open a fresh collaborative notebook editor.
+    """
+    return render_template(
+        "shared_editor.html",
+        notebook_name="Untitled Collaborative Notebook",
+        notebook_id="null",
+        saved_cells=[]
+    )
+
 # -------- Optional: REST helpers (useful for debugging/initial loads) --------
 @app.route("/api/collab/<int:notebook_id>/state", methods=["GET"])
 @login_required
@@ -333,6 +411,25 @@ def create_collab_notebook():
         "name": notebook.name
     })
 
+# app.py
+from flask import redirect, url_for
+from flask_login import login_required, current_user
+import json
+
+@app.route("/collab/new", methods=["GET"])
+@login_required
+def new_collab_editor():
+    nb = UserNotebook(
+        user_id=current_user.id,
+        name="Untitled Collaborative Notebook",
+        content=json.dumps([]),
+        tags="collaborative",
+    )
+    db.session.add(nb)
+    db.session.commit()
+    return redirect(url_for("display_collab_editor", notebook_id=nb.id))
+
+
 
 @app.route("/api/collab/<int:notebook_id>/exec", methods=["POST"])
 @login_required
@@ -347,6 +444,15 @@ def exec_cell_rest(notebook_id):
 # -------- Socket events --------
 
 # ---- Socket.IO rooms use a single naming scheme: nb:{id} ----
+# app.py (where you define socketio)
+
+@socketio.on("join_job")
+def ws_join_job(data):
+    # data: { "job_id": 123 }
+    job_id = str(data.get("job_id"))
+    room = f"job:{job_id}"
+    from flask_socketio import join_room
+    join_room(room)
 
 @socketio.on("join_notebook")
 def ws_join(data):
