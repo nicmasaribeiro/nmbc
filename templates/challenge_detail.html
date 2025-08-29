@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ ch.title }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:24px;background:#0b0e11;color:#e6edf3}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .card{flex:1;min-width:280px;background:#11161c;border:1px solid #202a33;border-radius:14px;padding:16px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #202a33}
+    a.btn{display:inline-block;padding:8px 12px;border-radius:10px;background:#1f6feb;color:#fff;text-decoration:none}
+    .muted{color:#9aa7b2}
+  </style>
+</head>
+<body>
+  <a class="btn" href="{{ url_for('game.challenges') }}">← All Challenges</a>
+  <h1>{{ ch.title }}</h1>
+  <p class="muted">Metric: <b>{{ ch.metric|upper }}</b> · Prize: {{ "%.0f"|format(ch.prize_coins) }} coins
+    {% if ch.deadline %} · Deadline: {{ ch.deadline.strftime("%Y-%m-%d %H:%M UTC") }}{% endif %}
+  </p>
+  <p>{{ ch.description }}</p>
+
+  <div class="row">
+    <div class="card">
+      <h3>Data</h3>
+      <p>Download the features file and submit a <code>CSV</code> with columns <code>id,y_pred</code>.</p>
+      <a class="btn" href="{{ url_for('game.challenge_download', slug=ch.slug) }}">Download data</a>
+      <a class="btn" href="{{ url_for('game.challenge_play', slug=ch.slug) }}">Play / Submit</a>
+    </div>
+
+    <div class="card">
+      <h3>Leaderboard (Top 20)</h3>
+      <table>
+        <thead><tr><th>User</th><th>Score</th><th>When</th></tr></thead>
+        <tbody>
+        {% for s in leaderboard %}
+          <tr>
+            <td>{{ s.user.username }}</td>
+            <td>{{ "%.6f"|format(s.score) }} <span class="muted">({{ s.score_detail }})</span></td>
+            <td class="muted">{{ s.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="muted">No submissions yet.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

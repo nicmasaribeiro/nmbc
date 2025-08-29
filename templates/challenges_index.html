@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Finance Challenges</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:24px;background:#0b0e11;color:#e6edf3}
+    .card{background:#11161c;border:1px solid #202a33;border-radius:14px;padding:16px;margin-bottom:16px}
+    a.btn{display:inline-block;padding:8px 12px;border-radius:10px;background:#1f6feb;color:#fff;text-decoration:none}
+    small{color:#9aa7b2}
+  </style>
+</head>
+<body>
+  <h1>Gamified Finance Learning</h1>
+  {% for ch in items %}
+    <div class="card">
+      <h2>{{ ch.title }}</h2>
+      <p>{{ ch.description[:240] }}{% if ch.description|length > 240 %}…{% endif %}</p>
+      <p><small>Metric: <b>{{ ch.metric|upper }}</b> · Prize: {{ "%.0f"|format(ch.prize_coins) }} coins</small></p>
+      <a class="btn" href="{{ url_for('game.challenge_detail', slug=ch.slug) }}">Open</a>
+    </div>
+  {% else %}
+    <p>No challenges yet.</p>
+  {% endfor %}
+</body>
+</html>

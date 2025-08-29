@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Play — {{ ch.title }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:24px;background:#0b0e11;color:#e6edf3}
+    .card{background:#11161c;border:1px solid #202a33;border-radius:14px;padding:16px;max-width:720px}
+    input,button{padding:10px;border-radius:10px;border:1px solid #202a33;background:#0e1318;color:#e6edf3}
+    button{background:#1f6feb;border:none;cursor:pointer}
+    .muted{color:#9aa7b2}
+  </style>
+</head>
+<body>
+  <h1>Submit — {{ ch.title }}</h1>
+  <p class="muted">Upload predictions CSV with columns <code>id,y_pred</code>.</p>
+
+  <div class="card">
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('game.challenge_submit', slug=ch.slug) }}">
+      <input type="file" name="predictions" accept=".csv" required />
+      <button type="submit">Submit & Score</button>
+    </form>
+    <p style="margin-top:12px">
+      Need data? <a href="{{ url_for('game.challenge_download', slug=ch.slug) }}">Download here</a>.
+    </p>
+  </div>
+</body>
+</html>

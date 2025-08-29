@@ -1,0 +1,102 @@
+<!-- templates/jobs_dashboard.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>GPU/Async Jobs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b0e11;color:#e6e6e6;margin:0;}
+    .wrap{max-width:900px;margin:40px auto;padding:20px;background:#11161c;border:1px solid #1f2937;border-radius:16px;}
+    button{background:#1f6feb;border:0;color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer}
+    input,select{padding:8px;border-radius:10px;border:1px solid #303a46;background:#0e1318;color:#e6e6e6}
+    .row{display:flex;gap:12px;align-items:center;margin:8px 0}
+    .bar{height:12px;background:#202a33;border-radius:999px;overflow:hidden}
+    .fill{height:100%;width:0%}
+    .ok{background:#10b981}
+    .warn{background:#f59e0b}
+    .bad{background:#ef4444}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h2>GPU / Async Job Demo</h2>
+
+  <div class="row">
+    <label>Prefer GPU?</label>
+    <select id="prefer_gpu">
+      <option value="1" selected>Yes</option>
+      <option value="0">No</option>
+    </select>
+    <label>GPU ID (optional)</label>
+    <input id="gpu_id" type="number" min="0" placeholder="e.g. 0"/>
+    <label>N</label><input id="n" type="number" value="5000"/>
+    <label>Steps</label><input id="steps" type="number" value="15"/>
+    <button id="go">Submit Job</button>
+  </div>
+
+  <div id="status"></div>
+  <div class="bar"><div id="fill" class="fill ok"></div></div>
+  <pre id="log" style="background:#0e1318;padding:12px;border-radius:10px;margin-top:12px;max-height:300px;overflow:auto;"></pre>
+</div>
+
+<script>
+const socket = io({transports:["websocket"], upgrade:false});
+
+function log(msg){ const el = document.getElementById("log"); el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight; }
+function setProgress(p){
+  const f = document.getElementById("fill");
+  f.style.width = (p|0) + "%";
+}
+
+async function submitJob(){
+  const prefer_gpu = document.getElementById("prefer_gpu").value === "1";
+  const gpu_id_val = document.getElementById("gpu_id").value;
+  const gpu_id = gpu_id_val === "" ? null : parseInt(gpu_id_val);
+  const n = parseInt(document.getElementById("n").value);
+  const steps = parseInt(document.getElementById("steps").value);
+
+  const res = await fetch("/jobs/api/create", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      task: "gpu.heavy",
+      prefer_gpu,
+      gpu_id,
+      payload: { n, steps },
+      // you can set notify_channel to join a user room elsewhere
+    })
+  });
+
+  const j = await res.json();
+  if(res.status !== 202){ log("Error: " + (j.error || res.status)); return; }
+
+  document.getElementById("status").textContent =
+    `Job ${j.job_id} queued on ${j.queue} (gpu_id=${j.gpu_id ?? "n/a"})`;
+  log("Queued job_id="+j.job_id+" celery_id="+j.celery_id);
+
+  // join this job's room to receive progress
+  socket.emit("join_job", { job_id: j.job_id });
+
+  socket.on("job_progress", (data)=>{
+    if(data.job_id !== j.job_id) return;
+    setProgress(data.progress);
+    log(`[progress] ${data.progress.toFixed(1)}%`);
+  });
+
+  socket.on("job_done", (data)=>{
+    if(data.job_id !== j.job_id) return;
+    setProgress(100);
+    if(data.status === "succeeded"){
+      log("[done] result: " + JSON.stringify(data.result, null, 2));
+    } else {
+      log("[failed] " + data.error);
+    }
+  });
+}
+
+document.getElementById("go").addEventListener("click", submitJob);
+</script>
+</body>
+</html>

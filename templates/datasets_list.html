@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Datasets</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    :root{
+      --bg:#f7f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;
+      --brand:#1f6feb;--brand-2:#155ab6;--good:#10b981;--warn:#f59e0b;--chip:#eef2ff;--chip-text:#3730a3;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b0e14;--card:#0f131a;--text:#e6e6e6;--muted:#a3a3a3;--border:#1f2430;
+        --brand:#6ea8ff;--brand-2:#4f86db;--good:#34d399;--warn:#fbbf24;--chip:#1b2130;--chip-text:#a5b4fc;
+      }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif}
+    .wrap{max-width:1100px;margin:2rem auto;padding:0 1rem}
+    header{display:flex;gap:.75rem;align-items:center;justify-content:space-between;margin-bottom:1rem}
+    h1{font-size:1.6rem;margin:0}
+    .btn{appearance:none;border:1px solid var(--border);background:var(--brand);color:#fff;padding:.6rem .9rem;border-radius:10px;
+      text-decoration:none;font-weight:600;display:inline-flex;gap:.5rem;align-items:center}
+    .btn:hover{background:var(--brand-2)}
+    .btn.secondary{background:transparent;color:var(--text)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06)}
+    form.filters{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.75rem;display:grid;gap:.5rem;margin:1rem 0}
+    @media (min-width:860px){form.filters{grid-template-columns:1.2fr 1fr .9fr .9fr .9fr .9fr auto}}
+    input,select{width:100%;padding:.55rem .7rem;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text)}
+    input::placeholder{color:var(--muted)}
+    .grid{display:grid;gap:1rem}
+    @media (min-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (min-width:1080px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .item{padding:1rem;display:flex;flex-direction:column;gap:.6rem}
+    .title{font-size:1.05rem;margin:0;line-height:1.3}
+    .desc{color:var(--muted);font-size:.95rem;margin:0}
+    .meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+    .badge{font-size:.8rem;padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border)}
+    .badge.price{border-color:transparent;background:color-mix(in oklab,var(--good) 18%, transparent);font-weight:600}
+    .badge.private{background:color-mix(in oklab,var(--warn) 20%, transparent)}
+    .tags{display:flex;gap:.4rem;flex-wrap:wrap}
+    .tag{background:var(--chip);color:var(--chip-text);padding:.25rem .5rem;border-radius:999px;font-size:.8rem;text-decoration:none}
+    .tag:focus,.tag:hover{outline:2px solid color-mix(in oklab,var(--brand) 30%, transparent)}
+    .actions{display:flex;justify-content:space-between;align-items:center;margin-top:.5rem}
+    .link{color:var(--brand);text-decoration:none}
+    .link:hover{text-decoration:underline}
+    .empty{padding:2rem;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:12px;background:var(--card)}
+    .preview{margin-top:.5rem;border:1px solid var(--border);border-radius:10px;overflow:hidden;display:none}
+    table{width:100%;border-collapse:collapse;font-size:.9rem}
+    th,td{border-bottom:1px solid var(--border);padding:.45rem .5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    th{background:color-mix(in oklab,var(--card) 92%, black);text-align:left}
+    .right{margin-left:auto}
+    .vis-pill{font-size:.75rem;padding:.15rem .45rem;border-radius:8px;border:1px solid var(--border)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Datasets</h1>
+      <a href="{{ url_for('datasets.dataset_new') }}" class="btn">＋ New</a>
+    </header>
+
+    <!-- Filters -->
+    <form method="get" class="filters" id="filterForm">
+      <input type="text" name="q" value="{{ q }}" placeholder="Search title/description…"/>
+      <input type="text" name="tag" value="{{ tag }}" placeholder="Tag…"/>
+      <select name="visibility">
+        <option value="" selected>Any visibility</option>
+        <option value="public"  {% if request.args.get('visibility')=='public' %}selected{% endif %}>Public</option>
+        <option value="private" {% if request.args.get('visibility')=='private' %}selected{% endif %}>Private</option>
+      </select>
+      <input type="number" name="min_price" min="0" step="1" value="{{ request.args.get('min_price','') }}" placeholder="Min ¢">
+      <input type="number" name="max_price" min="0" step="1" value="{{ request.args.get('max_price','') }}" placeholder="Max ¢">
+      <select name="sort">
+        {# server can optionally read this; otherwise it’s harmless #}
+        <option value="" selected>Sort: Default</option>
+        <option value="price_asc"  {% if request.args.get('sort')=='price_asc' %}selected{% endif %}>Price ↑</option>
+        <option value="price_desc" {% if request.args.get('sort')=='price_desc' %}selected{% endif %}>Price ↓</option>
+        <option value="title_asc"  {% if request.args.get('sort')=='title_asc' %}selected{% endif %}>Title A→Z</option>
+        <option value="title_desc" {% if request.args.get('sort')=='title_desc' %}selected{% endif %}>Title Z→A</option>
+      </select>
+      <button class="btn secondary" style="padding:.55rem .9rem">Search</button>
+    </form>
+
+    {% if items|length == 0 %}
+      <div class="empty">
+        <p>No results found.</p>
+        <p><a class="btn" href="{{ url_for('datasets.dataset_new') }}">Create your first dataset</a></p>
+      </div>
+    {% else %}
+      <div class="grid" id="grid">
+        {% for d in items %}
+          <article class="card item" data-title="{{ d.title|e }}" data-price="{{ (d.price_cents or 0) }}">
+            <h3 class="title">
+              <a class="link" href="{{ url_for('datasets.dataset_detail', dataset_id=d.id) }}">
+                {{ d.title }}
+              </a>
+            </h3>
+
+            <p class="desc">
+              {{ (d.description or '')|truncate(180, True, '…') }}
+            </p>
+
+            <div class="meta">
+              <span class="badge price">${{ ((d.price_cents or 0)/100)|round(2) }}</span>
+              <span class="vis-pill">
+                {% if d.visibility == 'private' %}🔒 Private{% else %}🌍 Public{% endif %}
+              </span>
+              <span class="right" style="color:var(--muted);font-size:.85rem;">
+                {{ d.uploaded_at.strftime('%Y-%m-%d') if d.uploaded_at else '' }}
+              </span>
+            </div>
+
+            <div class="tags">
+              {% for t in d.tag_list() %}
+                <a class="tag" href="{{ url_for('datasets.dataset_index', tag=t, q=q) }}" title="Filter by {{ t }}">{{ t }}</a>
+              {% endfor %}
+            </div>
+
+            {% if d.preview %}
+              <details class="preview">
+                <summary style="cursor:pointer;padding:.5rem .6rem">👀 Quick preview</summary>
+                <div style="max-height:220px;overflow:auto;padding:.25rem .5rem">
+                  <pre style="margin:0;color:var(--muted);font-size:.85rem">{{ d.preview }}</pre>
+                </div>
+              </details>
+            {% endif %}
+
+            <div class="actions">
+              <a class="link" href="{{ url_for('datasets.dataset_detail', dataset_id=d.id) }}">Open →</a>
+              {% if d.download_url %}
+                <a class="btn secondary" href="{{ d.download_url }}">Download</a>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    // Optional client-side sorting fallback if server ignores ?sort=
+    (function(){
+      const params = new URLSearchParams(location.search);
+      const sort = params.get('sort');
+      if(!sort) return;
+
+      const grid = document.getElementById('grid');
+      if(!grid) return;
+
+      const items = Array.from(grid.children);
+      const byTitle = (a,b)=> a.dataset.title.localeCompare(b.dataset.title, undefined, {sensitivity:'base'});
+      const byPrice = (a,b)=> (parseInt(a.dataset.price||'0',10) - parseInt(b.dataset.price||'0',10));
+
+      let cmp = null;
+      if(sort==='title_asc') cmp = byTitle;
+      if(sort==='title_desc') cmp = (a,b)=> byTitle(b,a);
+      if(sort==='price_asc') cmp = byPrice;
+      if(sort==='price_desc') cmp = (a,b)=> byPrice(b,a);
+
+      if(cmp){
+        items.sort(cmp).forEach(el=>grid.appendChild(el));
+      }
+    })();
+
+    // Auto-submit on select changes for snappier filtering
+    document.querySelectorAll('select[name="visibility"], select[name="sort"]').forEach(sel=>{
+      sel.addEventListener('change', ()=> sel.form.submit());
+    });
+  </script>
+</body>
+</html>

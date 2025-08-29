@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Untitled — Collaborative</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg:#0b0e11; --panel:#12161c; --muted:#9aa0a6; --line:#1f242c;
+      --btn:#1f6feb; --btn2:#2a2f36; --text:#e6e6e6; --ok:#2ecc71; --err:#ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; background:var(--bg); color:var(--text); }
+    header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); position:sticky; top:0;
+             background:rgba(11,14,17,.9); backdrop-filter: blur(6px); z-index:5; }
+    .title { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .muted { color:var(--muted); }
+    .spacer { flex:1; }
+    button { background:var(--btn); color:#fff; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; }
+    button.secondary { background:var(--btn2); }
+    button.ghost { background:transparent; border:1px solid var(--line); color:var(--muted); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .wrap { max-width: 1000px; margin: 20px auto; padding: 0 16px; }
+    .tips { margin: 0 0 8px; }
+    .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; background:var(--err); vertical-align:middle; }
+    .status-dot.ok { background:var(--ok); }
+
+    .cell { background:var(--panel); border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden; }
+    .cell-head { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); }
+    .cell-type { min-width:120px; }
+    .editor {
+      width:100%; min-height:150px; padding:12px; border:0; resize:vertical; outline:none;
+      background:#0b0e11; color:var(--text);
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      caret-color:#4cd964;
+    }
+    .editor[readonly] { background:#0e1116; color:#c9c9c9; caret-color: transparent; }
+    .md-preview { padding:12px; border-top:1px dashed #333; }
+    .output { background:#0b0e11; border-top:1px dashed #333; padding:10px 12px;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:2px 6px; border:1px solid #444; border-radius:6px; background:#0b0e11; color:#cfcfcf; }
+
+    dialog { border:none; border-radius:12px; padding:16px; background:#0f141a; color:var(--text); width:560px; }
+    dialog input, dialog select { background:#0c1116; color:var(--text); border:1px solid #333; border-radius:8px; padding:6px 8px; }
+    dialog .row { margin:8px 0; }
+    ul { padding-left:18px; }
+
+    /* New CSS for the remote cursor */
+    .remote-cursor {
+      position: absolute;
+      width: 2px;
+      height: 1.5em; /* Matches the line height of the editor */
+      background: var(--btn); /* Use a distinct, friendly color */
+      pointer-events: none;
+      z-index: 10;
+      animation: pulse 1s infinite alternate; /* Small animation to make it more noticeable */
+    }
+
+    /* Animation for the cursor */
+    @keyframes pulse {
+      from { opacity: 1; }
+      to { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <!-- API endpoints: un-prefixed (registered on app) -->
+  <script>
+    // Hardcoded values for a self-contained example
+    const NOTEBOOK_ID = 1; // Arbitrary ID for testing
+    const API = {
+      COLLABORATORS: "/list_collaborators/1",
+      ADD_COLLAB: "/add_collaborator/1",
+      DEL_COLLAB_BASE: "/remove_collaborator/1/",
+      INVITE: "/create_invite_link/1",
+      STATE: "/api_get_state/1",
+      SAVE: "/api_save/1",
+      EXEC: "/exec_cell_rest/1",
+      OPEN: "/display_collab_editor/1",
+    };
+  </script>
+
+  <header>
+    <div class="title">Untitled Collaborative Notebook</div>
+    <span class="muted">#1 • role: editor</span>
+    <div class="spacer"></div>
+
+    <div class="row muted">
+      <span id="ws-dot" class="status-dot"></span><span id="ws-label">offline</span>
+    </div>
+
+    <button id="run-all" class="ghost">Run All</button>
+    <button id="save">Save</button>
+    <button id="share" class="secondary">Share</button>
+  </header>
+
+  <div class="wrap">
+    <p class="tips muted">
+      Tips: <span class="kbd">Shift</span>+<span class="kbd">Enter</span> new cell •
+      <span class="kbd">Ctrl/Cmd</span>+<span class="kbd">Enter</span> run cell •
+      Owner can open <em>Share</em> to add users or create an invite link.
+      <span id="save-status" class="muted" style="float:right;">idle</span>
+    </p>
+
+    <div class="row" style="margin:4px 0 12px;">
+      <button id="add-code" class="ghost">+ Code</button>
+      <button id="add-md"   class="ghost">+ Markdown</button>
+    </div>
+
+    <div id="cells"></div>
+  </div>
+
+  <!-- Share dialog -->
+  <dialog id="shareDlg">
+    <h3>Share notebook</h3>
+    <div class="row">
+      <input id="shareUser" placeholder="username or email" style="flex:1" type="text" autocomplete="off">
+      <select id="shareRole">
+        <option value="viewer">viewer</option>
+        <option value="editor">editor</option>
+      </select>
+      <button id="shareAdd">Add</button>
+    </div>
+    <div class="row">
+      <select id="inviteRole">
+        <option value="viewer">viewer</option>
+        <option value="editor">editor</option>
+      </select>
+      <input id="inviteTTL" type="number" min="1" value="120" style="width:120px" />
+      <button id="makeInvite">Create invite link</button>
+    </div>
+    <div class="row">
+      <input id="inviteLink" readonly style="flex:1">
+      <button id="copyInvite">Copy</button>
+    </div>
+    <div>
+      <h4>Collaborators</h4>
+      <ul id="collabList" class="muted">Loading…</ul>
+    </div>
+    <div class="row" style="justify-content:flex-end; margin-top:12px;">
+      <button class="secondary" id="closeShare">Close</button>
+    </div>
+  </dialog>
+
+  <script>
+    // ===== Server context =====
+    // These values are hardcoded for the self-contained example
+    const USERNAME     = "guest";
+    const USER_ROLE    = "editor";
+    let   VERSION      = 0;
+    let   CELLS        = [];
+
+    // ===== Socket status =====
+    const socket  = io({ transports: ["websocket","polling"] });
+    const wsDot   = document.getElementById("ws-dot");
+    const wsLabel = document.getElementById("ws-label");
+    function setWsStatus(ok){ wsDot.classList.toggle("ok", !!ok); wsLabel.textContent = ok ? "online" : "offline"; }
+    setWsStatus(false);
+    socket.on("connect", () => {
+      setWsStatus(true);
+      if (NOTEBOOK_ID != null) {
+        socket.emit("join_notebook", { notebook_id: NOTEBOOK_ID, username: USERNAME });
+      }
+    });
+    socket.on("disconnect", () => setWsStatus(false));
+  </script>
+
+  <script>
+    // ===== Markdown helper =====
+    function safeMarkdown(src){
+      if (typeof marked === "undefined" || typeof DOMPurify === "undefined") return (src || "");
+      const html = marked.parse(src || "", { mangle:false, headerIds:false });
+      return DOMPurify.sanitize(html);
+    }
+
+    // ===== DOM helpers =====
+    const cellsEl = document.getElementById("cells");
+    const isViewer = (USER_ROLE === "viewer");
+    
+    // A mapping of users to their cursor elements
+    const remoteCursors = {};
+
+    function getCellNode(i){ return cellsEl.querySelector(`.cell[data-index="${i}"]`); }
+    function getEditor(i){    return cellsEl.querySelector(`.editor[data-index="${i}"]`); }
+    function getMd(i){        return cellsEl.querySelector(`.md-preview[data-index="${i}"]`); }
+    function getOut(i){       return cellsEl.querySelector(`.output[data-index="${i}"]`); }
+    function getEditorValue(i){ const ed = getEditor(i); return ed ? ed.value : (CELLS[i]?.content || ""); }
+
+    function setEditorValuePreserveCaret(ed, newValue) {
+      if (!ed) return;
+      const focused = (document.activeElement === ed);
+      if (focused) {
+        const s = ed.selectionStart, e = ed.selectionEnd;
+        ed.value = newValue;
+        ed.setSelectionRange(s, e);
+      } else {
+        ed.value = newValue;
+      }
+    }
+
+    function applyCellType(i, t){
+      CELLS[i].type = t;
+      const md = getMd(i), out = getOut(i);
+      const txt = getEditorValue(i);
+      if (md && out) {
+        md.style.display = (t === "markdown") ? "block" : "none";
+        out.style.display = (t === "markdown") ? "none"  : "block";
+        if (t === "markdown") md.innerHTML = safeMarkdown(txt);
+      }
+    }
+
+    function updateMdPreview(i){
+      const c = CELLS[i];
+      if (!c || (c.type || "code") !== "markdown") return;
+      const md = getMd(i);
+      if (md) md.innerHTML = safeMarkdown(c.content || "");
+    }
+
+    function addCellAfter(i, type="code"){
+      if (NOTEBOOK_ID == null) return;
+      socket.emit("add_cell", { notebook_id: NOTEBOOK_ID, after: i, type });
+    }
+
+    function buildCellNode(cell, i){
+      const wrap = document.createElement("div");
+      wrap.className = "cell"; wrap.dataset.index = i;
+
+      const head = document.createElement("div");
+      head.className = "cell-head";
+
+      const sel = document.createElement("select");
+      sel.className = "cell-type";
+      ["code","markdown"].forEach(t=>{
+        const op = document.createElement("option");
+        op.value = t; op.textContent = t;
+        if ((cell.type || "code") === t) op.selected = true;
+        sel.appendChild(op);
+      });
+      sel.disabled = isViewer;
+      sel.onchange = () => applyCellType(i, sel.value);
+
+      const run = document.createElement("button");
+      run.textContent = "Run";
+      run.className = "secondary";
+      run.disabled = isViewer || (cell.type || "code") !== "code";
+      run.onclick = async () => {
+        const out = getOut(i); if (out) out.textContent = "⏳ Running…";
+        const code = getEditorValue(i);
+        try{
+          const r = await fetch(API.EXEC, {
+            method:"POST", headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ code })
+          });
+          const j = await r.json();
+          out.textContent = (j && j.ok) ? (j.output || "—") : "❌ Exec failed";
+        }catch(e){ out.textContent = "❌ " + String(e); }
+      };
+
+      const del = document.createElement("button");
+      del.textContent = "Delete";
+      del.className = "ghost";
+      del.disabled = isViewer;
+      del.onclick = () => {
+        if (NOTEBOOK_ID == null) return;
+        socket.emit("delete_cell", { notebook_id: NOTEBOOK_ID, index: i });
+      };
+
+      head.appendChild(sel); head.appendChild(run); head.appendChild(del);
+
+      const ed = document.createElement("textarea");
+      ed.className = "editor";
+      ed.dataset.index = i;
+      ed.readOnly = isViewer;
+      ed.value = cell.content || "";
+
+      // IME-safe input debounce
+      let composing = false;
+      const syncNow = () => {
+        if (!CELLS[i]) return;
+        const content = ed.value;
+        CELLS[i].content = content;
+        if (!composing && NOTEBOOK_ID != null) {
+          socket.emit("cell_update", { notebook_id: NOTEBOOK_ID, index: i, content, version: VERSION, username: USERNAME });
+        }
+        updateMdPreview(i);
+      };
+      const debouncedSync = debounce(syncNow, 120);
+      ed.addEventListener("compositionstart", () => composing = true);
+      ed.addEventListener("compositionend",   () => { composing = false; debouncedSync(); });
+      ed.addEventListener("input", debouncedSync);
+
+      // --- NEW: Send cursor position to the server ---
+      const sendCursor = debounce(() => {
+        if (NOTEBOOK_ID != null && document.activeElement === ed) {
+          socket.emit("cursor", {
+            notebook_id: NOTEBOOK_ID,
+            index: i,
+            pos: ed.selectionStart,
+            username: USERNAME
+          });
+        }
+      }, 50); // Small debounce to not flood the server
+
+      ed.addEventListener("keyup", sendCursor);
+      ed.addEventListener("mouseup", sendCursor);
+      // --- END NEW ---
+
+      // Hotkeys
+      ed.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run.click(); }
+        else if (e.shiftKey && e.key === "Enter") { e.preventDefault(); addCellAfter(i, (cell.type || "code")); }
+      });
+
+      const md = document.createElement("div");
+      md.className = "md-preview"; md.dataset.index = i;
+
+      const out = document.createElement("div");
+      out.className = "output"; out.dataset.index = i;
+
+      const isMd = (cell.type || "code") === "markdown";
+      md.style.display = isMd ? "block" : "none";
+      out.style.display = isMd ? "none"  : "block";
+      if (isMd) md.innerHTML = safeMarkdown(cell.content || "");
+
+      wrap.appendChild(head);
+      wrap.appendChild(ed);
+      wrap.appendChild(md);
+      wrap.appendChild(out);
+      return wrap;
+    }
+
+    function mountInitial(){
+      cellsEl.innerHTML = "";
+      (CELLS || []).forEach((cell, i) => cellsEl.appendChild(buildCellNode(cell, i)));
+    }
+
+    // ===== Socket event handlers (caret-safe) =====
+    socket.on("state_sync", ({ cells, version }) => {
+      if (!Array.isArray(cells) || typeof version !== "number") return;
+      const oldLen = CELLS.length;
+      CELLS = cells; VERSION = version;
+
+      // Remove extra nodes
+      if (cells.length < oldLen) {
+        for (let i = cells.length; i < oldLen; i++) {
+          const node = getCellNode(i);
+          if (node) node.remove();
+        }
+      }
+      // Ensure nodes & update values without disturbing caret
+      for (let i = 0; i < cells.length; i++) {
+        if (!getCellNode(i)) {
+          const built = buildCellNode(cells[i], i);
+          cellsEl.appendChild(built);
+        } else {
+          // type view
+          applyCellType(i, cells[i]?.type || "code");
+          // text for non-focused editors only
+          const ed = getEditor(i);
+          const focused = (document.activeElement === ed);
+          const newText = cells[i]?.content || "";
+          if (ed && !focused && ed.value !== newText) ed.value = newText;
+        }
+      }
+    });
+
+    socket.on("cell_applied", ({ index, content, version }) => {
+      if (!Number.isInteger(index) || index < 0) return;
+      if (typeof version === "number" && version <= VERSION) return;
+      VERSION = version;
+      // ensure exists
+      if (!getCellNode(index)) {
+        const base = CELLS[index] || {type:"code", content:""};
+        cellsEl.appendChild(buildCellNode(base, index));
+      }
+      const ed = getEditor(index);
+      if (ed) {
+        const focused = (document.activeElement === ed);
+        // If the editor is NOT focused, we apply the update.
+        // This prevents the cursor from jumping for the active user.
+        if (!focused) {
+          setEditorValuePreserveCaret(ed, content);
+        }
+      }
+      if (CELLS[index]) CELLS[index].content = content;
+      updateMdPreview(index);
+    });
+
+    socket.on("cell_inserted", ({ index, type="code", version }) => {
+      const cell = { type, content: "" };
+      index = Math.max(0, Math.min(index, CELLS.length));
+      CELLS.splice(index, 0, cell);
+      if (typeof version === "number") VERSION = version;
+      // Reindex DOM (simple rebuild for correctness)
+      mountInitial();
+    });
+
+    socket.on("cell_deleted", ({ index, version }) => {
+      if (!Number.isInteger(index) || index < 0 || index >= CELLS.length) return;
+      CELLS.splice(index, 1);
+      if (typeof version === "number") VERSION = version;
+      mountInitial();
+    });
+
+    socket.on("update_rejected", ({ version }) => {
+      fetch(API.STATE)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(st => { CELLS = st.cells || []; VERSION = st.version || 0; mountInitial(); })
+        .catch(() => console.warn("Failed to refresh state"));
+    });
+    
+    // --- NEW: Handle incoming remote cursor updates ---
+    socket.on("cursor", ({ index, pos, user }) => {
+      // Don't show our own cursor
+      if (user === USERNAME) return;
+
+      // Remove the old cursor for this user if it exists
+      if (remoteCursors[user]) {
+        remoteCursors[user].remove();
+      }
+
+      // Find the correct editor element
+      const editor = getEditor(index);
+      if (!editor) return;
+      
+      // We create a temporary element to measure the text up to the cursor position.
+      // This is the most reliable way to calculate the x/y coordinates of the cursor
+      // accounting for line breaks, font size, etc.
+      const tempDiv = document.createElement("div");
+      tempDiv.style.cssText = `
+        position: absolute;
+        visibility: hidden;
+        white-space: pre-wrap;
+        padding: 12px; /* Must match editor padding */
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; /* Must match editor font */
+        left: ${editor.offsetLeft}px;
+        top: ${editor.offsetTop}px;
+      `;
+      tempDiv.textContent = editor.value.substring(0, pos);
+      document.body.appendChild(tempDiv);
+      
+      // Create the new cursor element
+      const cursor = document.createElement("div");
+      cursor.className = "remote-cursor";
+
+      // Position the cursor based on the measured div's dimensions
+      cursor.style.left = `${tempDiv.offsetWidth + editor.offsetLeft}px`;
+      cursor.style.top = `${tempDiv.offsetHeight + editor.offsetTop - editor.scrollTop}px`;
+      
+      // Append the cursor and clean up the temporary div
+      editor.parentNode.appendChild(cursor);
+      remoteCursors[user] = cursor;
+      tempDiv.remove();
+    });
+    // --- END NEW ---
+
+    // ===== Toolbar actions =====
+    document.getElementById("add-code").onclick = () => addCellAfter(CELLS.length - 1, "code");
+    document.getElementById("add-md").onclick   = () => addCellAfter(CELLS.length - 1, "markdown");
+
+    document.getElementById("save").onclick = async () => {
+      const el = document.getElementById("save-status");
+      el.textContent = "saving…";
+      try{
+        const r = await fetch(API.SAVE, { method:"POST" });
+        const j = await r.json();
+        el.textContent = (j && j.ok) ? `saved v${j.version}` : "save failed";
+      }catch{ el.textContent = "save failed"; }
+    };
+
+    document.getElementById("run-all").onclick = async () => {
+      for (let i=0;i<CELLS.length;i++){
+        const c = CELLS[i]; if (!c || (c.type||"code")!=="code") continue;
+        const out = getOut(i); if (out) out.textContent = "⏳ Running…";
+        try{
+          const r = await fetch(API.EXEC, {
+            method:"POST", headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ code: getEditorValue(i) })
+          });
+          const j = await r.json();
+          if (out) out.textContent = (j && j.ok) ? (j.output || "—") : "❌ Exec failed";
+        }catch(e){ if (out) out.textContent = "❌ " + String(e); }
+      }
+    };
+
+    // Disable actions if this template is accidentally rendered without an ID
+    if (NOTEBOOK_ID == null) {
+      document.getElementById("save").setAttribute("disabled","disabled");
+      document.getElementById("run-all").setAttribute("disabled","disabled");
+      document.getElementById("share").setAttribute("disabled","disabled");
+    }
+
+    // Save on unload (best effort)
+    window.addEventListener("beforeunload", () => {
+      if (NOTEBOOK_ID == null) return;
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify({})], { type: "application/json" });
+        navigator.sendBeacon(API.SAVE, blob);
+      }
+    });
+
+    // ===== Share dialog =====
+    const shareDlg = document.getElementById("shareDlg");
+    document.getElementById("share").onclick = () => {
+      if (NOTEBOOK_ID == null) return;
+      if (USER_ROLE !== "owner") { alert("Only owner can manage sharing"); return; }
+      loadCollaborators(); shareDlg.showModal();
+    };
+    document.getElementById("closeShare").onclick = () => shareDlg.close();
+
+    async function loadCollaborators(){
+      const list = document.getElementById("collabList");
+      list.textContent = "Loading…";
+      try{
+        const r = await fetch(API.COLLABORATORS);
+        const j = await r.json();
+        list.innerHTML = "";
+        (j.collaborators || []).forEach(c => {
+          const li = document.createElement("li");
+          li.textContent = `${c.username} — ${c.role} `;
+          const del = document.createElement("button");
+          del.className = "ghost"; del.textContent = "remove";
+          del.onclick = async () => {
+            await fetch(API.DEL_COLLAB_BASE + encodeURIComponent(c.user_id), { method:"DELETE" });
+            loadCollaborators();
+          };
+          li.appendChild(del);
+          list.appendChild(li);
+        });
+      }catch{ list.textContent = "Failed to load collaborators"; }
+    }
+
+    document.getElementById("shareAdd").onclick = async () => {
+      if (NOTEBOOK_ID == null) return;
+      const user = document.getElementById("shareUser").value.trim();
+      const role = document.getElementById("shareRole").value;
+      if (!user) return;
+      await fetch(API.ADD_COLLAB, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user, role }) });
+      document.getElementById("shareUser").value = "";
+      loadCollaborators();
+    };
+
+    document.getElementById("makeInvite").onclick = async () => {
+      if (NOTEBOOK_ID == null) return;
+      const role = document.getElementById("inviteRole").value;
+      const ttl  = Math.max(1, parseInt(document.getElementById("inviteTTL").value || "120", 10));
+      try{
+        const r = await fetch(API.INVITE, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role, ttl_minutes: ttl }) });
+        const j = await r.json();
+        if (j.ok && j.link) document.getElementById("inviteLink").value = j.link;
+      }catch{}
+    };
+
+    document.getElementById("copyInvite").onclick = async () => {
+      const link = document.getElementById("inviteLink").value;
+      if (link) await navigator.clipboard.writeText(link);
+    };
+
+    // ===== Utils =====
+    function debounce(fn, ms){
+      let t, raf;
+      return (...a)=>{
+        clearTimeout(t);
+        t = setTimeout(()=>{
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(()=>fn(...a));
+        }, ms);
+      };
+    }
+
+    // ===== Start =====
+    // If the editor is rendered for an existing notebook, mount cells. Otherwise, render an empty one for UX.
+    if (!Array.isArray(CELLS)) CELLS = [];
+    if (CELLS.length === 0) CELLS = [{ type:"code", content:"" }];
+    mountInitial();
+  </script>
+</body>
+</html>

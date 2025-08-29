@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+  <title>My Documents</title>
+</head>
+<body>
+  <h1>📄 My LaTeX/Markdown Documents</h1>
+  <ul>
+    {% for d in docs %}
+      <li>
+        <strong>{{ d.title }}</strong> ({{ d.file_type }})  
+        <a href="{{ url_for('docs.view', doc_id=d.id) }}">View</a>
+      </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
